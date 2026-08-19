@@ -162,7 +162,16 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         content: trimmed,
         createdAt: Date.now(),
       };
-      const base = sessionMessages.length ? sessionMessages : [];
+      const base = sessionMessages.length
+        ? sessionMessages
+        : [
+            {
+              id: "greeting",
+              role: "lia" as const,
+              content: GREETING,
+              createdAt: Date.now(),
+            },
+          ];
       const withUser = [...base, userMsg];
       setSessionMessages(withUser);
       setSending(true);
