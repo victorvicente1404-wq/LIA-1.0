@@ -77,11 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Lia — Assistente pessoal de IA portátil" },
+      {
+        name: "description",
+        content:
+          "Lia: assistente pessoal de IA feminina, modular e portátil, com memória e personalidade no Lia Card.",
+      },
+      { name: "author", content: "Lia" },
+      { property: "og:title", content: "Lia — Assistente pessoal de IA portátil" },
+      {
+        property: "og:description",
+        content: "IA pessoal com voz, visão, memória persistente e identidade portátil.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
