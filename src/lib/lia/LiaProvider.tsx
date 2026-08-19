@@ -67,7 +67,7 @@ interface LiaContextValue {
 
 const LiaContext = createContext<LiaContextValue | null>(null);
 
-const fallbackProfile: Profile = defaultProfiles[0];
+const fallbackProfile = defaultProfiles[0] as Profile;
 
 export function LiaProvider({ children }: { children: ReactNode }) {
   const [booted, setBooted] = useState(false);
