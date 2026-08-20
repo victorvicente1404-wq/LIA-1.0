@@ -10,7 +10,7 @@ import { useVoice } from "@/lib/lia/useVoice";
 
 export function LiaWorkspace() {
   const lia = useLia();
-  const { messages, send, cardConnected, profile, modules, setState } = lia;
+  const { messages, send, cardConnected, profile, modules, setState, sending } = lia;
   const perceptionRef = useRef<HTMLDivElement>(null);
   const [spokenId, setSpokenId] = useState<string | null>(null);
 
@@ -29,13 +29,20 @@ export function LiaWorkspace() {
   useEffect(() => {
     if (!last || last.role !== "lia" || last.id === spokenId) return;
     setSpokenId(last.id);
-    if (voiceModuleOn && last.id !== "greeting") voice.speak(last.content);
-  }, [last, spokenId, voiceModuleOn, voice]);
+    if (voiceModuleOn && last.id !== "greeting")
+      voice.speak(last.content, { velocidade: profile.voz.velocidade, tom: profile.voz.tom });
+  }, [last, spokenId, voiceModuleOn, voice, profile.voz]);
+
+  // Terminou de processar: o microfone volta a escutar.
+  useEffect(() => {
+    if (!sending) voice.resumeAfterResponse();
+  }, [sending, voice]);
 
   useEffect(() => {
-    if (voice.listening) setState("listening");
+    if (voice.hearing) setState("listening");
     else if (voice.speaking) setState("speaking");
-  }, [voice.listening, voice.speaking, setState]);
+    else if (sending) setState("thinking");
+  }, [voice.hearing, voice.speaking, sending, setState]);
 
   if (!lia.booted) {
     return (
@@ -81,13 +88,15 @@ export function LiaWorkspace() {
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div ref={perceptionRef} className="lg:contents">
-          <PerceptionPanel listening={voice.listening} speaking={voice.speaking} />
+          <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} />
         </div>
         <ChatPanel
-          listening={voice.listening}
+          listening={voice.hearing}
+          micOn={voice.micOn}
+          micState={voice.micState}
           speaking={voice.speaking}
           micSupported={voice.supported.mic}
-          onMic={() => (voice.listening ? voice.stopListening() : voice.startListening())}
+          onMic={() => (voice.micOn ? voice.stopListening() : voice.startListening())}
           onStopSpeech={voice.shutUp}
           onCameraFocus={() =>
             perceptionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })

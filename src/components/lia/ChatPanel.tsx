@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 
 export function ChatPanel({
   listening,
+  micOn,
+  micState,
   speaking,
   onMic,
   onStopSpeech,
@@ -15,6 +17,8 @@ export function ChatPanel({
   onCameraFocus,
 }: {
   listening: boolean;
+  micOn: boolean;
+  micState: "off" | "active" | "hearing" | "processing";
   speaking: boolean;
   onMic: () => void;
   onStopSpeech: () => void;
