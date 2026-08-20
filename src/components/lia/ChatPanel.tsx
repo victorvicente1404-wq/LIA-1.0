@@ -52,7 +52,18 @@ export function ChatPanel({
             </p>
           </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
+          <span className="mr-1 hidden rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground sm:inline">
+            {micState === "off"
+              ? "microfone desligado"
+              : micState === "hearing"
+                ? "ouvindo"
+                : micState === "processing"
+                  ? "processando"
+                  : speaking
+                    ? "lia falando"
+                    : "microfone ativo"}
+          </span>
           {speaking && (
             <Button size="sm" variant="secondary" onClick={onStopSpeech}>
               <Volume2 className="mr-1.5 h-3.5 w-3.5" /> Interromper fala
