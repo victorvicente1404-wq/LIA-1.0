@@ -133,5 +133,5 @@ export const createCardData = (cardName = "Lia Card"): LiaCardData => ({
   activeProfileId: "pessoal",
   modules: defaultModules,
   history: [],
-  settings: { aiExterna: true, camera: false, microfone: false, animacoes: true },
+  settings: { aiExterna: true, camera: false, microfone: false, animacoes: true, memoriaLocal: null },
 });

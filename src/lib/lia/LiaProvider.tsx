@@ -16,6 +16,8 @@ import * as card from "./card-storage";
 import { defaultModules, defaultProfiles, uid } from "./defaults";
 import { buildSystemPrompt, extractMemories } from "./prompt";
 import { liaRespond } from "./chat.functions";
+import { describeVision, visionSource } from "./vision";
+import * as memoryStore from "./memory-store";
 import type {
   ChatMessage,
   LiaCardData,
@@ -96,6 +98,11 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     (next: LiaCardData) => {
       setData(next);
       if (cardConnected) card.writeCard(next);
+      if (next.settings.memoriaLocal) {
+        void memoryStore.writeMemories(next).catch(() => {
+          /* local indisponível — a UI de Configurações informa o usuário */
+        });
+      }
     },
     [cardConnected],
   );
@@ -111,6 +118,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     camera: false,
     microfone: false,
     animacoes: true,
+    memoriaLocal: null,
   };
 
   const messages = useMemo(
@@ -180,14 +188,28 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const token = { cancelled: false };
       abortRef.current = token;
 
-      const system = buildSystemPrompt({ user, profile, personality, memory, cardConnected });
+      const visionModuleOn = modules.find((m) => m.id === "visao")?.ativo ?? false;
+      const obs = visionSource.get();
+      const frame = visionModuleOn ? (visionSource.captureNow()?.dataUrl ?? null) : null;
+      const system = buildSystemPrompt({
+        user,
+        profile,
+        personality,
+        memory,
+        cardConnected,
+        vision: describeVision(visionSource.get(), visionModuleOn),
+        memoriaLocal: data?.settings.memoriaLocal ?? null,
+      });
+      void obs;
       const history = withUser.slice(-16).map((m) => ({
         role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
         content: m.content,
       }));
 
       try {
-        const res = await liaRespond({ data: { system, messages: history } });
+        const res = await liaRespond({
+          data: { system, messages: history, ...(frame ? { frame } : {}) },
+        });
         if (token.cancelled) return;
         const { clean, learned } = extractMemories(res.text);
         const liaMsg: ChatMessage = {
@@ -232,7 +254,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         if (!token.cancelled) setSending(false);
       }
     },
-    [sending, sessionMessages, stop, user, profile, personality, memory, cardConnected, data, persist],
+    [sending, sessionMessages, stop, user, profile, personality, memory, cardConnected, data, persist, modules],
   );
 
   const value: LiaContextValue = {
