@@ -84,5 +84,7 @@ export interface LiaCardData {
     camera: boolean;
     microfone: boolean;
     animacoes: boolean;
+    /** Pasta escolhida pelo usuário para gravar as memórias (nome exibido). */
+    memoriaLocal?: string | null;
   };
 }

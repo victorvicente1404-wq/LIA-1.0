@@ -3,6 +3,7 @@ import {
   Blocks,
   Brain,
   Cpu,
+  FolderOpen,
   Settings2,
   ShieldCheck,
   Sparkle,
@@ -18,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LiaCardPanel } from "./LiaCardPanel";
 import { useLia } from "@/lib/lia/LiaProvider";
+import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
 import type { Personality } from "@/lib/lia/types";
 
@@ -349,6 +351,7 @@ function SettingsSection() {
           checked={settings.animacoes}
           onChange={(v) => updateSettings({ animacoes: v })}
         />
+        <MemoryLocation />
         <div className="rounded-md border border-border bg-surface/60 p-3 text-xs text-muted-foreground">
           Voz do perfil {profile.nome}: velocidade {profile.voz.velocidade}x · tom{" "}
           {profile.voz.tom}
@@ -357,6 +360,79 @@ function SettingsSection() {
     </div>
   );
 }
+
+/** Local das Memórias — pasta real escolhida pelo usuário. */
+function MemoryLocation() {
+  const { settings, updateSettings, data } = useLia();
+  const [status, setStatus] = useState<string | null>(null);
+
+  const escolher = async () => {
+    setStatus(null);
+    if (!memoryStore.supportsFolderPicker()) {
+      setStatus(
+        "Este navegador não permite escolher pastas. Use “Baixar cópia” para guardar onde quiser.",
+      );
+      return;
+    }
+    try {
+      const picked = await memoryStore.chooseFolder();
+      if (!picked) return;
+      updateSettings({ memoriaLocal: picked.name });
+      setStatus(`Local definido: ${picked.name}/${memoryStore.MEMORY_FILE}`);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") setStatus("Não consegui acessar a pasta escolhida.");
+    }
+  };
+
+  const migrar = async () => {
+    if (!data) return;
+    try {
+      await memoryStore.ensurePermission(true);
+      await memoryStore.writeMemories(data);
+      setStatus("Memórias copiadas para o novo local. Nada foi apagado do local anterior.");
+    } catch {
+      setStatus("O local escolhido está indisponível ou sem permissão.");
+    }
+  };
+
+  return (
+    <div className="space-y-2 rounded-md border border-border bg-surface/60 p-3">
+      <div className="flex items-start gap-2">
+        <FolderOpen className="mt-0.5 h-4 w-4 text-primary" />
+        <div>
+          <p className="text-sm font-medium">Local das Memórias</p>
+          <p className="text-xs text-muted-foreground">
+            Escolha onde a Lia grava as memórias. Nada é apagado ao trocar de local.
+          </p>
+        </div>
+      </div>
+      <p className="break-all rounded bg-background/70 px-2 py-1.5 font-mono text-[11px] text-glow">
+        {settings.memoriaLocal
+          ? `${settings.memoriaLocal}/${memoryStore.MEMORY_FILE}`
+          : "Lia Card (armazenamento local do navegador)"}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="secondary" onClick={escolher}>
+          {settings.memoriaLocal ? "Alterar local" : "Selecionar pasta"}
+        </Button>
+        {settings.memoriaLocal && (
+          <Button size="sm" variant="outline" onClick={migrar}>
+            Copiar memórias para lá
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => data && memoryStore.downloadMemories(data)}
+        >
+          Baixar cópia
+        </Button>
+      </div>
+      {status && <p className="text-[11px] text-muted-foreground">{status}</p>}
+    </div>
+  );
+}
+
 
 function Toggle({
   label,

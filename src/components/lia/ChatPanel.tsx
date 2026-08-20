@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 
 export function ChatPanel({
   listening,
+  micOn,
+  micState,
   speaking,
   onMic,
   onStopSpeech,
@@ -15,6 +17,8 @@ export function ChatPanel({
   onCameraFocus,
 }: {
   listening: boolean;
+  micOn: boolean;
+  micState: "off" | "active" | "hearing" | "processing";
   speaking: boolean;
   onMic: () => void;
   onStopSpeech: () => void;
@@ -48,7 +52,18 @@ export function ChatPanel({
             </p>
           </div>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
+          <span className="mr-1 hidden rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground sm:inline">
+            {micState === "off"
+              ? "microfone desligado"
+              : micState === "hearing"
+                ? "ouvindo"
+                : micState === "processing"
+                  ? "processando"
+                  : speaking
+                    ? "lia falando"
+                    : "microfone ativo"}
+          </span>
           {speaking && (
             <Button size="sm" variant="secondary" onClick={onStopSpeech}>
               <Volume2 className="mr-1.5 h-3.5 w-3.5" /> Interromper fala
@@ -111,13 +126,20 @@ export function ChatPanel({
           />
           <Button
             size="icon"
-            variant={listening ? "default" : "ghost"}
+            variant={micOn ? "default" : "ghost"}
             onClick={onMic}
-            title={micSupported ? "Falar com a Lia" : "Microfone não suportado neste navegador"}
-            className={cn(listening && "glow")}
+            title={
+              micSupported
+                ? micOn
+                  ? "Escuta contínua ativa — clique para desligar"
+                  : "Ativar escuta contínua"
+                : "Microfone não suportado neste navegador"
+            }
+            className={cn(micOn && "glow", listening && "animate-lia-pulse")}
           >
             <Mic className="h-4 w-4" />
           </Button>
+
           <Button size="icon" variant="ghost" onClick={onCameraFocus} title="Sistema de visão">
             <Camera className="h-4 w-4" />
           </Button>

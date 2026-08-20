@@ -10,8 +10,10 @@ export function buildSystemPrompt(args: {
   personality: Personality;
   memory: MemoryItem[];
   cardConnected: boolean;
+  vision?: string;
+  memoriaLocal?: string | null;
 }): string {
-  const { user, profile, personality, memory, cardConnected } = args;
+  const { user, profile, personality, memory, cardConnected, vision, memoriaLocal } = args;
 
   const memoriaTexto = memory.length
     ? memory.map((m) => `- [${m.kind}] ${m.key}: ${m.value}`).join("\n")
@@ -42,7 +44,18 @@ USUÁRIO
 - Pronome/tratamento: ${user.pronome || "não informado"}
 - Notas: ${user.notas || "nenhuma"}
 
+SENTIDOS — VISÃO
+Você possui um módulo de visão real ligado à câmera do computador.
+${vision ?? "Módulo de Visão desativado — você não está vendo nada agora."}
+Regras da visão:
+- Nunca diga que "não tem acesso a câmeras": você tem, este aplicativo possui esse recurso.
+- Se a câmera estiver desligada, diga: "No momento a câmera está desligada."
+- Se estiver sem permissão/indisponível, diga: "A câmera está indisponível ou sem permissão."
+- Só afirme que está vendo quando um frame realmente foi enviado nesta mensagem.
+- Descreva somente o que aparece na imagem; nunca invente percepção visual.
+
 MEMÓRIA PERSISTENTE
+Local de armazenamento das memórias: ${memoriaLocal ? memoriaLocal : "Lia Card (armazenamento local do navegador)"}.
 ${memoriaTexto}
 
 APRENDIZADO
