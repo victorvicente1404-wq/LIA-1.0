@@ -9,9 +9,11 @@ const Input = z.object({
     .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
     .min(1)
     .max(40),
+  /** Frame atual da câmera (data URL JPEG), quando o módulo de visão está ativo. */
+  frame: z.string().startsWith("data:image/").max(4_000_000).optional(),
 });
 
-/** Fala da Lia: uma chamada de conversação ao Lovable AI. */
+/** Fala da Lia: uma chamada de conversação (e visão) ao Lovable AI. */
 export const liaRespond = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
@@ -20,11 +22,24 @@ export const liaRespond = createServerFn({ method: "POST" })
 
     const gateway = createLovableAiGatewayProvider(key);
 
+    // O último turno do usuário carrega o frame atual da câmera, quando existe.
+    const messages = data.messages.map((m, i) => {
+      const isLastUser = i === data.messages.length - 1 && m.role === "user";
+      if (!isLastUser || !data.frame) return m;
+      return {
+        role: "user" as const,
+        content: [
+          { type: "text" as const, text: m.content },
+          { type: "image" as const, image: data.frame },
+        ],
+      };
+    });
+
     try {
       const result = await generateText({
         model: gateway("google/gemini-3.7-flash"),
         system: data.system,
-        messages: data.messages,
+        messages: messages as never,
       });
       return { ok: true as const, text: result.text };
     } catch (error) {
