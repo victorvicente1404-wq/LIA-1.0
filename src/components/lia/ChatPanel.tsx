@@ -115,13 +115,20 @@ export function ChatPanel({
           />
           <Button
             size="icon"
-            variant={listening ? "default" : "ghost"}
+            variant={micOn ? "default" : "ghost"}
             onClick={onMic}
-            title={micSupported ? "Falar com a Lia" : "Microfone não suportado neste navegador"}
-            className={cn(listening && "glow")}
+            title={
+              micSupported
+                ? micOn
+                  ? "Escuta contínua ativa — clique para desligar"
+                  : "Ativar escuta contínua"
+                : "Microfone não suportado neste navegador"
+            }
+            className={cn(micOn && "glow", listening && "animate-lia-pulse")}
           >
             <Mic className="h-4 w-4" />
           </Button>
+
           <Button size="icon" variant="ghost" onClick={onCameraFocus} title="Sistema de visão">
             <Camera className="h-4 w-4" />
           </Button>
