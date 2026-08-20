@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CameraOff, Eye, Mic, ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LiaOrb, stateLabel } from "./LiaOrb";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { cn } from "@/lib/utils";
+import { visionSource } from "@/lib/lia/vision";
 
 /**
  * Área de percepção — o sistema de visão e escuta da Lia.
@@ -23,25 +24,78 @@ export function PerceptionPanel({
   const [analyzing, setAnalyzing] = useState(false);
   const [presence, setPresence] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const prevSampleRef = useRef<Uint8ClampedArray | null>(null);
 
   const visionEnabled = modules.find((m) => m.id === "visao")?.ativo ?? false;
 
+  /** Captura real do frame atual: vídeo → canvas → JPEG. */
+  const grabFrame = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return null;
+    const canvas = (canvasRef.current ??= document.createElement("canvas"));
+    const w = 640;
+    const h = Math.round((video.videoHeight / video.videoWidth) * w) || 480;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, w, h);
+    return {
+      dataUrl: canvas.toDataURL("image/jpeg", 0.72),
+      width: w,
+      height: h,
+      capturedAt: Date.now(),
+    };
+  }, []);
+
+  useEffect(() => {
+    visionSource.setProvider(grabFrame);
+    return () => visionSource.setProvider(null);
+  }, [grabFrame]);
+
+  // Percepção contínua: amostra a cena e mede variação (presença/movimento).
   useEffect(() => {
     if (!cameraOn) return;
     setAnalyzing(true);
-    const t1 = setTimeout(() => setAnalyzing(false), 1800);
-    const t2 = setTimeout(() => setPresence(true), 2200);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [cameraOn]);
+    const interval = setInterval(() => {
+      const frame = grabFrame();
+      if (!frame) return;
+      setAnalyzing(false);
+      const canvas = canvasRef.current!;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const small = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // amostragem esparsa em luminância
+      const step = Math.max(4, Math.floor(small.data.length / (4 * 1200))) * 4;
+      const sample = new Uint8ClampedArray(Math.ceil(small.data.length / step));
+      let si = 0;
+      for (let i = 0; i < small.data.length; i += step) {
+        sample[si++] =
+          (small.data[i]! * 0.299 + small.data[i + 1]! * 0.587 + small.data[i + 2]! * 0.114) | 0;
+      }
+      const prev = prevSampleRef.current;
+      let change = 0;
+      if (prev && prev.length === sample.length) {
+        let diff = 0;
+        for (let i = 0; i < sample.length; i++) diff += Math.abs(sample[i]! - prev[i]!);
+        change = Math.min(1, diff / (sample.length * 255) / 0.08);
+      }
+      prevSampleRef.current = sample;
+      const detected = change > 0.05;
+      setPresence((p) => (detected ? true : change < 0.01 ? p : p));
+      visionSource.pushFrame(frame, change, detected || presence);
+    }, 1200);
+    return () => clearInterval(interval);
+  }, [cameraOn, grabFrame, presence]);
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    prevSampleRef.current = null;
     setCameraOn(false);
     setPresence(false);
+    visionSource.setStatus("desligada");
     updateSettings({ camera: false });
   };
 
@@ -52,13 +106,21 @@ export function PerceptionPanel({
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setCameraOn(true);
+      visionSource.setStatus("ativa");
       updateSettings({ camera: true });
     } catch {
       setErro("Não consegui acessar a câmera. Verifique a permissão do navegador.");
+      visionSource.setStatus("indisponivel", "sem permissão");
     }
   };
 
-  useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
+  useEffect(
+    () => () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      visionSource.setStatus("desligada");
+    },
+    [],
+  );
 
   const visionStatus = !cameraOn
     ? "Visão desligada"
