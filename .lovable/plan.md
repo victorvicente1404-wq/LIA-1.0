@@ -60,6 +60,6 @@ A Lia continua funcionando sem login; os conectores é que ficam disponíveis s�
 ## Ordem de execução
 
 1. Ativar Cloud + login e a tabela de conexões.
-2. Ligar os 4 conectores Google e o fluxo de consentimento.
+2. Ligar os 6 conectores (Google + Microsoft Word) e o fluxo de consentimento.
 3. Painel Conectores no side panel.
 4. Ações da Lia (agenda, e-mails, arquivos, documentos) e integração no prompt.
