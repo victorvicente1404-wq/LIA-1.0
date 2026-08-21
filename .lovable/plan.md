@@ -36,7 +36,7 @@ A Lia continua funcionando sem login; os conectores é que ficam disponíveis s�
 ## Interface
 
 - Nova seção **Conectores** no painel lateral, ao lado de Módulos e Privacidade.
-- Um cartão por serviço (Calendar, Gmail, Docs, Drive) com estado: desconectado / conectado (com a conta) / erro, botão Conectar e Desconectar.
+- Um cartão por serviço (Calendar, Gmail, Docs, Drive, Slides, Word) com estado: desconectado / conectado (com a conta) / erro, botão Conectar e Desconectar.
 - Se o usuário não estiver logado, o cartão mostra "entre na sua conta para conectar".
 
 ## Como a Lia usa os dados
