@@ -10,6 +10,8 @@ Disponíveis no catálogo de conexões por usuário:
 - Gmail — ler e enviar mensagens
 - Google Docs — ler e editar documentos
 - Google Drive — listar e abrir arquivos
+- Google Slides — ler e editar apresentações
+- Microsoft Word — ler e editar documentos .docx no OneDrive
 
 Não disponíveis nesse modelo (cada usuário com a própria conta):
 
@@ -18,7 +20,8 @@ Não disponíveis nesse modelo (cada usuário com a própria conta):
 - TikTok — idem: hoje só como conexão da sua conta.
 - Perplexity — não existe conector; "usar outras IAs" já é atendido pelo modelo que a Lia usa hoje (Lovable AI).
 
-Proposta: nesta etapa entregar os 4 conectores Google por usuário. Maps/Gemini/TikTok ficam para uma etapa seguinte, no modelo "conta única do app".
+Proposta: nesta etapa entregar os 6 conectores por usuário (4 Google + Slides + Word). Maps/Gemini/TikTok ficam para uma etapa seguinte, no modelo "conta única do app".
+
 
 ## Pré-requisitos (o app ainda não tem)
 
