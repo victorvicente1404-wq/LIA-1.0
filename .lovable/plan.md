@@ -10,6 +10,8 @@ Disponíveis no catálogo de conexões por usuário:
 - Gmail — ler e enviar mensagens
 - Google Docs — ler e editar documentos
 - Google Drive — listar e abrir arquivos
+- Google Slides — ler e editar apresentações
+- Microsoft Word — ler e editar documentos .docx no OneDrive
 
 Não disponíveis nesse modelo (cada usuário com a própria conta):
 
@@ -18,7 +20,8 @@ Não disponíveis nesse modelo (cada usuário com a própria conta):
 - TikTok — idem: hoje só como conexão da sua conta.
 - Perplexity — não existe conector; "usar outras IAs" já é atendido pelo modelo que a Lia usa hoje (Lovable AI).
 
-Proposta: nesta etapa entregar os 4 conectores Google por usuário. Maps/Gemini/TikTok ficam para uma etapa seguinte, no modelo "conta única do app".
+Proposta: nesta etapa entregar os 6 conectores por usuário (4 Google + Slides + Word). Maps/Gemini/TikTok ficam para uma etapa seguinte, no modelo "conta única do app".
+
 
 ## Pré-requisitos (o app ainda não tem)
 
@@ -33,28 +36,30 @@ A Lia continua funcionando sem login; os conectores é que ficam disponíveis s�
 ## Interface
 
 - Nova seção **Conectores** no painel lateral, ao lado de Módulos e Privacidade.
-- Um cartão por serviço (Calendar, Gmail, Docs, Drive) com estado: desconectado / conectado (com a conta) / erro, botão Conectar e Desconectar.
+- Um cartão por serviço (Calendar, Gmail, Docs, Drive, Slides, Word) com estado: desconectado / conectado (com a conta) / erro, botão Conectar e Desconectar.
 - Se o usuário não estiver logado, o cartão mostra "entre na sua conta para conectar".
 
 ## Como a Lia usa os dados
 
 - Novo módulo **Serviços** na lista de módulos, ligável por perfil.
 - A Lia recebe, no prompt, um resumo honesto do que está conectado (ex.: "Calendar conectado; Gmail conectado; Drive não conectado") — sem inventar acesso.
-- Ações iniciais: próximos compromissos do dia, últimos e-mails não lidos, enviar e-mail (com confirmação antes de enviar), buscar arquivos no Drive por nome, ler e editar um documento do Docs.
+- Ações iniciais: próximos compromissos do dia, últimos e-mails não lidos, enviar e-mail (com confirmação antes de enviar), buscar arquivos no Drive por nome, ler e editar um documento do Docs, ler e editar slides no Google Slides, ler e editar documentos Word no OneDrive.
 - Toda chamada aos serviços acontece no servidor, nunca no navegador.
 
 ## Detalhes técnicos
 
-- Conectores por usuário: `google_calendar`, `google_mail`, `google_docs`, `google_drive`, ligados ao projeto via o fluxo de App User Connectors (um cliente OAuth por conector, aprovado por você em um cartão no chat).
-- Redirect URI a cadastrar no Google Cloud Console: `https://connector-gateway.lovable.dev/api/v1/app-users/oauth2/callback`.
-- Escopos: leitura de Calendar; leitura + envio no Gmail; leitura/escrita em Docs; leitura de metadados e arquivos no Drive.
+- Conectores por usuário: `google_calendar`, `google_mail`, `google_docs`, `google_drive`, `google_slides` e `microsoft_word`, ligados ao projeto via o fluxo de App User Connectors (um cliente OAuth por conector, aprovado por você em um cartão no chat).
+- Google: um único cliente OAuth do Google Cloud atende todos os conectores Google. Redirect URI a cadastrar: `https://connector-gateway.lovable.dev/api/v1/app-users/oauth2/callback`.
+- Microsoft: um registro de app no Entra ID atende o Word (mesmo redirect URI). Se for um app de tenant único, é preciso informar o Directory (tenant) ID.
+- Escopos: leitura de Calendar; leitura + envio no Gmail; leitura/escrita em Docs e Slides; leitura de metadados e arquivos no Drive; `Files.ReadWrite` + `offline_access` no Microsoft.
 - Chave de conexão de cada usuário guardada criptografada (AES-GCM) em `app_user_connections`, acessível só pelo service role.
-- Chamadas via `callAsAppUser` em server functions dedicadas (`src/lib/lia/google.functions.ts`), com validação Zod da entrada.
+- Chamadas via `callAsAppUser` em server functions dedicadas (`src/lib/lia/connectors.functions.ts`), com validação Zod da entrada.
+
 - Correção pendente: o erro "useLia deve ser usado dentro de LiaProvider" — o provider será movido para envolver toda a árvore da rota, evitando o crash.
 
 ## Ordem de execução
 
 1. Ativar Cloud + login e a tabela de conexões.
-2. Ligar os 4 conectores Google e o fluxo de consentimento.
+2. Ligar os 6 conectores (Google + Microsoft Word) e o fluxo de consentimento.
 3. Painel Conectores no side panel.
 4. Ações da Lia (agenda, e-mails, arquivos, documentos) e integração no prompt.
