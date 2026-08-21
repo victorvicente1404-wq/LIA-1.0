@@ -43,16 +43,18 @@ A Lia continua funcionando sem login; os conectores é que ficam disponíveis s�
 
 - Novo módulo **Serviços** na lista de módulos, ligável por perfil.
 - A Lia recebe, no prompt, um resumo honesto do que está conectado (ex.: "Calendar conectado; Gmail conectado; Drive não conectado") — sem inventar acesso.
-- Ações iniciais: próximos compromissos do dia, últimos e-mails não lidos, enviar e-mail (com confirmação antes de enviar), buscar arquivos no Drive por nome, ler e editar um documento do Docs.
+- Ações iniciais: próximos compromissos do dia, últimos e-mails não lidos, enviar e-mail (com confirmação antes de enviar), buscar arquivos no Drive por nome, ler e editar um documento do Docs, ler e editar slides no Google Slides, ler e editar documentos Word no OneDrive.
 - Toda chamada aos serviços acontece no servidor, nunca no navegador.
 
 ## Detalhes técnicos
 
-- Conectores por usuário: `google_calendar`, `google_mail`, `google_docs`, `google_drive`, ligados ao projeto via o fluxo de App User Connectors (um cliente OAuth por conector, aprovado por você em um cartão no chat).
-- Redirect URI a cadastrar no Google Cloud Console: `https://connector-gateway.lovable.dev/api/v1/app-users/oauth2/callback`.
-- Escopos: leitura de Calendar; leitura + envio no Gmail; leitura/escrita em Docs; leitura de metadados e arquivos no Drive.
+- Conectores por usuário: `google_calendar`, `google_mail`, `google_docs`, `google_drive`, `google_slides` e `microsoft_word`, ligados ao projeto via o fluxo de App User Connectors (um cliente OAuth por conector, aprovado por você em um cartão no chat).
+- Google: um único cliente OAuth do Google Cloud atende todos os conectores Google. Redirect URI a cadastrar: `https://connector-gateway.lovable.dev/api/v1/app-users/oauth2/callback`.
+- Microsoft: um registro de app no Entra ID atende o Word (mesmo redirect URI). Se for um app de tenant único, é preciso informar o Directory (tenant) ID.
+- Escopos: leitura de Calendar; leitura + envio no Gmail; leitura/escrita em Docs e Slides; leitura de metadados e arquivos no Drive; `Files.ReadWrite` + `offline_access` no Microsoft.
 - Chave de conexão de cada usuário guardada criptografada (AES-GCM) em `app_user_connections`, acessível só pelo service role.
-- Chamadas via `callAsAppUser` em server functions dedicadas (`src/lib/lia/google.functions.ts`), com validação Zod da entrada.
+- Chamadas via `callAsAppUser` em server functions dedicadas (`src/lib/lia/connectors.functions.ts`), com validação Zod da entrada.
+
 - Correção pendente: o erro "useLia deve ser usado dentro de LiaProvider" — o provider será movido para envolver toda a árvore da rota, evitando o crash.
 
 ## Ordem de execução
