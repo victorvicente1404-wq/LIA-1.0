@@ -4,6 +4,7 @@ import {
   Brain,
   Cpu,
   FolderOpen,
+  Plug,
   Settings2,
   ShieldCheck,
   Sparkle,
@@ -18,6 +19,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LiaCardPanel } from "./LiaCardPanel";
+import { ConnectorsSection } from "./ConnectorsSection";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,7 @@ type SectionId =
   | "perfil"
   | "personalidade"
   | "modulos"
+  | "conectores"
   | "config"
   | "privacidade"
   | "card";
@@ -37,10 +40,12 @@ const sections: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: UserRound },
   { id: "personalidade", label: "Personalidade", icon: Sparkle },
   { id: "modulos", label: "Módulos", icon: Blocks },
+  { id: "conectores", label: "Conectores", icon: Plug },
   { id: "config", label: "Configurações", icon: Settings2 },
   { id: "privacidade", label: "Privacidade", icon: ShieldCheck },
   { id: "card", label: "Lia Card", icon: Cpu },
 ];
+
 
 export function SidePanel() {
   const [active, setActive] = useState<SectionId>("card");
@@ -67,15 +72,20 @@ export function SidePanel() {
       </nav>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {!lia.cardConnected && active !== "card" && active !== "privacidade" && (
-          <NoCard onGo={() => setActive("card")} />
-        )}
-        {(lia.cardConnected || active === "card" || active === "privacidade") && (
+        {!lia.cardConnected &&
+          active !== "card" &&
+          active !== "privacidade" &&
+          active !== "conectores" && <NoCard onGo={() => setActive("card")} />}
+        {(lia.cardConnected ||
+          active === "card" ||
+          active === "privacidade" ||
+          active === "conectores") && (
           <>
             {active === "memoria" && <MemorySection />}
             {active === "perfil" && <ProfileSection />}
             {active === "personalidade" && <PersonalitySection />}
             {active === "modulos" && <ModulesSection />}
+            {active === "conectores" && <ConnectorsSection />}
             {active === "config" && <SettingsSection />}
             {active === "privacidade" && <PrivacySection />}
             {active === "card" && <LiaCardPanel />}

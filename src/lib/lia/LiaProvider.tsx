@@ -15,6 +15,8 @@ import {
 import * as card from "./card-storage";
 import { defaultModules, defaultProfiles, uid } from "./defaults";
 import { buildSystemPrompt, extractMemories } from "./prompt";
+import { useConnections } from "./useConnections";
+import { connectorLabel } from "./connectors";
 import { liaRespond } from "./chat.functions";
 import { describeVision, visionSource } from "./vision";
 import * as memoryStore from "./memory-store";
@@ -199,6 +201,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         cardConnected,
         vision: describeVision(visionSource.get(), visionModuleOn),
         memoriaLocal: data?.settings.memoriaLocal ?? null,
+        servicos: connectedIds.map(connectorLabel),
       });
       void obs;
       const history = withUser.slice(-16).map((m) => ({
