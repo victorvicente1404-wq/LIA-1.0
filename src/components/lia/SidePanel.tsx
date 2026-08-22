@@ -72,15 +72,20 @@ export function SidePanel() {
       </nav>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {!lia.cardConnected && active !== "card" && active !== "privacidade" && (
-          <NoCard onGo={() => setActive("card")} />
-        )}
-        {(lia.cardConnected || active === "card" || active === "privacidade") && (
+        {!lia.cardConnected &&
+          active !== "card" &&
+          active !== "privacidade" &&
+          active !== "conectores" && <NoCard onGo={() => setActive("card")} />}
+        {(lia.cardConnected ||
+          active === "card" ||
+          active === "privacidade" ||
+          active === "conectores") && (
           <>
             {active === "memoria" && <MemorySection />}
             {active === "perfil" && <ProfileSection />}
             {active === "personalidade" && <PersonalitySection />}
             {active === "modulos" && <ModulesSection />}
+            {active === "conectores" && <ConnectorsSection />}
             {active === "config" && <SettingsSection />}
             {active === "privacidade" && <PrivacySection />}
             {active === "card" && <LiaCardPanel />}
