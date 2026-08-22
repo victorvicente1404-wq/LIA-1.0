@@ -28,6 +28,7 @@ type SectionId =
   | "perfil"
   | "personalidade"
   | "modulos"
+  | "conectores"
   | "config"
   | "privacidade"
   | "card";
@@ -37,10 +38,12 @@ const sections: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "perfil", label: "Perfil", icon: UserRound },
   { id: "personalidade", label: "Personalidade", icon: Sparkle },
   { id: "modulos", label: "Módulos", icon: Blocks },
+  { id: "conectores", label: "Conectores", icon: Plug },
   { id: "config", label: "Configurações", icon: Settings2 },
   { id: "privacidade", label: "Privacidade", icon: ShieldCheck },
   { id: "card", label: "Lia Card", icon: Cpu },
 ];
+
 
 export function SidePanel() {
   const [active, setActive] = useState<SectionId>("card");
