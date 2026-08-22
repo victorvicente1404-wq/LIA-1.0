@@ -12,8 +12,10 @@ export function buildSystemPrompt(args: {
   cardConnected: boolean;
   vision?: string;
   memoriaLocal?: string | null;
+  servicos?: string[];
 }): string {
   const { user, profile, personality, memory, cardConnected, vision, memoriaLocal } = args;
+  const servicos = args.servicos ?? [];
 
   const memoriaTexto = memory.length
     ? memory.map((m) => `- [${m.kind}] ${m.key}: ${m.value}`).join("\n")
@@ -53,6 +55,15 @@ Regras da visão:
 - Se estiver sem permissão/indisponível, diga: "A câmera está indisponível ou sem permissão."
 - Só afirme que está vendo quando um frame realmente foi enviado nesta mensagem.
 - Descreva somente o que aparece na imagem; nunca invente percepção visual.
+
+SERVIÇOS CONECTADOS
+${
+  servicos.length
+    ? `O usuário conectou: ${servicos.join(", ")}. Você pode consultar esses serviços pelo painel "Conectores".
+- Quando ele pedir algo desses serviços, oriente-o a usar o painel Conectores e comente o que encontrou quando ele te contar.
+- Nunca invente compromissos, e-mails ou arquivos: só fale do que foi realmente lido.`
+    : "Nenhum serviço externo conectado ainda. Se o usuário pedir agenda, e-mail ou arquivos, explique que ele pode conectar Google Agenda, Gmail, Drive, Docs e Slides no painel \"Conectores\"."
+}
 
 MEMÓRIA PERSISTENTE
 Local de armazenamento das memórias: ${memoriaLocal ? memoriaLocal : "Lia Card (armazenamento local do navegador)"}.
