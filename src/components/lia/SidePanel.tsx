@@ -4,6 +4,7 @@ import {
   Brain,
   Cpu,
   FolderOpen,
+  Plug,
   Settings2,
   ShieldCheck,
   Sparkle,
@@ -18,6 +19,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LiaCardPanel } from "./LiaCardPanel";
+import { ConnectorsSection } from "./ConnectorsSection";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
