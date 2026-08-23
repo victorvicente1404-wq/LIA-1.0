@@ -270,7 +270,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       data,
       persist,
       modules,
-      connectedIds,
+      connectedIds.join(","),
     ],
   );
 
