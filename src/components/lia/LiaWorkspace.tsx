@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Toaster } from "@/components/ui/sonner";
 import { BootSequence } from "./BootSequence";
 import { ChatPanel } from "./ChatPanel";
 import { PerceptionPanel } from "./PerceptionPanel";
@@ -56,7 +55,6 @@ export function LiaWorkspace() {
 
   return (
     <div className="flex h-screen flex-col gap-3 p-3">
-      <Toaster />
       <header className="panel flex items-center justify-between px-4 py-2.5">
         <div className="flex items-center gap-3">
           <LiaOrb state={lia.state} size={34} />

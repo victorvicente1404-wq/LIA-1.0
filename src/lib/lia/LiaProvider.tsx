@@ -81,6 +81,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   const [sessionMessages, setSessionMessages] = useState<ChatMessage[]>([]);
   const [state, setState] = useState<LiaState>("idle");
   const [sending, setSending] = useState(false);
+  const { connectedIds } = useConnections();
   const abortRef = useRef<{ cancelled: boolean } | null>(null);
 
   // Detecta o Lia Card na inicialização
@@ -257,7 +258,20 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         if (!token.cancelled) setSending(false);
       }
     },
-    [sending, sessionMessages, stop, user, profile, personality, memory, cardConnected, data, persist, modules],
+    [
+      sending,
+      sessionMessages,
+      stop,
+      user,
+      profile,
+      personality,
+      memory,
+      cardConnected,
+      data,
+      persist,
+      modules,
+      connectedIds.join(","),
+    ],
   );
 
   const value: LiaContextValue = {

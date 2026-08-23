@@ -72,7 +72,7 @@ export async function buildAuthorizationUrl(opts: {
     appUserId: opts.userId,
     clientAPIKey,
     returnUrl: opts.returnUrl,
-    connectionAPIKey: opts.existingKey ?? undefined,
+    ...(opts.existingKey ? { connectionAPIKey: opts.existingKey } : {}),
     credentialsConfiguration: { scopes },
   });
   return authorizationUrl;
@@ -93,7 +93,7 @@ export async function providerFetch(opts: {
     connectionAPIKey,
     connectorId: opts.connectorId,
     path: opts.path,
-    init: opts.init,
+    ...(opts.init ? { init: opts.init } : {}),
   });
   if (!res.ok) {
     const body = await res.text();
@@ -125,8 +125,8 @@ export async function fetchUpcomingEvents(userId: string, max = 8) {
     path: `/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(
       now,
     )}&singleEvents=true&orderBy=startTime&maxResults=${max}`,
-  })) as { items?: Array<Record<string, any>> };
-  return (data?.items ?? []).map((e) => ({
+  })) as { items?: any[] };
+  return (data?.items ?? []).map((e: any) => ({
     id: String(e.id ?? ""),
     title: String(e.summary ?? "(sem título)"),
     start: String(e.start?.dateTime ?? e.start?.date ?? ""),
@@ -210,8 +210,8 @@ export async function searchDriveFiles(userId: string, query: string, max = 10) 
     path: `/drive/v3/files?q=${encodeURIComponent(q)}&pageSize=${max}&orderBy=modifiedTime desc&fields=${encodeURIComponent(
       "files(id,name,mimeType,modifiedTime,webViewLink)",
     )}`,
-  })) as { files?: Array<Record<string, any>> };
-  return (data?.files ?? []).map((f) => ({
+  })) as { files?: any[] };
+  return (data?.files ?? []).map((f: any) => ({
     id: String(f.id),
     name: String(f.name),
     mimeType: String(f.mimeType ?? ""),
@@ -231,9 +231,9 @@ export async function readDocument(userId: string, documentRef: string) {
     userId,
     connectorId: "google_docs",
     path: `/v1/documents/${documentId}`,
-  })) as { title?: string; body?: { content?: Array<Record<string, any>> } };
+  })) as { title?: string; body?: { content?: any[] } };
   const text = (doc?.body?.content ?? [])
-    .flatMap((el) => el?.paragraph?.elements ?? [])
+    .flatMap((el: any) => el?.paragraph?.elements ?? [])
     .map((el: any) => el?.textRun?.content ?? "")
     .join("");
   return { documentId, title: doc?.title ?? "(sem título)", text: text.trim() };
@@ -262,8 +262,8 @@ export async function readPresentation(userId: string, presentationRef: string) 
     userId,
     connectorId: "google_slides",
     path: `/v1/presentations/${presentationId}`,
-  })) as { title?: string; slides?: Array<Record<string, any>> };
-  const slides = (pres?.slides ?? []).map((slide, index) => {
+  })) as { title?: string; slides?: any[] };
+  const slides = (pres?.slides ?? []).map((slide: any, index: number) => {
     const text = (slide?.pageElements ?? [])
       .flatMap((el: any) => el?.shape?.text?.textElements ?? [])
       .map((el: any) => el?.textRun?.content ?? "")
