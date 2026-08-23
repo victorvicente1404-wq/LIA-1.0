@@ -4,11 +4,11 @@ Substituir a escuta contínua por um sistema de Wake Word ("Lia"), modular e com
 
 ## Como vai funcionar
 
-1. Microfone ligado → **🔵 Em espera** ("Aguardando \"Lia\"..."). Nada é interpretado nem enviado à IA.
+1. Microfone ligado → **🔵 Em espera** ("Aguardando Lia..."). Nada é interpretado nem enviado à IA.
 2. Usuário diz "Lia, ..." → **🟣 Acordando** → **🟣 Ouvindo**.
 3. Comando na mesma frase é aproveitado: "Lia, qual é a previsão do tempo?" envia só "qual é a previsão do tempo?".
 4. Só "Lia." → a Lia responde "Sim?" e abre a janela de escuta.
-5. Janela de escuta de ~8s sem fala (ou ~2s de silêncio após a fala) → volta sozinha para espera.
+5. Janela de escuta de ~8s sem fala (ou ~3s de silêncio após a fala) → volta sozinha para espera.
 6. Enquanto a Lia fala, o áudio dela é ignorado (portão de estado + cancelamento de eco), mas um "Lia!" do usuário interrompe a fala e reabre a escuta.
 
 ## Motor de detecção (híbrido)
