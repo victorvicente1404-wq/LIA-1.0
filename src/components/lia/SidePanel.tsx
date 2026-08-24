@@ -24,6 +24,9 @@ import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
 import type { Personality } from "@/lib/lia/types";
+import { defaultVoiceSettings } from "@/lib/lia/voice/types";
+import { createSpeakerRecognizer } from "@/lib/lia/voice/speaker-recognition";
+import { porcupineAccessKey } from "@/lib/lia/voice/wakeword/porcupine";
 
 type SectionId =
   | "memoria"
@@ -361,11 +364,114 @@ function SettingsSection() {
           checked={settings.animacoes}
           onChange={(v) => updateSettings({ animacoes: v })}
         />
+        <VoiceSettings />
         <MemoryLocation />
         <div className="rounded-md border border-border bg-surface/60 p-3 text-xs text-muted-foreground">
           Voz do perfil {profile.nome}: velocidade {profile.voz.velocidade}x · tom{" "}
           {profile.voz.tom}
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+/** Wake Word e escuta — a Lia só interpreta quando é chamada. */
+function VoiceSettings() {
+  const { settings, updateSettings } = useLia();
+  const voz = settings.voz ?? defaultVoiceSettings;
+  const set = (patch: Partial<typeof voz>) => updateSettings({ voz: { ...voz, ...patch } });
+  const onDevice = Boolean(porcupineAccessKey());
+  const speaker = useState(() => createSpeakerRecognizer())[0];
+  const [speakerStatus, setSpeakerStatus] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-3 rounded-md border border-border bg-surface/60 p-3">
+      <div>
+        <p className="text-sm font-medium">Wake Word e escuta</p>
+        <p className="text-xs text-muted-foreground">
+          Em espera eu não interpreto nada: fico só esperando ser chamada.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        {(["wake", "continuous"] as const).map((modo) => (
+          <button
+            key={modo}
+            onClick={() => set({ modo })}
+            className={cn(
+              "flex-1 rounded-md border px-2 py-1.5 text-xs transition-colors",
+              voz.modo === modo
+                ? "border-primary/60 bg-primary/15 text-glow"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {modo === "wake" ? "Wake Word" : "Escuta contínua"}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Palavra de ativação</Label>
+        <Input
+          value={voz.wakeWord}
+          onChange={(e) => set({ wakeWord: e.target.value || "Lia" })}
+          className="h-8 text-sm"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">
+          Janela de escuta após a chamada: {voz.janelaEscuta}s
+        </Label>
+        <Slider
+          value={[voz.janelaEscuta]}
+          min={4}
+          max={20}
+          step={1}
+          onValueChange={([v]) => set({ janelaEscuta: v ?? 8 })}
+        />
+      </div>
+
+      <Toggle
+        label="Wake word ativa"
+        desc="Sem ela, o microfone precisa ser aberto manualmente."
+        checked={voz.wakeWordAtiva}
+        onChange={(v) => set({ wakeWordAtiva: v })}
+      />
+
+      <p className="rounded bg-background/70 px-2 py-1.5 text-[11px] text-muted-foreground">
+        Detecção:{" "}
+        <span className="text-glow">
+          {onDevice ? "Porcupine, no seu dispositivo" : "reconhecimento do navegador"}
+        </span>
+        {!onDevice && " — o áudio é processado pelo serviço do navegador enquanto o microfone está ligado."}
+      </p>
+
+      <div className="space-y-2 rounded-md border border-dashed border-border p-2.5">
+        <p className="text-xs font-medium">Identificação de voz</p>
+        <p className="text-[11px] text-muted-foreground">{speaker.unavailableReason}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!speaker.available}
+            onClick={() => setSpeakerStatus("Nenhum motor de reconhecimento de locutor conectado.")}
+          >
+            Cadastrar minha voz
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              speaker.clear();
+              setSpeakerStatus("Cadastro de voz removido.");
+            }}
+          >
+            Remover cadastro
+          </Button>
+        </div>
+        {speakerStatus && <p className="text-[11px] text-muted-foreground">{speakerStatus}</p>}
       </div>
     </div>
   );
@@ -481,6 +587,18 @@ function PrivacySection() {
         <Row label="Câmera" value={settings.camera ? "permitida" : "desligada"} />
         <Row label="Microfone" value={settings.microfone ? "permitido" : "desligado"} />
         <Row label="Voz e escuta" value="processadas no navegador" />
+        <Row
+          label="Modo de escuta"
+          value={
+            (settings.voz ?? defaultVoiceSettings).modo === "wake"
+              ? `wake word “${(settings.voz ?? defaultVoiceSettings).wakeWord}”`
+              : "escuta contínua"
+          }
+        />
+        <Row
+          label="Detecção da wake word"
+          value={porcupineAccessKey() ? "no dispositivo" : "serviço do navegador"}
+        />
         <Row
           label="IA externa"
           value={settings.aiExterna ? "ativa (Lovable AI)" : "desativada"}
