@@ -93,5 +93,7 @@ export interface LiaCardData {
     animacoes: boolean;
     /** Pasta escolhida pelo usuário para gravar as memórias (nome exibido). */
     memoriaLocal?: string | null;
+    /** Wake word e comportamento do microfone. */
+    voz?: VoiceSettings;
   };
 }
