@@ -3,6 +3,8 @@ import type { LiaState } from "@/lib/lia/types";
 
 const label: Record<LiaState, string> = {
   idle: "Inativa",
+  passive: "Aguardando “Lia”",
+  waking: "Chamada detectada",
   watching: "Observando",
   listening: "Ouvindo",
   thinking: "Pensando",
