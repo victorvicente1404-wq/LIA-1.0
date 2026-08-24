@@ -5,11 +5,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { LiaOrb, stateLabel } from "./LiaOrb";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { cn } from "@/lib/utils";
+import type { VoicePhase } from "@/lib/lia/voice/types";
+
+const phaseLabel: Record<VoicePhase, string> = {
+  off: "microfone desligado",
+  passive: "aguardando “Lia”",
+  waking: "chamada detectada",
+  listening: "ouvindo",
+  processing: "processando",
+  speaking: "lia falando",
+};
 
 export function ChatPanel({
   listening,
   micOn,
-  micState,
+  phase,
   speaking,
   onMic,
   onStopSpeech,
@@ -18,7 +28,7 @@ export function ChatPanel({
 }: {
   listening: boolean;
   micOn: boolean;
-  micState: "off" | "active" | "hearing" | "processing";
+  phase: VoicePhase;
   speaking: boolean;
   onMic: () => void;
   onStopSpeech: () => void;
@@ -54,15 +64,7 @@ export function ChatPanel({
         </div>
         <div className="flex items-center gap-1">
           <span className="mr-1 hidden rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground sm:inline">
-            {micState === "off"
-              ? "microfone desligado"
-              : micState === "hearing"
-                ? "ouvindo"
-                : micState === "processing"
-                  ? "processando"
-                  : speaking
-                    ? "lia falando"
-                    : "microfone ativo"}
+            {speaking ? phaseLabel.speaking : phaseLabel[phase]}
           </span>
           {speaking && (
             <Button size="sm" variant="secondary" onClick={onStopSpeech}>
@@ -131,11 +133,11 @@ export function ChatPanel({
             title={
               micSupported
                 ? micOn
-                  ? "Escuta contínua ativa — clique para desligar"
-                  : "Ativar escuta contínua"
+                  ? "Microfone ativo — clique para desligar"
+                  : "Ligar o microfone (diga “Lia” para chamar)"
                 : "Microfone não suportado neste navegador"
             }
-            className={cn(micOn && "glow", listening && "animate-lia-pulse")}
+            className={cn(micOn && "glow", (listening || phase === "waking") && "animate-lia-pulse")}
           >
             <Mic className="h-4 w-4" />
           </Button>
