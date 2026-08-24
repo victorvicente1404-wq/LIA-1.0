@@ -4,7 +4,14 @@
  * seja exportado e evoluído fora do Lovable.
  */
 
-export type LiaState = "idle" | "watching" | "listening" | "thinking" | "speaking";
+export type LiaState =
+  | "idle"
+  | "passive"
+  | "waking"
+  | "watching"
+  | "listening"
+  | "thinking"
+  | "speaking";
 
 export interface ChatMessage {
   id: string;
