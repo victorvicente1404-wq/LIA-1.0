@@ -51,6 +51,8 @@ interface LiaContextValue {
   setState: (s: LiaState) => void;
   sending: boolean;
   send: (text: string) => Promise<void>;
+  /** Fala local da Lia (ex.: resposta à wake word), sem chamar a IA. */
+  say: (text: string) => void;
   stop: () => void;
   clearHistory: () => void;
   // gestão
@@ -151,6 +153,15 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       })),
     [updateProfile],
   );
+
+  const say = useCallback((text: string) => {
+    setSessionMessages((prev) => {
+      const base = prev.length
+        ? prev
+        : [{ id: "greeting", role: "lia" as const, content: GREETING, createdAt: Date.now() }];
+      return [...base, { id: uid(), role: "lia" as const, content: text, createdAt: Date.now() }];
+    });
+  }, []);
 
   const stop = useCallback(() => {
     if (abortRef.current) abortRef.current.cancelled = true;
@@ -291,6 +302,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     setState,
     sending,
     send,
+    say,
     stop,
     clearHistory: () => {
       setSessionMessages([]);

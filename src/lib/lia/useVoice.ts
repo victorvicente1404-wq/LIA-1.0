@@ -1,168 +1,119 @@
 /**
- * Módulo de Voz — escuta contínua (SpeechRecognition) e fala (motor TTS).
+ * Módulo de Voz — camada fina sobre o VoiceController (wake word + escuta)
+ * e o motor de fala (TTS).
  *
- * Reconhecimento de voz e síntese são camadas separadas e substituíveis:
- * este hook apenas orquestra os dois e o estado da conversa falada.
+ * A Lia não interpreta tudo o que ouve: em escuta passiva ela apenas espera
+ * ser chamada pela wake word.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserTts } from "./tts";
+import { VoiceController } from "./voice/controller";
+import { defaultVoiceSettings, type VoicePhase, type VoiceSettings } from "./voice/types";
 
-type Recognition = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((e: any) => void) | null;
-  onspeechstart: (() => void) | null;
-  onend: (() => void) | null;
-  onerror: ((e: any) => void) | null;
-};
+export type { VoicePhase, VoiceSettings };
 
-export type MicState = "off" | "active" | "hearing" | "processing";
+export interface EngineInfo {
+  id: string;
+  label: string;
+  onDevice: boolean;
+}
 
-export function useVoice(onTranscript: (text: string) => void) {
-  const [micState, setMicState] = useState<MicState>("off");
+export function useVoice(
+  onTranscript: (text: string) => void,
+  options?: { settings?: VoiceSettings; onWakeOnly?: () => void },
+) {
+  const settings = options?.settings ?? defaultVoiceSettings;
+  const [phase, setPhase] = useState<VoicePhase>("off");
   const [speaking, setSpeaking] = useState(false);
-  const [supported, setSupported] = useState({ mic: false, tts: false });
+  const [engine, setEngine] = useState<EngineInfo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [supported, setSupported] = useState({ mic: false, tts: false });
 
-  const recRef = useRef<Recognition | null>(null);
-  const wantedRef = useRef(false); // usuário quer o microfone ligado
-  const cbRef = useRef(onTranscript);
-  cbRef.current = onTranscript;
   const tts = useMemo(() => createBrowserTts(), []);
   const ttsRef = useRef(tts);
   ttsRef.current = tts;
 
+  const cbRef = useRef(onTranscript);
+  cbRef.current = onTranscript;
+  const wakeOnlyRef = useRef(options?.onWakeOnly);
+  wakeOnlyRef.current = options?.onWakeOnly;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
+  const controllerRef = useRef<VoiceController | null>(null);
+
   const shutUp = useCallback(() => {
     ttsRef.current.cancel();
     setSpeaking(false);
+    controllerRef.current?.setSpeaking(false);
   }, []);
+
+  if (!controllerRef.current && typeof window !== "undefined") {
+    controllerRef.current = new VoiceController({
+      onPhase: setPhase,
+      onCommand: (text) => cbRef.current(text),
+      onWakeOnly: () => wakeOnlyRef.current?.(),
+      onInterrupt: () => {
+        ttsRef.current.cancel();
+        setSpeaking(false);
+      },
+      onError: (message) => setErro(message),
+      onEngine: (info) => setEngine(info),
+    });
+  }
 
   useEffect(() => {
-    const w = window as any;
-    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    setSupported({ mic: Boolean(Ctor), tts: ttsRef.current.supported });
-    if (!Ctor) return;
-
-    const rec: Recognition = new Ctor();
-    rec.lang = "pt-BR";
-    rec.continuous = true; // sessão longa: não desliga após uma frase
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-
-    rec.onspeechstart = () => {
-      // Usuário começou a falar: a Lia se cala imediatamente.
-      ttsRef.current.cancel();
-      setSpeaking(false);
-      setMicState("hearing");
-    };
-
-    rec.onresult = (e: any) => {
-      let final = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) final += r[0]?.transcript ?? "";
-        else setMicState("hearing");
-      }
-      const text = final.trim();
-      if (text) {
-        setMicState("processing");
-        cbRef.current(text);
-      }
-    };
-
-    rec.onerror = (e: any) => {
-      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
-        wantedRef.current = false;
-        setErro("Microfone sem permissão do navegador.");
-        setMicState("off");
-      }
-    };
-
-    // Reinício automático mantém a escuta viva enquanto o usuário quiser.
-    rec.onend = () => {
-      if (!wantedRef.current) {
-        setMicState("off");
-        return;
-      }
-      try {
-        rec.start();
-        setMicState("active");
-      } catch {
-        setTimeout(() => {
-          if (!wantedRef.current) return;
-          try {
-            rec.start();
-            setMicState("active");
-          } catch {
-            setMicState("off");
-          }
-        }, 400);
-      }
-    };
-
-    recRef.current = rec;
+    setSupported({ mic: VoiceController.supported(), tts: ttsRef.current.supported });
     return () => {
-      wantedRef.current = false;
-      try {
-        rec.abort();
-      } catch {
-        /* ignore */
-      }
+      void controllerRef.current?.stop();
     };
   }, []);
+
+  // Mudanças de configuração (modo, wake word, janela) valem na hora.
+  useEffect(() => {
+    controllerRef.current?.updateSettings(settings);
+  }, [settings.modo, settings.wakeWord, settings.wakeWordAtiva, settings.escutaPassiva, settings.janelaEscuta, settings.identificacaoVoz]);
 
   const startListening = useCallback(() => {
     setErro(null);
-    ttsRef.current.cancel();
-    setSpeaking(false);
-    wantedRef.current = true;
-    try {
-      recRef.current?.start();
-      setMicState("active");
-    } catch {
-      setMicState("active"); // já estava rodando
-    }
+    void controllerRef.current?.start(settingsRef.current);
   }, []);
 
   const stopListening = useCallback(() => {
-    wantedRef.current = false;
-    try {
-      recRef.current?.stop();
-    } catch {
-      /* ignore */
-    }
-    setMicState("off");
+    void controllerRef.current?.stop();
   }, []);
 
   const speak = useCallback((text: string, opts?: { velocidade?: number; tom?: number }) => {
+    controllerRef.current?.setSpeaking(true);
     ttsRef.current.speak(text, {
       ...opts,
       onStart: () => setSpeaking(true),
-      onEnd: () => setSpeaking(false),
+      onEnd: () => {
+        setSpeaking(false);
+        controllerRef.current?.setSpeaking(false);
+      },
     });
   }, []);
 
-  /** Sinaliza que o processamento terminou e o microfone volta a escutar. */
-  const resumeAfterResponse = useCallback(() => {
-    setMicState((s) => (wantedRef.current ? (s === "off" ? "active" : "active") : "off"));
+  /** Informa o fim (ou início) do processamento do comando. */
+  const setProcessing = useCallback((processing: boolean) => {
+    controllerRef.current?.setProcessing(processing);
   }, []);
 
   return {
-    micState,
-    micOn: micState !== "off",
-    listening: micState === "hearing" || micState === "active",
-    hearing: micState === "hearing",
+    phase,
+    micOn: phase !== "off",
+    passive: phase === "passive",
+    waking: phase === "waking",
+    listening: phase === "listening" || phase === "waking",
+    hearing: phase === "listening",
     speaking,
+    engine,
     supported,
     erro,
     startListening,
     stopListening,
-    resumeAfterResponse,
+    setProcessing,
     speak,
     shutUp,
   };

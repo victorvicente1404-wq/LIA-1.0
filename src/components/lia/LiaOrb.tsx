@@ -3,6 +3,8 @@ import type { LiaState } from "@/lib/lia/types";
 
 const label: Record<LiaState, string> = {
   idle: "Inativa",
+  passive: "Aguardando “Lia”",
+  waking: "Chamada detectada",
   watching: "Observando",
   listening: "Ouvindo",
   thinking: "Pensando",
@@ -22,7 +24,7 @@ export function LiaOrb({
   size?: number;
   className?: string;
 }) {
-  const active = state !== "idle";
+  const active = state !== "idle" && state !== "passive";
   return (
     <div
       className={cn("relative grid place-items-center", className)}
@@ -39,13 +41,17 @@ export function LiaOrb({
         className={cn(
           "absolute inset-[12%] rounded-full border border-primary/50",
           state === "thinking" && "animate-lia-spin-slow border-dashed border-primary",
+          state === "passive" && "border-dashed border-primary/40",
+          state === "waking" && "animate-lia-pulse border-glow",
         )}
       />
       <div
         className={cn(
           "absolute inset-[26%] rounded-full bg-gradient-lia",
           state === "speaking" && "animate-lia-pulse",
+          state === "waking" && "animate-lia-pulse",
           state === "idle" && "opacity-50",
+          state === "passive" && "opacity-60",
         )}
       />
       {state === "listening" && (

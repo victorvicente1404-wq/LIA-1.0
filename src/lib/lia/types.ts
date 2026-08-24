@@ -3,8 +3,18 @@
  * Esta camada é independente da interface, para permitir que o projeto
  * seja exportado e evoluído fora do Lovable.
  */
+import type { VoiceSettings } from "./voice/types";
 
-export type LiaState = "idle" | "watching" | "listening" | "thinking" | "speaking";
+export type { VoiceSettings };
+
+export type LiaState =
+  | "idle"
+  | "passive"
+  | "waking"
+  | "watching"
+  | "listening"
+  | "thinking"
+  | "speaking";
 
 export interface ChatMessage {
   id: string;
@@ -86,5 +96,7 @@ export interface LiaCardData {
     animacoes: boolean;
     /** Pasta escolhida pelo usuário para gravar as memórias (nome exibido). */
     memoriaLocal?: string | null;
+    /** Wake word e comportamento do microfone. */
+    voz?: VoiceSettings;
   };
 }
