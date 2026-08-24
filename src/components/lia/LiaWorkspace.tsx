@@ -3,13 +3,16 @@ import { BootSequence } from "./BootSequence";
 import { ChatPanel } from "./ChatPanel";
 import { PerceptionPanel } from "./PerceptionPanel";
 import { SidePanel } from "./SidePanel";
-import { LiaOrb } from "./LiaOrb";
+import { LiaOrb, stateLabel } from "./LiaOrb";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { useVoice } from "@/lib/lia/useVoice";
+import { defaultVoiceSettings } from "@/lib/lia/voice/types";
+
+const WAKE_REPLY = "Sim?";
 
 export function LiaWorkspace() {
   const lia = useLia();
-  const { messages, send, cardConnected, profile, modules, setState, sending } = lia;
+  const { messages, send, say, cardConnected, profile, modules, setState, sending, settings } = lia;
   const perceptionRef = useRef<HTMLDivElement>(null);
   const [spokenId, setSpokenId] = useState<string | null>(null);
 
@@ -20,7 +23,12 @@ export function LiaWorkspace() {
     [send],
   );
 
-  const voice = useVoice(onTranscript);
+  const voiceSettings = settings.voz ?? defaultVoiceSettings;
+  const onWakeOnly = useCallback(() => {
+    say(WAKE_REPLY);
+  }, [say]);
+
+  const voice = useVoice(onTranscript, { settings: voiceSettings, onWakeOnly });
   const voiceModuleOn = modules.find((m) => m.id === "voz")?.ativo ?? false;
 
   // A Lia fala a última mensagem quando o módulo de voz está ativo.
@@ -32,16 +40,18 @@ export function LiaWorkspace() {
       voice.speak(last.content, { velocidade: profile.voz.velocidade, tom: profile.voz.tom });
   }, [last, spokenId, voiceModuleOn, voice, profile.voz]);
 
-  // Terminou de processar: o microfone volta a escutar.
+  // O controlador de voz reabre a escuta quando o processamento termina.
   useEffect(() => {
-    if (!sending) voice.resumeAfterResponse();
+    voice.setProcessing(sending);
   }, [sending, voice]);
 
   useEffect(() => {
-    if (voice.hearing) setState("listening");
-    else if (voice.speaking) setState("speaking");
+    if (voice.speaking) setState("speaking");
     else if (sending) setState("thinking");
-  }, [voice.hearing, voice.speaking, sending, setState]);
+    else if (voice.phase === "listening" || voice.phase === "waking") setState("listening");
+    else if (voice.phase === "passive") setState("passive");
+    else setState("idle");
+  }, [voice.phase, voice.speaking, sending, setState]);
 
   if (!lia.booted) {
     return (
@@ -63,11 +73,23 @@ export function LiaWorkspace() {
               LIA
             </h1>
             <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-              assistente pessoal · modular · privada
+              {stateLabel(lia.state)} · modular · privada
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3 text-[11px]">
+          {voice.engine && (
+            <span
+              className="hidden text-muted-foreground md:inline"
+              title={
+                voice.engine.onDevice
+                  ? "A wake word é detectada no seu dispositivo."
+                  : "A wake word usa o reconhecimento do navegador."
+              }
+            >
+              wake word · {voice.engine.onDevice ? "no dispositivo" : "navegador"}
+            </span>
+          )}
           <span className="hidden text-muted-foreground sm:inline">perfil {profile.nome}</span>
           <span
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
@@ -91,7 +113,7 @@ export function LiaWorkspace() {
         <ChatPanel
           listening={voice.hearing}
           micOn={voice.micOn}
-          micState={voice.micState}
+          phase={voice.phase}
           speaking={voice.speaking}
           micSupported={voice.supported.mic}
           onMic={() => (voice.micOn ? voice.stopListening() : voice.startListening())}
