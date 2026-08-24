@@ -302,6 +302,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     setState,
     sending,
     send,
+    say,
     stop,
     clearHistory: () => {
       setSessionMessages([]);
