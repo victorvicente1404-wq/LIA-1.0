@@ -24,7 +24,7 @@ export function LiaOrb({
   size?: number;
   className?: string;
 }) {
-  const active = state !== "idle";
+  const active = state !== "idle" && state !== "passive";
   return (
     <div
       className={cn("relative grid place-items-center", className)}
