@@ -51,6 +51,8 @@ interface LiaContextValue {
   setState: (s: LiaState) => void;
   sending: boolean;
   send: (text: string) => Promise<void>;
+  /** Fala local da Lia (ex.: resposta à wake word), sem chamar a IA. */
+  say: (text: string) => void;
   stop: () => void;
   clearHistory: () => void;
   // gestão
