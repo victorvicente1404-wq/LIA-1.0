@@ -3,6 +3,9 @@
  * Esta camada é independente da interface, para permitir que o projeto
  * seja exportado e evoluído fora do Lovable.
  */
+import type { VoiceSettings } from "./voice/types";
+
+export type { VoiceSettings };
 
 export type LiaState =
   | "idle"
