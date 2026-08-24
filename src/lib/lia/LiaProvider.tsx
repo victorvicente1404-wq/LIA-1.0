@@ -154,6 +154,15 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     [updateProfile],
   );
 
+  const say = useCallback((text: string) => {
+    setSessionMessages((prev) => {
+      const base = prev.length
+        ? prev
+        : [{ id: "greeting", role: "lia" as const, content: GREETING, createdAt: Date.now() }];
+      return [...base, { id: uid(), role: "lia" as const, content: text, createdAt: Date.now() }];
+    });
+  }, []);
+
   const stop = useCallback(() => {
     if (abortRef.current) abortRef.current.cancelled = true;
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
