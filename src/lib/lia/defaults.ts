@@ -1,5 +1,4 @@
 import type { LiaCardData, LiaModule, ModuleId, Personality, Profile } from "./types";
-import { defaultVoiceSettings } from "./voice/types";
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -134,12 +133,5 @@ export const createCardData = (cardName = "Lia Card"): LiaCardData => ({
   activeProfileId: "pessoal",
   modules: defaultModules,
   history: [],
-  settings: {
-    aiExterna: true,
-    camera: false,
-    microfone: false,
-    animacoes: true,
-    memoriaLocal: null,
-    voz: { ...defaultVoiceSettings },
-  },
+  settings: { aiExterna: true, camera: false, microfone: false, animacoes: true, memoriaLocal: null },
 });
