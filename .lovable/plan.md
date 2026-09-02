@@ -41,9 +41,12 @@ Ativação por voz sem precisar clicar no microfone.
 
 ## Parte 4 — Ícone da Lia (favicon e identidade)
 
-- Gerar um único ícone da Lia (orbe roxo luminoso sobre preto profundo, minimalista e futurista), em quadrado.
-- Aplicar como favicon em `public/` e referenciar em `src/routes/__root.tsx`, substituindo o padrão.
-- Reaproveitar o mesmo ícone no cabeçalho do app e no Lia Card, para identidade consistente.
+Usar o ícone enviado pelo usuário (`ChatGPT_Image_2_de_set._de_2026_20_24_32.png`, 1254×1254, "L" roxo luminoso em vidro sobre quadrado preto arredondado). Não gerar novo.
+
+- Copiar o arquivo para `public/favicon.png`, redimensionando para 64×64 quadrado com ImageMagick (`magick ... -resize 64x64 -background none -gravity center -extent 64x64`), mantendo o fundo preto (combina com o tema escuro do app).
+- Referenciar em `src/routes/__root.tsx` (`head().links`) com `{ rel: "icon", type: "image/png", href: "/favicon.png" }`, removendo a entrada padrão `/favicon.ico`.
+- Excluir `public/favicon.ico` para não servir o ícone antigo do template.
+- Reaproveitar o mesmo ícone no cabeçalho do app e no Lia Card para identidade consistente (via import de asset).
 
 ## Parte 5 — WhatsApp (ideia: Lia como extensão no PC e no celular)
 
