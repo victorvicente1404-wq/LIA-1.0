@@ -38,3 +38,22 @@ Ativação por voz sem precisar clicar no microfone.
 - `src/lib/lia/types.ts` / `defaults.ts`: preferências novas (wake word, sensibilidade, tempo de silêncio) persistidas no Lia Card.
 - `src/components/lia/ChatPanel.tsx` e `PerceptionPanel.tsx`: selo de estado, barra de nível.
 - `src/components/lia/SidePanel.tsx`: controles em Configurações.
+
+## Parte 4 — Ícone da Lia (favicon e identidade)
+
+- Gerar um único ícone da Lia (orbe roxo luminoso sobre preto profundo, minimalista e futurista), em quadrado.
+- Aplicar como favicon em `public/` e referenciar em `src/routes/__root.tsx`, substituindo o padrão.
+- Reaproveitar o mesmo ícone no cabeçalho do app e no Lia Card, para identidade consistente.
+
+## Parte 5 — WhatsApp (ideia: Lia como extensão no PC e no celular)
+
+Não existe conector oficial "por usuário" de WhatsApp pessoal: a Meta só permite integração via **WhatsApp Business Cloud API**, com um número de negócio, conta Meta Business verificada e um webhook. Ler ou automatizar o WhatsApp pessoal por extensão de navegador (WhatsApp Web) viola os termos da Meta e quebra a cada atualização — não recomendo esse caminho.
+
+Caminho viável, a implementar depois das partes 1–4:
+
+- Endpoint público de webhook (`/api/public/whatsapp`) com verificação de assinatura da Meta.
+- Vínculo do número do usuário à conta na Lia (código de confirmação enviado por WhatsApp).
+- A Lia responde no WhatsApp com a mesma personalidade, memória e conectores — funciona no celular e no PC porque é o próprio WhatsApp do usuário conversando com o número da Lia.
+- Requer: número/conta WhatsApp Business e as credenciais da Meta (token e segredo do webhook), que você fornece quando chegarmos nesta etapa.
+
+Se preferir algo mais simples antes disso, dá para começar por "enviar resumos da Lia no WhatsApp" (só saída), que exige a mesma conta Business mas menos fluxo.
