@@ -51,10 +51,10 @@ export function createAudioMonitor(
 
   function computeLevel(): number {
     if (!analyser || buf.length === 0) return 0;
-    analyser.getByteTimeDomainData(buf);
+    analyser.getByteTimeDomainData(buf as Uint8Array<ArrayBuffer>);
     let sum = 0;
     for (let i = 0; i < buf.length; i++) {
-      const v = (buf[i] - 128) / 128;
+      const v = ((buf[i] ?? 128) - 128) / 128;
       sum += v * v;
     }
     return Math.sqrt(sum / buf.length);
