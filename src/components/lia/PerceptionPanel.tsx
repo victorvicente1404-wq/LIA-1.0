@@ -13,9 +13,11 @@ import { visionSource } from "@/lib/lia/vision";
 export function PerceptionPanel({
   listening,
   speaking,
+  audioLevel = 0,
 }: {
   listening: boolean;
   speaking: boolean;
+  audioLevel?: number;
 }) {
   const { state, modules, settings, updateSettings } = useLia();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -206,6 +208,20 @@ export function PerceptionPanel({
           active={listening}
         />
       </div>
+
+      {(listening || audioLevel > 0) && (
+        <div className="space-y-1">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-primary to-glow transition-[width] duration-75"
+              style={{ width: `${Math.min(100, Math.round(audioLevel * 320))}%` }}
+            />
+          </div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            nível do microfone
+          </p>
+        </div>
+      )}
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Reconhecimento facial, identificação de objetos e leitura de ambiente estão previstos como

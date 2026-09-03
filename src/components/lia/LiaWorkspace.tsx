@@ -20,7 +20,12 @@ export function LiaWorkspace() {
     [send],
   );
 
-  const voice = useVoice(onTranscript);
+  const voice = useVoice(onTranscript, {
+    wakeWord: lia.settings.wakeWord ?? false,
+    wakeWordName: lia.settings.wakeWordName ?? "lia",
+    sensibilidade: lia.settings.sensibilidade ?? 60,
+    silencioMs: lia.settings.silencioMs ?? 1200,
+  });
   const voiceModuleOn = modules.find((m) => m.id === "voz")?.ativo ?? false;
 
   // A Lia fala a última mensagem quando o módulo de voz está ativo.
@@ -41,6 +46,7 @@ export function LiaWorkspace() {
     if (voice.hearing) setState("listening");
     else if (voice.speaking) setState("speaking");
     else if (sending) setState("thinking");
+    else setState("idle");
   }, [voice.hearing, voice.speaking, sending, setState]);
 
   if (!lia.booted) {
@@ -86,7 +92,7 @@ export function LiaWorkspace() {
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div ref={perceptionRef} className="lg:contents">
-          <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} />
+          <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
         </div>
         <ChatPanel
           listening={voice.hearing}

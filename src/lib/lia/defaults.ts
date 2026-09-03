@@ -133,5 +133,15 @@ export const createCardData = (cardName = "Lia Card"): LiaCardData => ({
   activeProfileId: "pessoal",
   modules: defaultModules,
   history: [],
-  settings: { aiExterna: true, camera: false, microfone: false, animacoes: true, memoriaLocal: null },
+  settings: {
+    aiExterna: true,
+    camera: false,
+    microfone: false,
+    animacoes: true,
+    memoriaLocal: null,
+    wakeWord: false,
+    wakeWordName: "lia",
+    sensibilidade: 60,
+    silencioMs: 1200,
+  },
 });

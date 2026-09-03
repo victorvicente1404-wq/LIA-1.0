@@ -361,6 +361,51 @@ function SettingsSection() {
           checked={settings.animacoes}
           onChange={(v) => updateSettings({ animacoes: v })}
         />
+        <Toggle
+          label="Palavra de ativação"
+          desc="Diga “Lia” para acordar a escuta. O texto seguinte vira sua primeira pergunta."
+          checked={settings.wakeWord ?? false}
+          onChange={(v) => updateSettings({ wakeWord: v })}
+        />
+        {settings.wakeWord && (
+          <div className="space-y-2 rounded-md border border-border bg-surface/60 p-3">
+            <Label className="text-xs">
+              Palavra de ativação
+            </Label>
+            <Input
+              value={settings.wakeWordName ?? "lia"}
+              onChange={(e) => updateSettings({ wakeWordName: e.target.value || "lia" })}
+              placeholder="lia"
+              className="h-8 text-sm"
+            />
+            <div className="flex items-center justify-between pt-1">
+              <Label className="text-xs">Sensibilidade do microfone</Label>
+              <span className="text-[11px] text-muted-foreground">
+                {settings.sensibilidade ?? 60}
+              </span>
+            </div>
+            <Slider
+              value={[settings.sensibilidade ?? 60]}
+              min={10}
+              max={100}
+              step={5}
+              onValueChange={(v) => updateSettings({ sensibilidade: v[0] ?? 60 })}
+            />
+            <div className="flex items-center justify-between pt-1">
+              <Label className="text-xs">Silêncio p/ finalizar fala</Label>
+              <span className="text-[11px] text-muted-foreground">
+                {(settings.silencioMs ?? 1200) / 1000}s
+              </span>
+            </div>
+            <Slider
+              value={[(settings.silencioMs ?? 1200) / 1000]}
+              min={0.4}
+              max={3}
+              step={0.2}
+              onValueChange={(v) => updateSettings({ silencioMs: Math.round((v[0] ?? 1.2) * 1000) })}
+            />
+          </div>
+        )}
         <MemoryLocation />
         <div className="rounded-md border border-border bg-surface/60 p-3 text-xs text-muted-foreground">
           Voz do perfil {profile.nome}: velocidade {profile.voz.velocidade}x · tom{" "}

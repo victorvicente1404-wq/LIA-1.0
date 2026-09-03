@@ -147,3 +147,16 @@ export function createBrowserTts(): TtsEngine {
     },
   };
 }
+
+/** Instância singleton do motor de TTS ativo. */
+const ttsEngine = typeof window !== "undefined" ? createBrowserTts() : null;
+
+/** Fala o texto usando o motor TTS ativo. */
+export function speak(text: string, opts?: TtsSpeakOptions) {
+  ttsEngine?.speak(text, opts);
+}
+
+/** Interrompe a fala em andamento. */
+export function cancelSpeech() {
+  ttsEngine?.cancel();
+}

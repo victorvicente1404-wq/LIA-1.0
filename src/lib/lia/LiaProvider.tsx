@@ -122,6 +122,10 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     microfone: false,
     animacoes: true,
     memoriaLocal: null,
+    wakeWord: false,
+    wakeWordName: "lia",
+    sensibilidade: 60,
+    silencioMs: 1200,
   };
 
   const messages = useMemo(
