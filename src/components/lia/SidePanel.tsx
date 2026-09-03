@@ -389,7 +389,7 @@ function SettingsSection() {
               min={10}
               max={100}
               step={5}
-              onValueChange={(v) => updateSettings({ sensibilidade: v[0] })}
+              onValueChange={(v) => updateSettings({ sensibilidade: v[0] ?? 60 })}
             />
             <div className="flex items-center justify-between pt-1">
               <Label className="text-xs">Silêncio p/ finalizar fala</Label>
