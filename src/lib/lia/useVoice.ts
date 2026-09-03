@@ -226,9 +226,7 @@ export function useVoice(
       speakingRef.current = true;
       setSpeaking(true);
       updateState();
-      ttsSpeak(text, {
-        velocidade: opts?.velocidade,
-        tom: opts?.tom,
+      const ttsOpts: import("./tts").TtsSpeakOptions = {
         onEnd: () => {
           speakingRef.current = false;
           setSpeaking(false);
@@ -244,7 +242,10 @@ export function useVoice(
             }
           }
         },
-      });
+      };
+      if (opts?.velocidade !== undefined) ttsOpts.velocidade = opts.velocidade;
+      if (opts?.tom !== undefined) ttsOpts.tom = opts.tom;
+      ttsSpeak(text, ttsOpts);
     },
     [supported.tts, updateState],
   );
