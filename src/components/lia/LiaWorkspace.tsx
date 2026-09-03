@@ -20,7 +20,12 @@ export function LiaWorkspace() {
     [send],
   );
 
-  const voice = useVoice(onTranscript);
+  const voice = useVoice(onTranscript, {
+    wakeWord: lia.settings.wakeWord,
+    wakeWordName: lia.settings.wakeWordName,
+    sensibilidade: lia.settings.sensibilidade,
+    silencioMs: lia.settings.silencioMs,
+  });
   const voiceModuleOn = modules.find((m) => m.id === "voz")?.ativo ?? false;
 
   // A Lia fala a última mensagem quando o módulo de voz está ativo.
