@@ -21,10 +21,10 @@ export function LiaWorkspace() {
   );
 
   const voice = useVoice(onTranscript, {
-    wakeWord: lia.settings.wakeWord,
-    wakeWordName: lia.settings.wakeWordName,
-    sensibilidade: lia.settings.sensibilidade,
-    silencioMs: lia.settings.silencioMs,
+    wakeWord: lia.settings.wakeWord ?? false,
+    wakeWordName: lia.settings.wakeWordName ?? "lia",
+    sensibilidade: lia.settings.sensibilidade ?? 60,
+    silencioMs: lia.settings.silencioMs ?? 1200,
   });
   const voiceModuleOn = modules.find((m) => m.id === "voz")?.ativo ?? false;
 
