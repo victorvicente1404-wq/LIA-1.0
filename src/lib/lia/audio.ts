@@ -39,7 +39,7 @@ export function createAudioMonitor(
   let ctx: AudioContext | null = null;
   let analyser: AnalyserNode | null = null;
   let raf = 0;
-  let buf: Uint8Array = new Uint8Array(0);
+  let buf: Uint8Array<ArrayBuffer> = new Uint8Array(new ArrayBuffer(0));
   let level = 0;
   let speaking = false;
   let lastVoice = 0;
