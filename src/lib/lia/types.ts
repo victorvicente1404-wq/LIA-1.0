@@ -86,5 +86,13 @@ export interface LiaCardData {
     animacoes: boolean;
     /** Pasta escolhida pelo usuário para gravar as memórias (nome exibido). */
     memoriaLocal?: string | null;
+    /** Palavra de ativação ("Lia") habilitada. */
+    wakeWord?: boolean;
+    /** Palavra usada para ativar (normalizada: "lia"). */
+    wakeWordName?: string;
+    /** Sensibilidade do microfone 0–100 (maior = mais sensível). */
+    sensibilidade?: number;
+    /** Milissegundos de silêncio para finalizar a fala. */
+    silencioMs?: number;
   };
 }
