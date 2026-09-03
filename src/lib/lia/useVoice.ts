@@ -14,7 +14,7 @@ import { matchWakeWord } from "./wake-word";
 import { createAudioMonitor, type AudioMonitor } from "./audio";
 import { speak as ttsSpeak, cancelSpeech } from "./tts";
 
-export type MicState = "off" | "sleeping" | "active" | "hearing" | "processing";
+export type MicState = "off" | "sleeping" | "active" | "hearing" | "processing" | "speaking";
 
 export interface UseVoiceOptions {
   wakeWord?: boolean;
