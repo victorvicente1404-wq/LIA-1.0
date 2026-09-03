@@ -97,7 +97,7 @@ export function createAudioMonitor(
     analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     analyser.smoothingTimeConstant = 0.6;
-    buf = new Uint8Array(analyser.fftSize);
+    buf = new Uint8Array(new ArrayBuffer(analyser.fftSize));
     const src = ctx.createMediaStreamSource(stream);
     src.connect(analyser);
     loop();
