@@ -46,6 +46,7 @@ export function LiaWorkspace() {
     if (voice.hearing) setState("listening");
     else if (voice.speaking) setState("speaking");
     else if (sending) setState("thinking");
+    else setState("idle");
   }, [voice.hearing, voice.speaking, sending, setState]);
 
   if (!lia.booted) {
