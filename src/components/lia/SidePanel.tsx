@@ -402,7 +402,7 @@ function SettingsSection() {
               min={0.4}
               max={3}
               step={0.2}
-              onValueChange={(v) => updateSettings({ silencioMs: Math.round(v[0] * 1000) })}
+              onValueChange={(v) => updateSettings({ silencioMs: Math.round((v[0] ?? 1.2) * 1000) })}
             />
           </div>
         )}
