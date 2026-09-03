@@ -18,7 +18,7 @@ export function ChatPanel({
 }: {
   listening: boolean;
   micOn: boolean;
-  micState: "off" | "active" | "hearing" | "processing";
+  micState: "off" | "sleeping" | "active" | "hearing" | "processing" | "speaking";
   speaking: boolean;
   onMic: () => void;
   onStopSpeech: () => void;
