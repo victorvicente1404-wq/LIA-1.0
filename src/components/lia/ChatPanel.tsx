@@ -56,13 +56,15 @@ export function ChatPanel({
           <span className="mr-1 hidden rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-widest text-muted-foreground sm:inline">
             {micState === "off"
               ? "microfone desligado"
-              : micState === "hearing"
-                ? "ouvindo"
-                : micState === "processing"
-                  ? "processando"
-                  : speaking
-                    ? "lia falando"
-                    : "microfone ativo"}
+              : micState === "sleeping"
+                ? "aguardando palavra de ativação"
+                : micState === "hearing"
+                  ? "ouvindo"
+                  : micState === "processing"
+                    ? "processando"
+                    : micState === "speaking"
+                      ? "lia falando"
+                      : "microfone ativo"}
           </span>
           {speaking && (
             <Button size="sm" variant="secondary" onClick={onStopSpeech}>
