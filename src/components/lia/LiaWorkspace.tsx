@@ -92,7 +92,7 @@ export function LiaWorkspace() {
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div ref={perceptionRef} className="lg:contents">
-          <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} />
+          <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
         </div>
         <ChatPanel
           listening={voice.hearing}
