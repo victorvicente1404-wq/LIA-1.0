@@ -13,9 +13,11 @@ import { visionSource } from "@/lib/lia/vision";
 export function PerceptionPanel({
   listening,
   speaking,
+  audioLevel = 0,
 }: {
   listening: boolean;
   speaking: boolean;
+  audioLevel?: number;
 }) {
   const { state, modules, settings, updateSettings } = useLia();
   const videoRef = useRef<HTMLVideoElement>(null);
