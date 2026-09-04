@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateText } from "ai";
+import { generateText, stepCountIs } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 
@@ -13,7 +13,7 @@ const Input = z.object({
   frame: z.string().startsWith("data:image/").max(4_000_000).optional(),
 });
 
-/** Fala da Lia: uma chamada de conversação (e visão) ao Lovable AI. */
+/** Fala da Lia: conversação, visão e ações nos serviços conectados. */
 export const liaRespond = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
@@ -35,13 +35,33 @@ export const liaRespond = createServerFn({ method: "POST" })
       };
     });
 
+    // Ferramentas dos serviços conectados (só para usuário autenticado).
+    let tools: Record<string, unknown> = {};
+    try {
+      const { resolveOptionalUserId } = await import("@/server/optionalAuth.server");
+      const userId = await resolveOptionalUserId();
+      if (userId) {
+        const { buildLiaTools } = await import("@/server/liaTools.server");
+        tools = (await buildLiaTools(userId)).tools;
+      }
+    } catch (error) {
+      console.error("Falha ao preparar as ferramentas da Lia:", (error as Error).message);
+    }
+
+    const agora = new Date();
+    const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
+
     try {
       const result = await generateText({
         model: gateway("google/gemini-3.7-flash"),
-        system: data.system,
+        system: data.system + contextoTemporal,
         messages: messages as never,
+        ...(Object.keys(tools).length ? { tools: tools as never, stopWhen: stepCountIs(8) } : {}),
       });
-      return { ok: true as const, text: result.text };
+      const text =
+        result.text.trim() ||
+        "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
+      return { ok: true as const, text };
     } catch (error) {
       const status = (error as { statusCode?: number; status?: number }).statusCode ??
         (error as { status?: number }).status;
