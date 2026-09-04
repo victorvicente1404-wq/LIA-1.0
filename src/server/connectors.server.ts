@@ -19,36 +19,37 @@ export const CONNECTOR_CONFIG: Record<
 > = {
   google_calendar: {
     envVar: "GOOGLE_CALENDAR_APP_USER_CONNECTOR_CLIENT_API_KEY",
-    scopes: [...BASE_SCOPES, "https://www.googleapis.com/auth/calendar.events"],
+    scopes: [...BASE_SCOPES, "https://www.googleapis.com/auth/calendar"],
   },
   google_mail: {
     envVar: "GOOGLE_MAIL_APP_USER_CONNECTOR_CLIENT_API_KEY",
     scopes: [
       ...BASE_SCOPES,
-      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.modify",
       "https://www.googleapis.com/auth/gmail.send",
     ],
   },
   google_drive: {
     envVar: "GOOGLE_DRIVE_APP_USER_CONNECTOR_CLIENT_API_KEY",
-    scopes: [...BASE_SCOPES, "https://www.googleapis.com/auth/drive.readonly"],
+    scopes: [...BASE_SCOPES, "https://www.googleapis.com/auth/drive"],
   },
   google_docs: {
     envVar: "GOOGLE_DOCS_APP_USER_CONNECTOR_CLIENT_API_KEY",
     scopes: [
       ...BASE_SCOPES,
       "https://www.googleapis.com/auth/documents",
-      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/drive",
     ],
   },
   google_slides: {
     envVar: "GOOGLE_SLIDES_APP_USER_CONNECTOR_CLIENT_API_KEY",
     scopes: [
       ...BASE_SCOPES,
-      "https://www.googleapis.com/auth/presentations.readonly",
-      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/presentations",
+      "https://www.googleapis.com/auth/drive",
     ],
   },
+
 };
 
 export function requireConnectorConfig(connectorId: string) {
