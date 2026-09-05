@@ -11,6 +11,19 @@ const Input = z.object({
     .max(40),
   /** Frame atual da câmera (data URL JPEG), quando o módulo de visão está ativo. */
   frame: z.string().startsWith("data:image/").max(4_000_000).optional(),
+  /** Anexos enviados pelo usuário nesta mensagem. */
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        mime: z.string().max(120),
+        /** Imagens vêm como data URL; documentos vêm como texto extraído. */
+        dataUrl: z.string().max(6_000_000).optional(),
+        text: z.string().max(400_000).optional(),
+      }),
+    )
+    .max(6)
+    .optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
