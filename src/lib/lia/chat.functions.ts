@@ -52,12 +52,13 @@ export const liaRespond = createServerFn({ method: "POST" })
     const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
 
     try {
-      const result = await generateText({
+      const options = {
         model: gateway("google/gemini-3.7-flash"),
         system: data.system + contextoTemporal,
-        messages: messages as never,
-        ...(Object.keys(tools).length ? { tools: tools as never, stopWhen: stepCountIs(8) } : {}),
-      });
+        messages,
+        ...(Object.keys(tools).length ? { tools, stopWhen: stepCountIs(8) } : {}),
+      } as Parameters<typeof generateText>[0];
+      const result = await generateText(options);
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
