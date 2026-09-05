@@ -4,6 +4,7 @@ import { ChatPanel } from "./ChatPanel";
 import { PerceptionPanel } from "./PerceptionPanel";
 import { SidePanel } from "./SidePanel";
 import { LiaOrb } from "./LiaOrb";
+import { DevPanel } from "./DevPanel";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { useVoice } from "@/lib/lia/useVoice";
 
@@ -12,6 +13,18 @@ export function LiaWorkspace() {
   const { messages, send, cardConnected, profile, modules, setState, sending } = lia;
   const perceptionRef = useRef<HTMLDivElement>(null);
   const [spokenId, setSpokenId] = useState<string | null>(null);
+  const [devOpen, setDevOpen] = useState(false);
+  const clicksRef = useRef<number[]>([]);
+
+  // Cinco cliques rápidos no ícone da Lia abrem o painel interno.
+  const onLogoClick = useCallback(() => {
+    const now = Date.now();
+    clicksRef.current = [...clicksRef.current, now].filter((t) => now - t < 2000);
+    if (clicksRef.current.length >= 5) {
+      clicksRef.current = [];
+      setDevOpen(true);
+    }
+  }, []);
 
   const onTranscript = useCallback(
     (text: string) => {
@@ -63,7 +76,9 @@ export function LiaWorkspace() {
     <div className="flex h-screen flex-col gap-3 p-3">
       <header className="panel flex items-center justify-between px-4 py-2.5">
         <div className="flex items-center gap-3">
-          <LiaOrb state={lia.state} size={34} />
+          <button type="button" onClick={onLogoClick} aria-label="Lia" className="rounded-full">
+            <LiaOrb state={lia.state} size={34} />
+          </button>
           <div>
             <h1 className="font-display text-lg font-semibold tracking-[0.2em] text-gradient-lia">
               LIA
@@ -108,6 +123,8 @@ export function LiaWorkspace() {
         />
         <SidePanel />
       </main>
+
+      <DevPanel open={devOpen} onOpenChange={setDevOpen} />
     </div>
   );
 }

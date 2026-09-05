@@ -11,6 +11,19 @@ const Input = z.object({
     .max(40),
   /** Frame atual da câmera (data URL JPEG), quando o módulo de visão está ativo. */
   frame: z.string().startsWith("data:image/").max(4_000_000).optional(),
+  /** Anexos enviados pelo usuário nesta mensagem. */
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        mime: z.string().max(120),
+        /** Imagens vêm como data URL; documentos vêm como texto extraído. */
+        dataUrl: z.string().max(6_000_000).optional(),
+        text: z.string().max(400_000).optional(),
+      }),
+    )
+    .max(6)
+    .optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -22,17 +35,23 @@ export const liaRespond = createServerFn({ method: "POST" })
 
     const gateway = createLovableAiGatewayProvider(key);
 
-    // O último turno do usuário carrega o frame atual da câmera, quando existe.
+    // O último turno do usuário carrega o frame da câmera e os anexos, quando existem.
+    const anexos = data.attachments ?? [];
     const messages = data.messages.map((m, i) => {
       const isLastUser = i === data.messages.length - 1 && m.role === "user";
-      if (!isLastUser || !data.frame) return m;
-      return {
-        role: "user" as const,
-        content: [
-          { type: "text" as const, text: m.content },
-          { type: "image" as const, image: data.frame },
-        ],
-      };
+      if (!isLastUser || (!data.frame && !anexos.length)) return m;
+      const parts: Array<Record<string, unknown>> = [{ type: "text", text: m.content }];
+      if (data.frame) parts.push({ type: "image", image: data.frame });
+      for (const a of anexos) {
+        if (a.dataUrl && a.mime.startsWith("image/")) {
+          parts.push({ type: "image", image: a.dataUrl });
+        } else if (a.dataUrl && a.mime === "application/pdf") {
+          parts.push({ type: "file", mediaType: a.mime, data: a.dataUrl, filename: a.name });
+        } else if (a.text) {
+          parts.push({ type: "text", text: `Arquivo anexado "${a.name}":\n${a.text}` });
+        }
+      }
+      return { role: "user" as const, content: parts };
     });
 
     // Ferramentas dos serviços conectados (só para usuário autenticado).
@@ -52,12 +71,13 @@ export const liaRespond = createServerFn({ method: "POST" })
     const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
 
     try {
-      const result = await generateText({
+      const options = {
         model: gateway("google/gemini-3.7-flash"),
         system: data.system + contextoTemporal,
-        messages: messages as never,
-        ...(Object.keys(tools).length ? { tools: tools as never, stopWhen: stepCountIs(8) } : {}),
-      });
+        messages,
+        ...(Object.keys(tools).length ? { tools, stopWhen: stepCountIs(8) } : {}),
+      } as Parameters<typeof generateText>[0];
+      const result = await generateText(options);
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
