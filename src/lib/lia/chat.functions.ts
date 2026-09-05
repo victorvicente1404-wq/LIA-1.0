@@ -35,17 +35,23 @@ export const liaRespond = createServerFn({ method: "POST" })
 
     const gateway = createLovableAiGatewayProvider(key);
 
-    // O último turno do usuário carrega o frame atual da câmera, quando existe.
+    // O último turno do usuário carrega o frame da câmera e os anexos, quando existem.
+    const anexos = data.attachments ?? [];
     const messages = data.messages.map((m, i) => {
       const isLastUser = i === data.messages.length - 1 && m.role === "user";
-      if (!isLastUser || !data.frame) return m;
-      return {
-        role: "user" as const,
-        content: [
-          { type: "text" as const, text: m.content },
-          { type: "image" as const, image: data.frame },
-        ],
-      };
+      if (!isLastUser || (!data.frame && !anexos.length)) return m;
+      const parts: Array<Record<string, unknown>> = [{ type: "text", text: m.content }];
+      if (data.frame) parts.push({ type: "image", image: data.frame });
+      for (const a of anexos) {
+        if (a.dataUrl && a.mime.startsWith("image/")) {
+          parts.push({ type: "image", image: a.dataUrl });
+        } else if (a.dataUrl && a.mime === "application/pdf") {
+          parts.push({ type: "file", mediaType: a.mime, data: a.dataUrl, filename: a.name });
+        } else if (a.text) {
+          parts.push({ type: "text", text: `Arquivo anexado "${a.name}":\n${a.text}` });
+        }
+      }
+      return { role: "user" as const, content: parts };
     });
 
     // Ferramentas dos serviços conectados (só para usuário autenticado).
