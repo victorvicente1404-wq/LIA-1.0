@@ -19,6 +19,7 @@ import { useConnections } from "./useConnections";
 import { connectorLabel } from "./connectors";
 import { liaRespond } from "./chat.functions";
 import { describeVision, visionSource } from "./vision";
+import { readDevSettings } from "./dev-settings";
 import * as memoryStore from "./memory-store";
 import type {
   ChatMessage,
@@ -218,7 +219,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
 
       try {
         const res = await liaRespond({
-          data: { system, messages: history, ...(frame ? { frame } : {}) },
+          data: { system: systemFinal, messages: history, ...(frame ? { frame } : {}) },
         });
         if (token.cancelled) return;
         const { clean, learned } = extractMemories(res.text);
