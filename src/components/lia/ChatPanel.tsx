@@ -89,13 +89,13 @@ export function ChatPanel({
             {m.role === "lia" && <LiaOrb state="idle" size={26} className="mt-1 shrink-0" />}
             <div
               className={cn(
-                "max-w-[85%] whitespace-pre-wrap text-sm leading-relaxed",
+                "max-w-[85%] text-sm leading-relaxed",
                 m.role === "user"
-                  ? "rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-primary-foreground"
+                  ? "whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-primary-foreground"
                   : "text-foreground",
               )}
             >
-              {m.content}
+              {m.role === "user" ? m.content : <Markdown content={m.content} />}
             </div>
           </div>
         ))}
