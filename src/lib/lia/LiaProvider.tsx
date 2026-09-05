@@ -22,6 +22,7 @@ import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
 import * as memoryStore from "./memory-store";
 import type {
+  Attachment,
   ChatMessage,
   LiaCardData,
   LiaModule,
@@ -51,7 +52,7 @@ interface LiaContextValue {
   state: LiaState;
   setState: (s: LiaState) => void;
   sending: boolean;
-  send: (text: string) => Promise<void>;
+  send: (text: string, attachments?: Attachment[]) => Promise<void>;
   stop: () => void;
   clearHistory: () => void;
   // gestão
@@ -167,9 +168,9 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, attachments?: Attachment[]) => {
       const trimmed = text.trim();
-      if (!trimmed || sending) return;
+      if ((!trimmed && !attachments?.length) || sending) return;
       stop();
 
       const userMsg: ChatMessage = {
@@ -177,6 +178,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         role: "user",
         content: trimmed,
         createdAt: Date.now(),
+        ...(attachments?.length ? { attachments } : {}),
       };
       const base = sessionMessages.length
         ? sessionMessages
@@ -219,7 +221,21 @@ export function LiaProvider({ children }: { children: ReactNode }) {
 
       try {
         const res = await liaRespond({
-          data: { system: systemFinal, messages: history, ...(frame ? { frame } : {}) },
+          data: {
+            system: systemFinal,
+            messages: history,
+            ...(frame ? { frame } : {}),
+            ...(attachments?.length
+              ? {
+                  attachments: attachments.map((a) => ({
+                    name: a.name,
+                    mime: a.mime,
+                    ...(a.dataUrl ? { dataUrl: a.dataUrl } : {}),
+                    ...(a.text ? { text: a.text } : {}),
+                  })),
+                }
+              : {}),
+          },
         });
         if (token.cancelled) return;
         const { clean, learned } = extractMemories(res.text);

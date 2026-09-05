@@ -6,11 +6,22 @@
 
 export type LiaState = "idle" | "watching" | "listening" | "thinking" | "speaking";
 
+export interface Attachment {
+  name: string;
+  mime: string;
+  size: number;
+  /** Data URL (imagens e PDFs) para prévia e download. */
+  dataUrl?: string;
+  /** Conteúdo textual extraído (.txt, .csv, .json). */
+  text?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "lia";
   content: string;
   createdAt: number;
+  attachments?: Attachment[];
 }
 
 export interface MemoryItem {
