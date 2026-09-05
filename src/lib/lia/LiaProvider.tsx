@@ -209,6 +209,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         servicos: connectedIds.map(connectorLabel),
       });
       void obs;
+      const extra = readDevSettings().systemPromptExtra.trim();
+      const systemFinal = extra ? `${system}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : system;
       const history = withUser.slice(-16).map((m) => ({
         role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
         content: m.content,

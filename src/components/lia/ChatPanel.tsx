@@ -3,6 +3,7 @@ import { Camera, Mic, Send, Square, Trash2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LiaOrb, stateLabel } from "./LiaOrb";
+import { Markdown } from "./Markdown";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { cn } from "@/lib/utils";
 
