@@ -1,7 +1,7 @@
 import { memo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
