@@ -97,6 +97,8 @@ export interface LiaCardData {
     animacoes: boolean;
     /** Pasta escolhida pelo usuário para gravar as memórias (nome exibido). */
     memoriaLocal?: string | null;
+    /** Fala da assistente em tempo real. */
+    fala?: boolean;
     /** Palavra de ativação ("Lia") habilitada. */
     wakeWord?: boolean;
     /** Palavra usada para ativar (normalizada: "lia"). */

@@ -5,6 +5,7 @@ import { PerceptionPanel } from "./PerceptionPanel";
 import { SidePanel } from "./SidePanel";
 import { LiaOrb } from "./LiaOrb";
 import { DevPanel } from "./DevPanel";
+import { ConversationsSidebar } from "./ConversationsSidebar";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { useVoice } from "@/lib/lia/useVoice";
 
@@ -14,6 +15,7 @@ export function LiaWorkspace() {
   const perceptionRef = useRef<HTMLDivElement>(null);
   const [spokenId, setSpokenId] = useState<string | null>(null);
   const [devOpen, setDevOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const clicksRef = useRef<number[]>([]);
 
   // Cinco cliques rápidos no ícone da Lia abrem o painel interno.
@@ -39,7 +41,8 @@ export function LiaWorkspace() {
     sensibilidade: lia.settings.sensibilidade ?? 60,
     silencioMs: lia.settings.silencioMs ?? 1200,
   });
-  const voiceModuleOn = modules.find((m) => m.id === "voz")?.ativo ?? false;
+  const voiceModuleOn =
+    (modules.find((m) => m.id === "voz")?.ativo ?? false) && lia.settings.fala !== false;
 
   // A Lia fala a última mensagem quando o módulo de voz está ativo.
   const last = messages[messages.length - 1];
@@ -106,6 +109,7 @@ export function LiaWorkspace() {
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <ConversationsSidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
         <div ref={perceptionRef} className="lg:contents">
           <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
         </div>

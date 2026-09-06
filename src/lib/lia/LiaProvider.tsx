@@ -20,6 +20,8 @@ import { connectorLabel } from "./connectors";
 import { liaRespond } from "./chat.functions";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
+import * as convo from "./conversations";
+import type { Conversation } from "./conversations";
 import * as memoryStore from "./memory-store";
 import type {
   Attachment,
@@ -55,6 +57,11 @@ interface LiaContextValue {
   send: (text: string, attachments?: Attachment[]) => Promise<void>;
   stop: () => void;
   clearHistory: () => void;
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  newConversation: () => void;
+  selectConversation: (id: string) => void;
+  deleteConversation: (id: string) => void;
   // gestão
   connectCard: () => void;
   ejectCard: () => void;
@@ -84,6 +91,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<LiaState>("idle");
   const [sending, setSending] = useState(false);
   const { connectedIds } = useConnections();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const abortRef = useRef<{ cancelled: boolean } | null>(null);
 
   // Detecta o Lia Card na inicialização
@@ -97,7 +106,42 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       setData(loaded);
       setSessionMessages(loaded?.history ?? []);
     }
+
+    // Histórico de conversas do navegador
+    const list = convo.readConversations();
+    const activeId = convo.readActiveId();
+    const active = list.find((c) => c.id === activeId) ?? list[0];
+    if (active) {
+      setConversations(list);
+      setActiveConversationId(active.id);
+      if (active.messages.length) setSessionMessages(active.messages);
+    } else {
+      const created = convo.newConversation();
+      setConversations([created]);
+      setActiveConversationId(created.id);
+      convo.writeConversations([created]);
+      convo.writeActiveId(created.id);
+    }
   }, []);
+
+  // Salva a conversa ativa a cada mudança de mensagens
+  useEffect(() => {
+    if (!activeConversationId) return;
+    setConversations((prev) => {
+      const next = prev.map((c) =>
+        c.id === activeConversationId
+          ? {
+              ...c,
+              messages: sessionMessages.slice(-200),
+              title: convo.titleFor(sessionMessages),
+              updatedAt: Date.now(),
+            }
+          : c,
+      );
+      convo.writeConversations(next);
+      return next;
+    });
+  }, [sessionMessages, activeConversationId]);
 
   const persist = useCallback(
     (next: LiaCardData) => {
@@ -124,6 +168,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     microfone: false,
     animacoes: true,
     memoriaLocal: null,
+    fala: true,
     wakeWord: false,
     wakeWordName: "lia",
     sensibilidade: 60,
@@ -318,6 +363,40 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     clearHistory: () => {
       setSessionMessages([]);
       if (data) persist({ ...data, history: [] });
+    },
+    conversations,
+    activeConversationId,
+    newConversation: () => {
+      const created = convo.newConversation();
+      setConversations((prev) => {
+        const next = [created, ...prev];
+        convo.writeConversations(next);
+        return next;
+      });
+      setActiveConversationId(created.id);
+      convo.writeActiveId(created.id);
+      setSessionMessages([]);
+    },
+    selectConversation: (id) => {
+      const found = conversations.find((c) => c.id === id);
+      if (!found) return;
+      setActiveConversationId(id);
+      convo.writeActiveId(id);
+      setSessionMessages(found.messages);
+    },
+    deleteConversation: (id) => {
+      setConversations((prev) => {
+        const next = prev.filter((c) => c.id !== id);
+        const list = next.length ? next : [convo.newConversation()];
+        convo.writeConversations(list);
+        if (id === activeConversationId) {
+          const first = list[0]!;
+          setActiveConversationId(first.id);
+          convo.writeActiveId(first.id);
+          setSessionMessages(first.messages);
+        }
+        return list;
+      });
     },
     connectCard: () => {
       const present = card.cardExists();

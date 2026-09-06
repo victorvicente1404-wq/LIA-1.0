@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Mic, Send, Square, Trash2, Volume2 } from "lucide-react";
+import { Camera, Mic, Paperclip, Send, Square, Trash2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LiaOrb, stateLabel } from "./LiaOrb";
 import { Markdown } from "./Markdown";
+import { AttachmentCard, AttachmentPreview } from "./AttachmentView";
 import { useLia } from "@/lib/lia/LiaProvider";
+import type { Attachment } from "@/lib/lia/types";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export function ChatPanel({
@@ -28,7 +31,33 @@ export function ChatPanel({
 }) {
   const { messages, send, sending, stop, state, profile, clearHistory } = useLia();
   const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState<Attachment[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const readFiles = async (files: FileList) => {
+    const next: Attachment[] = [];
+    for (const file of Array.from(files).slice(0, 6)) {
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error(`${file.name} é maior que 8 MB.`);
+        continue;
+      }
+      const isImage = file.type.startsWith("image/");
+      const isPdf = file.type === "application/pdf";
+      if (isImage || isPdf) {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.readAsDataURL(file);
+        });
+        next.push({ name: file.name, mime: file.type, size: file.size, dataUrl });
+      } else {
+        const text = await file.text();
+        next.push({ name: file.name, mime: file.type || "text/plain", size: file.size, text });
+      }
+    }
+    setPending((prev) => [...prev, ...next].slice(0, 6));
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,8 +65,11 @@ export function ChatPanel({
 
   const submit = () => {
     const text = draft;
+    const anexos = pending;
+    if (!text.trim() && !anexos.length) return;
     setDraft("");
-    void send(text);
+    setPending([]);
+    void send(text, anexos);
   };
 
   return (
@@ -97,6 +129,13 @@ export function ChatPanel({
               )}
             >
               {m.role === "user" ? m.content : <Markdown content={m.content} />}
+              {!!m.attachments?.length && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {m.attachments.map((a, i) => (
+                    <AttachmentCard key={`${m.id}-${i}`} a={a} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -113,6 +152,17 @@ export function ChatPanel({
       </div>
 
       <footer className="border-t border-border p-3">
+        {!!pending.length && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {pending.map((a, i) => (
+              <AttachmentPreview
+                key={`${a.name}-${i}`}
+                a={a}
+                onRemove={() => setPending((prev) => prev.filter((_, j) => j !== i))}
+              />
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2 rounded-xl border border-border bg-surface/70 p-2">
           <Textarea
             value={draft}
@@ -143,10 +193,30 @@ export function ChatPanel({
             <Mic className="h-4 w-4" />
           </Button>
 
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.csv,.json,image/*,application/pdf,text/plain,text/csv,application/json"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) void readFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => fileRef.current?.click()}
+            title="Anexar imagem ou arquivo"
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
+
           <Button size="icon" variant="ghost" onClick={onCameraFocus} title="Sistema de visão">
             <Camera className="h-4 w-4" />
           </Button>
-          <Button size="icon" onClick={submit} disabled={!draft.trim() || sending}>
+          <Button size="icon" onClick={submit} disabled={(!draft.trim() && !pending.length) || sending}>
             <Send className="h-4 w-4" />
           </Button>
         </div>

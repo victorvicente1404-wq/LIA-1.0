@@ -1,7 +1,7 @@
 import { memo, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
@@ -72,6 +72,24 @@ export const Markdown = memo(function Markdown({
             </blockquote>
           ),
           hr: () => <hr className="my-3 border-border" />,
+          img: ({ src, alt }) => (
+            <span className="group relative my-2 inline-block overflow-hidden rounded-xl border border-border">
+              <img src={typeof src === "string" ? src : ""} alt={alt ?? ""} className="max-h-80 w-auto" />
+              <button
+                type="button"
+                title="Baixar imagem"
+                onClick={() => {
+                  const el = document.createElement("a");
+                  el.href = typeof src === "string" ? src : "";
+                  el.download = alt?.trim() || "imagem-lia.png";
+                  el.click();
+                }}
+                className="absolute right-2 top-2 rounded-lg border border-border bg-background/80 p-1.5 text-muted-foreground backdrop-blur transition hover:text-foreground"
+              >
+                <Download className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ),
           table: ({ children }) => (
             <div className="my-2 overflow-x-auto rounded-xl border border-border">
               <table className="w-full border-collapse text-[13px]">{children}</table>
