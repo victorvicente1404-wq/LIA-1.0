@@ -210,3 +210,81 @@
 @utility animate-lia-fade-up {
   animation: lia-fade-up 0.35s ease-out both;
 }
+
+/*
+ * Temas da Lia — o tom de destaque vem de --h (matiz oklch).
+ * O tema padrão "lia" mantém o roxo original.
+ */
+:root {
+  --h: 300;
+}
+
+[data-theme="midnight"] {
+  --background: oklch(0.16 0.03 265);
+  --foreground: oklch(0.95 0.008 265);
+  --surface: oklch(0.21 0.032 265);
+  --surface-2: oklch(0.25 0.035 265);
+  --card: oklch(0.205 0.032 265);
+  --card-foreground: oklch(0.95 0.008 265);
+  --popover: oklch(0.21 0.032 265);
+  --popover-foreground: oklch(0.95 0.008 265);
+  --secondary: oklch(0.27 0.035 265);
+  --secondary-foreground: oklch(0.94 0.008 265);
+  --muted: oklch(0.26 0.03 265);
+  --muted-foreground: oklch(0.72 0.02 265);
+  --accent: oklch(0.32 0.06 var(--h));
+  --accent-foreground: oklch(0.96 0.01 var(--h));
+  --border: oklch(0.32 0.03 265);
+  --input: oklch(0.32 0.03 265);
+}
+
+[data-theme="amoled"] {
+  --background: oklch(0 0 0);
+  --foreground: oklch(0.96 0 0);
+  --surface: oklch(0.12 0.008 var(--h));
+  --surface-2: oklch(0.16 0.01 var(--h));
+  --card: oklch(0.08 0.006 var(--h));
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.09 0.006 var(--h));
+  --popover-foreground: oklch(0.96 0 0);
+  --secondary: oklch(0.17 0.01 var(--h));
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.16 0.008 var(--h));
+  --muted-foreground: oklch(0.68 0.01 var(--h));
+  --accent: oklch(0.24 0.05 var(--h));
+  --accent-foreground: oklch(0.97 0.01 var(--h));
+  --border: oklch(0.24 0.012 var(--h));
+  --input: oklch(0.24 0.012 var(--h));
+}
+
+[data-theme="claro"] {
+  --background: oklch(0.985 0.004 var(--h));
+  --foreground: oklch(0.22 0.02 var(--h));
+  --surface: oklch(0.96 0.008 var(--h));
+  --surface-2: oklch(0.93 0.012 var(--h));
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 var(--h));
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 var(--h));
+  --secondary: oklch(0.94 0.012 var(--h));
+  --secondary-foreground: oklch(0.25 0.02 var(--h));
+  --muted: oklch(0.94 0.008 var(--h));
+  --muted-foreground: oklch(0.48 0.02 var(--h));
+  --accent: oklch(0.92 0.04 var(--h));
+  --accent-foreground: oklch(0.25 0.04 var(--h));
+  --border: oklch(0.88 0.012 var(--h));
+  --input: oklch(0.88 0.012 var(--h));
+}
+
+/* Cor de destaque em qualquer tema */
+:root,
+[data-theme] {
+  --primary: oklch(0.58 0.21 var(--h));
+  --primary-foreground: oklch(0.98 0.01 var(--h));
+  --glow: oklch(0.72 0.19 calc(var(--h) + 5));
+  --ring: oklch(0.62 0.18 var(--h));
+}
+
+[data-theme="claro"] {
+  --primary-foreground: oklch(0.99 0.005 var(--h));
+}
