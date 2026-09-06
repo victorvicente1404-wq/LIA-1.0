@@ -168,6 +168,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     microfone: false,
     animacoes: true,
     memoriaLocal: null,
+    fala: true,
     wakeWord: false,
     wakeWordName: "lia",
     sensibilidade: 60,

@@ -41,7 +41,8 @@ export function LiaWorkspace() {
     sensibilidade: lia.settings.sensibilidade ?? 60,
     silencioMs: lia.settings.silencioMs ?? 1200,
   });
-  const voiceModuleOn = modules.find((m) => m.id === "voz")?.ativo ?? false;
+  const voiceModuleOn =
+    (modules.find((m) => m.id === "voz")?.ativo ?? false) && lia.settings.fala !== false;
 
   // A Lia fala a última mensagem quando o módulo de voz está ativo.
   const last = messages[messages.length - 1];
