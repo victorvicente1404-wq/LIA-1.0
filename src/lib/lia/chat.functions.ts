@@ -31,9 +31,7 @@ export const liaRespond = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
     const key = process.env["LOVABLE_API_KEY"];
-    if (!key) throw new Error("LOVABLE_API_KEY ausente");
 
-    const gateway = createLovableAiGatewayProvider(key);
 
     // O último turno do usuário carrega o frame da câmera e os anexos, quando existem.
     const anexos = data.attachments ?? [];
