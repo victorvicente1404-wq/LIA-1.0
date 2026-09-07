@@ -67,11 +67,15 @@ export const liaRespond = createServerFn({ method: "POST" })
 
     const agora = new Date();
     const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
+    const systemFinal = data.system + contextoTemporal;
 
+    // 1) Provedor principal: IA do Lovable (com as ferramentas dos serviços conectados).
     try {
+      if (!key) throw new Error("LOVABLE_API_KEY ausente");
+      const gateway = createLovableAiGatewayProvider(key);
       const options = {
         model: gateway("google/gemini-3.7-flash"),
-        system: data.system + contextoTemporal,
+        system: systemFinal,
         messages,
         ...(Object.keys(tools).length ? { tools, stopWhen: stepCountIs(8) } : {}),
       } as Parameters<typeof generateText>[0];
@@ -81,16 +85,44 @@ export const liaRespond = createServerFn({ method: "POST" })
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
       return { ok: true as const, text };
     } catch (error) {
-      const status = (error as { statusCode?: number; status?: number }).statusCode ??
+      const status =
+        (error as { statusCode?: number; status?: number }).statusCode ??
         (error as { status?: number }).status;
+      // Log interno apenas — nada sensível vai para o usuário.
+      console.error("Provedor principal falhou:", status ?? "sem status", (error as Error).message);
+
+      // Requisição inválida (400/401): trocar de modelo não resolve.
+      const recuperavel = status !== 400 && status !== 401;
+
+      if (recuperavel) {
+        // 2) Fallback: Gemini oficial, com o MESMO system prompt, memórias e histórico.
+        try {
+          const { generateWithGemini } = await import("./gemini.server");
+          const text = await generateWithGemini(
+            systemFinal,
+            messages as Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>,
+          );
+          return { ok: true as const, text, provider: "gemini" as const };
+        } catch (geminiError) {
+          console.error("Fallback Gemini falhou:", (geminiError as Error).message);
+        }
+
+        // 3) Último recurso: busca pública com a última pergunta do usuário.
+        try {
+          const { searchFallback } = await import("./gemini.server");
+          const last = [...data.messages].reverse().find((m) => m.role === "user");
+          const found = last ? await searchFallback(last.content) : null;
+          if (found) return { ok: true as const, text: found, provider: "busca" as const };
+        } catch (searchError) {
+          console.error("Fallback de busca falhou:", (searchError as Error).message);
+        }
+      }
+
       const message =
-        status === 402
-          ? "Os créditos de IA do espaço de trabalho acabaram. Adicione créditos em Lovable para eu voltar a conversar."
-          : status === 429
-            ? "Muitas mensagens em pouco tempo. Aguarde alguns segundos e fale comigo de novo."
-            : status === 403
-              ? "O acesso à IA está bloqueado pelas políticas do espaço de trabalho."
-              : `Não consegui responder agora: ${(error as Error).message}`;
+        status === 400 || status === 401
+          ? "Não consegui entender essa solicitação. Pode tentar reformular?"
+          : "Estou temporariamente indisponível. Sua conversa e suas memórias estão salvas — tente de novo em alguns instantes.";
       return { ok: false as const, text: message, status: status ?? 500 };
     }
+
   });
