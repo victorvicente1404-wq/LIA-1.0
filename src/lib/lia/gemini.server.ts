@@ -7,7 +7,7 @@
 type Part = Record<string, unknown>;
 export type GenMessage = { role: "user" | "assistant"; content: string | Part[] };
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-3.8-flash";
 
 function dataUrlToInline(dataUrl: string): { mimeType: string; data: string } | null {
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
