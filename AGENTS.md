@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep Lia's affective rewards as optional Lia Card state separate from persistent memory, because treats must never alter learned user facts.
+- Normalize multimodal files in the browser and convert provider payloads only at the server boundary, because both AI providers must receive the same validated media.
