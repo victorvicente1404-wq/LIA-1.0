@@ -24,6 +24,20 @@ export interface ChatMessage {
   attachments?: Attachment[];
 }
 
+export type TreatId =
+  | "chocolate-laranja"
+  | "cafe-turbinado"
+  | "menta-refrescante"
+  | "frutas-criativas";
+
+export interface LiaBond {
+  humor: number;
+  confianca: number;
+  intimidade: number;
+  petiscos: number;
+  ultimoPetisco?: TreatId;
+}
+
 export interface MemoryItem {
   id: string;
   kind: "perfil" | "preferencia" | "conhecimento" | "rotina" | "relacionamento" | "importante";
@@ -90,6 +104,8 @@ export interface LiaCardData {
   activeProfileId: string;
   modules: LiaModule[];
   history: ChatMessage[];
+  /** Vínculo afetivo e recompensas; separado das memórias aprendidas. */
+  bond?: LiaBond;
   settings: {
     aiExterna: boolean;
     camera: boolean;

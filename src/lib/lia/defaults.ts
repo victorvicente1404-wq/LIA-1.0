@@ -1,4 +1,5 @@
 import type { LiaCardData, LiaModule, ModuleId, Personality, Profile } from "./types";
+import { DEFAULT_BOND } from "./rewards";
 
 export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
@@ -133,6 +134,7 @@ export const createCardData = (cardName = "Lia Card"): LiaCardData => ({
   activeProfileId: "pessoal",
   modules: defaultModules,
   history: [],
+  bond: DEFAULT_BOND,
   settings: {
     aiExterna: true,
     camera: false,
