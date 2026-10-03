@@ -82,7 +82,9 @@ export function PerceptionPanel({
       let change = 0;
       if (prev && prev.length === sample.length) {
         let diff = 0;
-        for (let i = 0; i < sample.length; i++) diff += Math.abs(sample[i]! - prev[i]!);
+        for (let i = 0; i < sample.length; i++) {
+          diff += Math.abs((sample[i] ?? 0) - (prev[i] ?? 0));
+        }
         change = Math.min(1, diff / (sample.length * 255) / 0.08);
       }
       prevSampleRef.current = sample;

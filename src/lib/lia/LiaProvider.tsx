@@ -397,7 +397,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         const list = next.length ? next : [convo.newConversation()];
         convo.writeConversations(list);
         if (id === activeConversationId) {
-          const first = list[0]!;
+          const first = list[0];
+          if (!first) return list;
           setActiveConversationId(first.id);
           convo.writeActiveId(first.id);
           setSessionMessages(first.messages);
