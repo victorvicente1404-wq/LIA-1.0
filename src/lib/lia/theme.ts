@@ -51,7 +51,11 @@ export function applyTheme(choice: ThemeChoice) {
   root.dataset["theme"] = choice.theme;
   const theme = THEMES.find((item) => item.id === choice.theme) ?? THEMES[0];
   const accent = ACCENTS.find((item) => item.id === choice.accent) ?? ACCENTS[0];
-  root.style.setProperty("--h", String(theme.id === "cyber" || theme.id === "amoled" || theme.id === "claro" ? accent.hue : theme.hue));
+  const fixedHue = "hue" in theme ? theme.hue : accent.hue;
+  root.style.setProperty(
+    "--h",
+    String(theme.id === "cyber" || theme.id === "amoled" || theme.id === "claro" ? accent.hue : fixedHue),
+  );
   try {
     window.localStorage.setItem(KEY, JSON.stringify(choice));
   } catch {

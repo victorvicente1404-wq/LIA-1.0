@@ -8,6 +8,13 @@ import { DevPanel } from "./DevPanel";
 import { ConversationsSidebar } from "./ConversationsSidebar";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { useVoice } from "@/lib/lia/useVoice";
+import { TreatDialog } from "./TreatDialog";
+import { Button } from "@/components/ui/button";
+import { Menu, Settings2 } from "lucide-react";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { applyTheme, readTheme } from "@/lib/lia/theme";
+import { markProactive, proactiveEnabled, readTopics } from "@/lib/lia/proactive";
+import { notify } from "@/lib/lia/notifications";
 
 export function LiaWorkspace() {
   const lia = useLia();
@@ -16,7 +23,13 @@ export function LiaWorkspace() {
   const [spokenId, setSpokenId] = useState<string | null>(null);
   const [devOpen, setDevOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+  const [treatOpen, setTreatOpen] = useState(false);
   const clicksRef = useRef<number[]>([]);
+  const greetedRef = useRef(false);
+
+  useEffect(() => applyTheme(readTheme()), []);
 
   // Cinco cliques rápidos no ícone da Lia abrem o painel interno.
   const onLogoClick = useCallback(() => {
@@ -65,6 +78,19 @@ export function LiaWorkspace() {
     else setState("idle");
   }, [voice.hearing, voice.speaking, sending, setState]);
 
+  useEffect(() => {
+    if (!lia.booted || !cardConnected || !proactiveEnabled() || greetedRef.current) return;
+    greetedRef.current = true;
+    const topics = readTopics().map((topic) => topic.assunto);
+    lia.greetProactively(topics);
+    markProactive();
+  }, [lia.booted, cardConnected, lia]);
+
+  useEffect(() => {
+    if (!last || last.role !== "lia" || last.id === "greeting" || document.visibilityState === "visible") return;
+    notify("Lia", last.content.replace(/[*_#`]/g, "").slice(0, 180));
+  }, [last]);
+
   if (!lia.booted) {
     return (
       <BootSequence
@@ -76,22 +102,25 @@ export function LiaWorkspace() {
   }
 
   return (
-    <div className="flex h-screen flex-col gap-3 p-3">
-      <header className="panel flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-3">
+    <div className="flex h-dvh flex-col gap-2 overflow-hidden p-2 md:gap-3 md:p-3">
+      <header className="panel grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5 md:px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button size="icon" variant="ghost" className="shrink-0 lg:hidden" onClick={() => setMobileHistoryOpen(true)} title="Conversas">
+            <Menu className="h-4 w-4" />
+          </Button>
           <button type="button" onClick={onLogoClick} aria-label="Lia" className="rounded-full">
             <LiaOrb state={lia.state} size={34} />
           </button>
-          <div>
+          <div className="min-w-0">
             <h1 className="font-display text-lg font-semibold tracking-[0.2em] text-gradient-lia">
               LIA
             </h1>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+            <p className="truncate text-[10px] uppercase text-muted-foreground">
               assistente pessoal · modular · privada
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-[11px]">
+        <div className="flex shrink-0 items-center gap-2 text-[11px]">
           <span className="hidden text-muted-foreground sm:inline">perfil {profile.nome}</span>
           <span
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
@@ -103,14 +132,19 @@ export function LiaWorkspace() {
             <span
               className={`h-1.5 w-1.5 rounded-full ${cardConnected ? "bg-glow" : "bg-muted-foreground"}`}
             />
-            {cardConnected ? "Lia Card conectado" : "Lia Card não conectado"}
+            <span className="hidden sm:inline">{cardConnected ? "Lia Card conectado" : "Lia Card não conectado"}</span>
           </span>
+          <Button size="icon" variant="ghost" className="lg:hidden" onClick={() => setMobileSettingsOpen(true)} title="Painel da Lia">
+            <Settings2 className="h-4 w-4" />
+          </Button>
         </div>
       </header>
 
-      <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto lg:flex-row lg:overflow-hidden">
-        <ConversationsSidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
-        <div ref={perceptionRef} className="lg:contents">
+      <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[auto_minmax(0,1fr)_24rem] xl:grid-cols-[auto_18rem_minmax(26rem,1fr)_24rem]">
+        <div className="hidden min-h-0 lg:flex">
+          <ConversationsSidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
+        </div>
+        <div ref={perceptionRef} className="hidden min-h-0 xl:flex">
           <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
         </div>
         <ChatPanel
@@ -122,13 +156,30 @@ export function LiaWorkspace() {
           onMic={() => (voice.micOn ? voice.stopListening() : voice.startListening())}
           onStopSpeech={voice.shutUp}
           onCameraFocus={() =>
-            perceptionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+            window.innerWidth < 1280 ? setMobileSettingsOpen(true) : perceptionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
           }
+          onTreat={() => setTreatOpen(true)}
         />
-        <SidePanel />
+        <div className="hidden min-h-0 lg:flex"><SidePanel /></div>
       </main>
 
       <DevPanel open={devOpen} onOpenChange={setDevOpen} />
+      <TreatDialog open={treatOpen} onOpenChange={setTreatOpen} />
+      <Sheet open={mobileHistoryOpen} onOpenChange={setMobileHistoryOpen}>
+        <SheetContent side="left" className="w-[88vw] p-2 sm:max-w-sm">
+          <SheetHeader className="sr-only"><SheetTitle>Conversas</SheetTitle><SheetDescription>Histórico de conversas da Lia</SheetDescription></SheetHeader>
+          <ConversationsSidebar open onToggle={() => setMobileHistoryOpen(false)} />
+        </SheetContent>
+      </Sheet>
+      <Sheet open={mobileSettingsOpen} onOpenChange={setMobileSettingsOpen}>
+        <SheetContent side="right" className="w-[94vw] overflow-y-auto p-2 sm:max-w-md">
+          <SheetHeader className="sr-only"><SheetTitle>Painel da Lia</SheetTitle><SheetDescription>Percepção, configurações e Lia Card</SheetDescription></SheetHeader>
+          <div className="space-y-3 pt-8 xl:hidden">
+            <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
+            <SidePanel />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

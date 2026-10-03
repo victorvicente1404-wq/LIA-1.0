@@ -66,7 +66,7 @@ export function SidePanel() {
   const lia = useLia();
 
   return (
-    <aside className="panel flex w-full min-h-0 flex-col lg:w-96">
+    <aside className="panel flex min-h-0 w-full flex-col lg:w-96">
       <nav className="flex flex-wrap gap-1 border-b border-border p-2">
         {sections.map((s) => (
           <button

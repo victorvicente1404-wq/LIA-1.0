@@ -28,7 +28,7 @@ export function ConversationsSidebar({
   }
 
   return (
-    <aside className="panel flex w-full shrink-0 flex-col lg:w-60">
+    <aside className="panel flex h-full w-full shrink-0 flex-col lg:w-60">
       <header className="flex items-center justify-between border-b border-border px-2 py-2">
         <Button size="sm" variant="secondary" onClick={newConversation} className="flex-1 justify-start">
           <Plus className="mr-1.5 h-3.5 w-3.5" /> Nova conversa
