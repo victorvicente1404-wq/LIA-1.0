@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Mic, Paperclip, Send, Square, Trash2, Volume2 } from "lucide-react";
+import { Camera, Cookie, LoaderCircle, Mic, Paperclip, Send, Square, Trash2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LiaOrb, stateLabel } from "./LiaOrb";
@@ -9,6 +9,7 @@ import { useLia } from "@/lib/lia/LiaProvider";
 import type { Attachment } from "@/lib/lia/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { prepareFiles } from "@/lib/lia/media";
 
 export function ChatPanel({
   listening,
@@ -19,6 +20,7 @@ export function ChatPanel({
   onStopSpeech,
   micSupported,
   onCameraFocus,
+  onTreat,
 }: {
   listening: boolean;
   micOn: boolean;
@@ -28,35 +30,25 @@ export function ChatPanel({
   onStopSpeech: () => void;
   micSupported: boolean;
   onCameraFocus: () => void;
+  onTreat: () => void;
 }) {
   const { messages, send, sending, stop, state, profile, clearHistory } = useLia();
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<Attachment[]>([]);
+  const [preparing, setPreparing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   const readFiles = async (files: FileList) => {
-    const next: Attachment[] = [];
-    for (const file of Array.from(files).slice(0, 6)) {
-      if (file.size > 8 * 1024 * 1024) {
-        toast.error(`${file.name} é maior que 8 MB.`);
-        continue;
-      }
-      const isImage = file.type.startsWith("image/");
-      const isPdf = file.type === "application/pdf";
-      if (isImage || isPdf) {
-        const dataUrl = await new Promise<string>((resolve) => {
-          const r = new FileReader();
-          r.onload = () => resolve(String(r.result));
-          r.readAsDataURL(file);
-        });
-        next.push({ name: file.name, mime: file.type, size: file.size, dataUrl });
-      } else {
-        const text = await file.text();
-        next.push({ name: file.name, mime: file.type || "text/plain", size: file.size, text });
-      }
+    setPreparing(true);
+    try {
+      const next = await prepareFiles(files);
+      setPending((prev) => [...prev, ...next].slice(0, 6));
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setPreparing(false);
     }
-    setPending((prev) => [...prev, ...next].slice(0, 6));
   };
 
   useEffect(() => {
@@ -69,11 +61,12 @@ export function ChatPanel({
     if (!text.trim() && !anexos.length) return;
     setDraft("");
     setPending([]);
+    if (fileRef.current) fileRef.current.value = "";
     void send(text, anexos);
   };
 
   return (
-    <section className="panel flex min-h-0 flex-1 flex-col">
+    <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <LiaOrb state={listening ? "listening" : speaking ? "speaking" : state} size={38} />
@@ -151,7 +144,7 @@ export function ChatPanel({
         <div ref={endRef} />
       </div>
 
-      <footer className="border-t border-border p-3">
+      <footer className="sticky bottom-0 z-10 border-t border-border bg-background/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur md:p-3">
         {!!pending.length && (
           <div className="mb-2 flex flex-wrap gap-2">
             {pending.map((a, i) => (
@@ -163,7 +156,7 @@ export function ChatPanel({
             ))}
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-xl border border-border bg-surface/70 p-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 rounded-xl border border-border bg-surface/70 p-2 sm:flex">
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -175,8 +168,9 @@ export function ChatPanel({
             }}
             placeholder="Fale com a Lia…"
             rows={1}
-            className="max-h-40 min-h-10 resize-none border-0 bg-transparent focus-visible:ring-0"
+            className="col-span-2 max-h-40 min-h-10 resize-none border-0 bg-transparent focus-visible:ring-0 sm:col-span-1"
           />
+          <div className="col-span-2 flex shrink-0 items-center justify-end gap-1 sm:col-span-1">
           <Button
             size="icon"
             variant={micOn ? "default" : "ghost"}
@@ -210,15 +204,20 @@ export function ChatPanel({
             onClick={() => fileRef.current?.click()}
             title="Anexar imagem ou arquivo"
           >
-            <Paperclip className="h-4 w-4" />
+            {preparing ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          </Button>
+
+          <Button size="icon" variant="ghost" onClick={onTreat} title="Recompensar a Lia">
+            <Cookie className="h-4 w-4" />
           </Button>
 
           <Button size="icon" variant="ghost" onClick={onCameraFocus} title="Sistema de visão">
             <Camera className="h-4 w-4" />
           </Button>
-          <Button size="icon" onClick={submit} disabled={(!draft.trim() && !pending.length) || sending}>
+          <Button size="icon" onClick={submit} disabled={preparing || (!draft.trim() && !pending.length) || sending}>
             <Send className="h-4 w-4" />
           </Button>
+          </div>
         </div>
       </footer>
     </section>
