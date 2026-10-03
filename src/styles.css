@@ -123,10 +123,9 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    background-image:
-      radial-gradient(60rem 40rem at 15% -10%, oklch(0.3 0.09 300 / 35%), transparent 70%),
-      radial-gradient(50rem 35rem at 100% 0%, oklch(0.26 0.07 290 / 30%), transparent 70%);
-    background-attachment: fixed;
+    min-width: 320px;
+    min-height: 100dvh;
+    overflow: hidden;
   }
 
   h1,
@@ -238,6 +237,47 @@
   --input: oklch(0.32 0.03 265);
 }
 
+[data-theme="cyber"] {
+  --background: oklch(0.13 0.012 300);
+  --foreground: oklch(0.95 0.005 300);
+  --surface: oklch(0.18 0.014 300);
+  --surface-2: oklch(0.22 0.018 300);
+}
+
+[data-theme="lavanda"] {
+  --background: oklch(0.16 0.026 292);
+  --foreground: oklch(0.95 0.012 292);
+  --surface: oklch(0.21 0.032 292);
+  --surface-2: oklch(0.26 0.04 292);
+  --border: oklch(0.36 0.055 292 / 70%);
+}
+
+[data-theme="oceano"] {
+  --background: oklch(0.15 0.026 230);
+  --foreground: oklch(0.96 0.008 220);
+  --surface: oklch(0.2 0.035 225);
+  --surface-2: oklch(0.25 0.045 220);
+  --border: oklch(0.36 0.06 220 / 70%);
+}
+
+[data-theme="esmeralda"] {
+  --background: oklch(0.14 0.02 160);
+  --foreground: oklch(0.96 0.008 160);
+  --surface: oklch(0.19 0.03 160);
+  --surface-2: oklch(0.24 0.04 155);
+  --border: oklch(0.34 0.055 155 / 70%);
+}
+
+[data-theme="mono"] {
+  --background: oklch(0.14 0 0);
+  --foreground: oklch(0.96 0 0);
+  --surface: oklch(0.19 0 0);
+  --surface-2: oklch(0.25 0 0);
+  --border: oklch(0.36 0 0 / 70%);
+  --primary: oklch(0.72 0 0);
+  --glow: oklch(0.88 0 0);
+}
+
 [data-theme="amoled"] {
   --background: oklch(0 0 0);
   --foreground: oklch(0.96 0 0);
@@ -255,6 +295,7 @@
   --accent-foreground: oklch(0.97 0.01 var(--h));
   --border: oklch(0.24 0.012 var(--h));
   --input: oklch(0.24 0.012 var(--h));
+  --gradient-panel: linear-gradient(160deg, oklch(0.1 0.006 var(--h)), oklch(0 0 0));
 }
 
 [data-theme="claro"] {
@@ -283,6 +324,24 @@
   --primary-foreground: oklch(0.98 0.01 var(--h));
   --glow: oklch(0.72 0.19 calc(var(--h) + 5));
   --ring: oklch(0.62 0.18 var(--h));
+}
+
+[data-theme="mono"] {
+  --primary: oklch(0.72 0 0);
+  --primary-foreground: oklch(0.08 0 0);
+  --glow: oklch(0.88 0 0);
+  --ring: oklch(0.72 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 [data-theme="claro"] {

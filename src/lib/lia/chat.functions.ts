@@ -10,7 +10,7 @@ const Input = z.object({
     .min(1)
     .max(40),
   /** Frame atual da câmera (data URL JPEG), quando o módulo de visão está ativo. */
-  frame: z.string().startsWith("data:image/").max(4_000_000).optional(),
+  frame: z.string().startsWith("data:image/").max(4_500_000).optional(),
   /** Anexos enviados pelo usuário nesta mensagem. */
   attachments: z
     .array(
@@ -18,7 +18,7 @@ const Input = z.object({
         name: z.string().max(200),
         mime: z.string().max(120),
         /** Imagens vêm como data URL; documentos vêm como texto extraído. */
-        dataUrl: z.string().max(6_000_000).optional(),
+        dataUrl: z.string().max(5_500_000).optional(),
         text: z.string().max(400_000).optional(),
       }),
     )
@@ -44,7 +44,9 @@ export const liaRespond = createServerFn({ method: "POST" })
         if (a.dataUrl && a.mime.startsWith("image/")) {
           parts.push({ type: "image", image: a.dataUrl });
         } else if (a.dataUrl && a.mime === "application/pdf") {
-          parts.push({ type: "file", mediaType: a.mime, data: a.dataUrl, filename: a.name });
+          const comma = a.dataUrl.indexOf(",");
+          const base64 = comma >= 0 ? a.dataUrl.slice(comma + 1) : a.dataUrl;
+          parts.push({ type: "file", mediaType: a.mime, data: base64, filename: a.name });
         } else if (a.text) {
           parts.push({ type: "text", text: `Arquivo anexado "${a.name}":\n${a.text}` });
         }

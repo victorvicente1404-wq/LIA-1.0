@@ -79,7 +79,11 @@ export function LiaWorkspace() {
   }, [voice.hearing, voice.speaking, sending, setState]);
 
   useEffect(() => {
-    if (!lia.booted || !cardConnected || !proactiveEnabled() || greetedRef.current) return;
+    if (!cardConnected) {
+      greetedRef.current = false;
+      return;
+    }
+    if (!lia.booted || !proactiveEnabled() || greetedRef.current) return;
     greetedRef.current = true;
     const topics = readTopics().map((topic) => topic.assunto);
     lia.greetProactively(topics);
