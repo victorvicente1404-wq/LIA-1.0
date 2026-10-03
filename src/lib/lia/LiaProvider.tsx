@@ -28,13 +28,16 @@ import type {
   ChatMessage,
   LiaCardData,
   LiaModule,
+  LiaBond,
   LiaState,
   MemoryItem,
   ModuleId,
   Personality,
   Profile,
   UserIdentity,
+  TreatId,
 } from "./types";
+import { DEFAULT_BOND, rewardBond, TREATS } from "./rewards";
 
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
 
@@ -76,6 +79,9 @@ interface LiaContextValue {
   removeMemory: (id: string) => void;
   settings: LiaCardData["settings"];
   updateSettings: (patch: Partial<LiaCardData["settings"]>) => void;
+  bond: LiaBond;
+  giveTreat: (id: TreatId) => void;
+  greetProactively: (topics: string[]) => void;
 }
 
 const LiaContext = createContext<LiaContextValue | null>(null);
@@ -174,6 +180,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     sensibilidade: 60,
     silencioMs: 1200,
   };
+  const bond = data?.bond ?? DEFAULT_BOND;
 
   const messages = useMemo(
     () =>
@@ -390,7 +397,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         const list = next.length ? next : [convo.newConversation()];
         convo.writeConversations(list);
         if (id === activeConversationId) {
-          const first = list[0]!;
+          const first = list[0];
+          if (!first) return list;
           setActiveConversationId(first.id);
           convo.writeActiveId(first.id);
           setSessionMessages(first.messages);
@@ -462,6 +470,35 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     updateSettings: (patch) => {
       if (!data) return;
       persist({ ...data, settings: { ...data.settings, ...patch } });
+    },
+    bond,
+    giveTreat: (id) => {
+      const treat = TREATS.find((item) => item.id === id);
+      if (!treat) return;
+      const nextBond = rewardBond(data?.bond, id);
+      if (data) persist({ ...data, bond: nextBond });
+      setSessionMessages((prev) => [
+        ...prev,
+        {
+          id: uid(),
+          role: "lia",
+          content: `${treat.emoji} ${treat.reaction}`,
+          createdAt: Date.now(),
+        },
+      ]);
+      setState("speaking");
+    },
+    greetProactively: (topics) => {
+      const hour = new Date().getHours();
+      const period = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+      const name = user.nome.trim() ? `, ${user.nome.trim()}` : "";
+      const pending = topics.length
+        ? ` Estou acompanhando ${topics.slice(0, 2).join(" e ")}. Quer que eu confira as novidades?`
+        : " Estou pronta para organizar seu dia ou acompanhar algo importante.";
+      setSessionMessages((prev) => [
+        ...prev,
+        { id: uid(), role: "lia", content: `${period}${name}.${pending}`, createdAt: Date.now() },
+      ]);
     },
   };
 

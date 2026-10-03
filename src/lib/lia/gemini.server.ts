@@ -30,8 +30,12 @@ function toGeminiContents(messages: GenMessage[]) {
         const inline = dataUrlToInline(p["image"]);
         if (inline) parts.push({ inlineData: inline });
       } else if (type === "file" && typeof p["data"] === "string") {
-        const inline = dataUrlToInline(p["data"] as string);
-        if (inline) parts.push({ inlineData: inline });
+        const data = p["data"] as string;
+        const inline = dataUrlToInline(data) ?? {
+          mimeType: typeof p["mediaType"] === "string" ? p["mediaType"] : "application/octet-stream",
+          data,
+        };
+        parts.push({ inlineData: inline });
       }
     }
     if (!parts.length) parts.push({ text: "" });
