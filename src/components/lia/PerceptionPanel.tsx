@@ -28,6 +28,7 @@ export function PerceptionPanel({
   const [erro, setErro] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const prevSampleRef = useRef<Uint8ClampedArray | null>(null);
+  const lastDetectedRef = useRef(0);
 
   const visionEnabled = modules.find((m) => m.id === "visao")?.ativo ?? false;
 
@@ -64,7 +65,8 @@ export function PerceptionPanel({
       const frame = grabFrame();
       if (!frame) return;
       setAnalyzing(false);
-      const canvas = canvasRef.current!;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       const small = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -85,16 +87,19 @@ export function PerceptionPanel({
       }
       prevSampleRef.current = sample;
       const detected = change > 0.05;
-      setPresence((p) => (detected ? true : change < 0.01 ? p : p));
-      visionSource.pushFrame(frame, change, detected || presence);
+      if (detected) lastDetectedRef.current = Date.now();
+      const activePresence = detected || Date.now() - lastDetectedRef.current < 2600;
+      setPresence(activePresence);
+      visionSource.pushFrame(frame, change, activePresence);
     }, 1200);
     return () => clearInterval(interval);
-  }, [cameraOn, grabFrame, presence]);
+  }, [cameraOn, grabFrame]);
 
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     prevSampleRef.current = null;
+    lastDetectedRef.current = 0;
     setCameraOn(false);
     setPresence(false);
     visionSource.setStatus("desligada");
@@ -147,7 +152,7 @@ export function PerceptionPanel({
         </div>
       </div>
 
-      <div className="relative aspect-video overflow-hidden rounded-lg border border-border bg-black/60">
+      <div className="relative aspect-video overflow-hidden rounded-lg border border-border bg-background">
         <video
           ref={videoRef}
           autoPlay

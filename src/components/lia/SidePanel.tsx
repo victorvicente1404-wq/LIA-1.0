@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Blocks,
   Brain,
@@ -24,6 +24,20 @@ import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
 import type { Personality } from "@/lib/lia/types";
+import { ACCENTS, applyTheme, readTheme, THEMES, type ThemeChoice } from "@/lib/lia/theme";
+import {
+  notificationsEnabled,
+  notificationsSupported,
+  setNotificationsEnabled,
+} from "@/lib/lia/notifications";
+import {
+  proactiveEnabled,
+  readTopics,
+  setProactiveEnabled,
+  writeTopics,
+  type Topic,
+} from "@/lib/lia/proactive";
+import { toast } from "sonner";
 
 type SectionId =
   | "memoria"
@@ -333,6 +347,19 @@ function ModulesSection() {
 
 function SettingsSection() {
   const { settings, updateSettings, profile } = useLia();
+  const [theme, setTheme] = useState<ThemeChoice>(() => readTheme());
+  const [notificationsOn, setNotificationsOn] = useState(() => notificationsEnabled());
+  const [initiativeOn, setInitiativeOn] = useState(() => proactiveEnabled());
+  const [topics, setTopics] = useState<Topic[]>(() => readTopics());
+  const [topic, setTopic] = useState("");
+
+  useEffect(() => applyTheme(theme), [theme]);
+
+  const updateTopics = (next: Topic[]) => {
+    setTopics(next);
+    writeTopics(next);
+  };
+
   return (
     <div>
       <Title sub="Preferências do sistema para este Lia Card.">Configurações</Title>
@@ -361,6 +388,105 @@ function SettingsSection() {
           checked={settings.animacoes}
           onChange={(v) => updateSettings({ animacoes: v })}
         />
+        <Toggle
+          label="Fala em tempo real"
+          desc="A Lia lê as respostas em voz alta."
+          checked={settings.fala !== false}
+          onChange={(v) => updateSettings({ fala: v })}
+        />
+        <Toggle
+          label="Notificações"
+          desc={notificationsSupported() ? "Alertas quando a aba estiver em segundo plano." : "Não disponível neste navegador."}
+          checked={notificationsOn}
+          onChange={(value) => {
+            void setNotificationsEnabled(value).then((enabled) => {
+              setNotificationsOn(enabled);
+              if (value && !enabled) toast.error("A permissão de notificações não foi concedida.");
+            });
+          }}
+        />
+        <Toggle
+          label="Iniciativa própria"
+          desc="A Lia inicia a conversa e acompanha assuntos escolhidos."
+          checked={initiativeOn}
+          onChange={(value) => {
+            setInitiativeOn(value);
+            setProactiveEnabled(value);
+          }}
+        />
+        {initiativeOn && (
+          <div className="space-y-2 rounded-md border border-border bg-surface/60 p-3">
+            <Label className="text-xs">Assuntos acompanhados</Label>
+            <div className="flex gap-2">
+              <Input
+                value={topic}
+                onChange={(event) => setTopic(event.target.value)}
+                placeholder="Ex.: agenda, projeto, viagem"
+                className="h-8"
+              />
+              <Button
+                size="icon"
+                onClick={() => {
+                  const assunto = topic.trim();
+                  if (!assunto) return;
+                  updateTopics([...topics, { id: crypto.randomUUID(), assunto, criadoEm: Date.now() }]);
+                  setTopic("");
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {topics.map((item) => (
+                <Button
+                  key={item.id}
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => updateTopics(topics.filter((candidate) => candidate.id !== item.id))}
+                  title="Remover assunto"
+                >
+                  {item.assunto} <X className="ml-1 h-3 w-3" />
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="space-y-3 rounded-md border border-border bg-surface/60 p-3">
+          <div>
+            <p className="text-sm font-medium">Tema visual</p>
+            <p className="text-xs text-muted-foreground">Paletas otimizadas para cada ambiente.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {THEMES.map((item) => (
+              <Button
+                key={item.id}
+                size="sm"
+                variant={theme.theme === item.id ? "default" : "secondary"}
+                onClick={() => setTheme((current) => ({ ...current, theme: item.id }))}
+              >
+                {item.nome}
+              </Button>
+            ))}
+          </div>
+          {(theme.theme === "cyber" || theme.theme === "amoled" || theme.theme === "claro") && (
+            <div className="flex flex-wrap gap-2">
+              {ACCENTS.map((accent) => (
+                <button
+                  key={accent.id}
+                  type="button"
+                  aria-label={`Cor ${accent.nome}`}
+                  title={accent.nome}
+                  className={cn(
+                    "h-7 w-7 rounded-full border-2 border-border transition-transform hover:scale-110",
+                    theme.accent === accent.id && "ring-2 ring-ring ring-offset-2 ring-offset-background",
+                  )}
+                  style={{ backgroundColor: accent.css }}
+                  onClick={() => setTheme((current) => ({ ...current, accent: accent.id }))}
+                />
+              ))}
+            </div>
+          )}
+        </div>
         <Toggle
           label="Palavra de ativação"
           desc="Diga “Lia” para acordar a escuta. O texto seguinte vira sua primeira pergunta."
