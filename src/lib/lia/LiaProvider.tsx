@@ -18,6 +18,7 @@ import { buildSystemPrompt, extractMemories } from "./prompt";
 import { useConnections } from "./useConnections";
 import { connectorLabel } from "./connectors";
 import { liaRespond } from "./chat.functions";
+import { whatsappCredsForChat } from "./whatsappService";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
 import * as convo from "./conversations";
@@ -261,8 +262,12 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         cardConnected,
         vision: describeVision(visionSource.get(), visionModuleOn),
         memoriaLocal: data?.settings.memoriaLocal ?? null,
-        servicos: connectedIds.map(connectorLabel),
+        servicos: [
+          ...connectedIds.map(connectorLabel),
+          ...(whatsappCredsForChat() ? ["WhatsApp"] : []),
+        ],
       });
+      const whatsapp = whatsappCredsForChat();
       void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
       const systemFinal = extra ? `${system}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : system;
@@ -277,6 +282,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             system: systemFinal,
             messages: history,
             ...(frame ? { frame } : {}),
+            ...(whatsapp ? { whatsapp } : {}),
             ...(attachments?.length
               ? {
                   attachments: attachments.map((a) => ({

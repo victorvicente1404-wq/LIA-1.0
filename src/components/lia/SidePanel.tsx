@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { LiaCardPanel } from "./LiaCardPanel";
 import { ConnectorsSection } from "./ConnectorsSection";
+import { WhatsAppConnector } from "./WhatsAppConnector";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
@@ -99,7 +100,12 @@ export function SidePanel() {
             {active === "perfil" && <ProfileSection />}
             {active === "personalidade" && <PersonalitySection />}
             {active === "modulos" && <ModulesSection />}
-            {active === "conectores" && <ConnectorsSection />}
+            {active === "conectores" && (
+              <div className="space-y-4">
+                <WhatsAppConnector />
+                <ConnectorsSection />
+              </div>
+            )}
             {active === "config" && <SettingsSection />}
             {active === "privacidade" && <PrivacySection />}
             {active === "card" && <LiaCardPanel />}

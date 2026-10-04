@@ -24,6 +24,10 @@ const Input = z.object({
     )
     .max(6)
     .optional(),
+  /** Credenciais da Evolution API (WhatsApp) salvas no navegador do usuário. */
+  whatsapp: z
+    .object({ url: z.string().url().max(300), apiKey: z.string().min(1).max(300), instance: z.string().min(1).max(80) })
+    .optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -65,6 +69,15 @@ export const liaRespond = createServerFn({ method: "POST" })
       }
     } catch (error) {
       console.error("Falha ao preparar as ferramentas da Lia:", (error as Error).message);
+    }
+
+    if (data.whatsapp) {
+      try {
+        const { buildWhatsAppTools } = await import("./whatsappTools.server");
+        tools = { ...tools, ...buildWhatsAppTools(data.whatsapp) };
+      } catch (error) {
+        console.error("Falha ao preparar o WhatsApp:", (error as Error).message);
+      }
     }
 
     const agora = new Date();
