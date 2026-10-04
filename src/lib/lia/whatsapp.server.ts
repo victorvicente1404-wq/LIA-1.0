@@ -63,7 +63,7 @@ function toNumber(v: unknown): number | null {
   return null;
 }
 
-function messageText(m: Record<string, any> | undefined): string {
+function messageText(m: any): string {
   if (!m) return "";
   return (
     m.conversation ??
