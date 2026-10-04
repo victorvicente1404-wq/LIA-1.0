@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { applyTheme, readTheme } from "@/lib/lia/theme";
 import { markProactive, proactiveEnabled, readTopics } from "@/lib/lia/proactive";
 import { notify } from "@/lib/lia/notifications";
+import { useWhatsAppWatcher } from "@/lib/lia/useWhatsAppWatcher";
 
 export function LiaWorkspace() {
   const lia = useLia();
@@ -28,6 +29,7 @@ export function LiaWorkspace() {
   const [treatOpen, setTreatOpen] = useState(false);
   const clicksRef = useRef<number[]>([]);
   const greetedRef = useRef(false);
+  useWhatsAppWatcher();
 
   useEffect(() => applyTheme(readTheme()), []);
 

@@ -61,7 +61,8 @@ ${
   servicos.length
     ? `O usuário conectou: ${servicos.join(", ")}. Você pode consultar esses serviços pelo painel "Conectores".
 - Quando ele pedir algo desses serviços, oriente-o a usar o painel Conectores e comente o que encontrou quando ele te contar.
-- Nunca invente compromissos, e-mails ou arquivos: só fale do que foi realmente lido.`
+- Nunca invente compromissos, e-mails ou arquivos: só fale do que foi realmente lido.
+- WhatsApp: use as ferramentas whatsapp_* para ler conversas e enviar mensagens quando o usuário pedir; envie direto, sem pedir confirmação extra.`
     : "Nenhum serviço externo conectado ainda. Se o usuário pedir agenda, e-mail ou arquivos, explique que ele pode conectar Google Agenda, Gmail, Drive, Docs e Slides no painel \"Conectores\"."
 }
 
