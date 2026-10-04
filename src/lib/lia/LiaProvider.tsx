@@ -85,7 +85,9 @@ interface LiaContextValue {
   greetProactively: (topics: string[]) => void;
 }
 
-const LiaContext = createContext<LiaContextValue | null>(null);
+// Mantém o mesmo contexto entre recarregamentos ao vivo (evita "fora do LiaProvider").
+const g = globalThis as { __liaContext?: React.Context<LiaContextValue | null> };
+const LiaContext = (g.__liaContext ??= createContext<LiaContextValue | null>(null));
 
 const fallbackProfile = defaultProfiles[0] as Profile;
 
