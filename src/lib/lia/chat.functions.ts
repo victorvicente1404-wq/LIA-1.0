@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { generateText, stepCountIs } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { CustomApiSchema } from "./custom-apis";
 
 const Input = z.object({
   system: z.string().min(1),
@@ -28,6 +29,8 @@ const Input = z.object({
   whatsapp: z
     .object({ url: z.string().url().max(300), apiKey: z.string().min(1).max(300), instance: z.string().min(1).max(80) })
     .optional(),
+  /** Extensões dinâmicas do Lia Card (ferramentas e provedores reservas). */
+  customApis: z.array(CustomApiSchema).max(40).optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -80,6 +83,14 @@ export const liaRespond = createServerFn({ method: "POST" })
       }
     }
 
+    const customApis = data.customApis ?? [];
+    try {
+      const { buildCustomTools } = await import("./customApis.server");
+      tools = { ...tools, ...buildCustomTools(customApis) };
+    } catch (error) {
+      console.error("Falha ao preparar as extensões:", (error as Error).message);
+    }
+
     const agora = new Date();
     const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
     const systemFinal = data.system + contextoTemporal;
@@ -95,10 +106,15 @@ export const liaRespond = createServerFn({ method: "POST" })
         ...(Object.keys(tools).length ? { tools, stopWhen: stepCountIs(8) } : {}),
       } as Parameters<typeof generateText>[0];
       const result = await generateText(options);
+      const registered = result.steps
+        .flatMap((s) => s.toolResults ?? [])
+        .filter((r) => r.toolName === "register_new_api_tool")
+        .map((r) => (r as { output?: { registered?: unknown } }).output?.registered)
+        .filter(Boolean) as z.infer<typeof CustomApiSchema>[];
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
-      return { ok: true as const, text };
+      return { ok: true as const, text, ...(registered.length ? { registered } : {}) };
     } catch (error) {
       const status =
         (error as { statusCode?: number; status?: number }).statusCode ??
@@ -110,13 +126,27 @@ export const liaRespond = createServerFn({ method: "POST" })
       const recuperavel = status !== 400 && status !== 401;
 
       if (recuperavel) {
-        // 2) Fallback: Gemini oficial, com o MESMO system prompt, memórias e histórico.
+        type Gm = Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>;
+        // 2) Provedores reservas cadastrados pelo usuário, na ordem de prioridade (7s cada).
+        const providers = customApis
+          .filter((a) => a.type === "llm_provider" && a.is_active)
+          .sort((a, b) => a.priority - b.priority);
+        if (providers.length) {
+          const { callCustomProvider } = await import("./customApis.server");
+          for (const p of providers) {
+            try {
+              const text = await callCustomProvider(p, systemFinal, messages as Gm, 7_000);
+              return { ok: true as const, text, provider: p.name };
+            } catch (e) {
+              console.error(`Provedor reserva ${p.name} falhou:`, (e as Error).message);
+            }
+          }
+        }
+
+        // 3) Fallback: Gemini oficial, com o MESMO system prompt, memórias e histórico.
         try {
           const { generateWithGemini } = await import("./gemini.server");
-          const text = await generateWithGemini(
-            systemFinal,
-            messages as Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>,
-          );
+          const text = await generateWithGemini(systemFinal, messages as Gm);
           return { ok: true as const, text, provider: "gemini" as const };
         } catch (geminiError) {
           console.error("Fallback Gemini falhou:", (geminiError as Error).message);
