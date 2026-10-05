@@ -106,6 +106,8 @@ export interface LiaCardData {
   history: ChatMessage[];
   /** Vínculo afetivo e recompensas; separado das memórias aprendidas. */
   bond?: LiaBond;
+  /** Extensões dinâmicas: APIs externas e provedores de IA reservas. */
+  customApis?: CustomApi[];
   settings: {
     aiExterna: boolean;
     camera: boolean;

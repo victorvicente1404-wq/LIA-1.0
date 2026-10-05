@@ -44,6 +44,63 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_api_integrations: {
+        Row: {
+          api_url: string
+          created_at: string
+          description: string
+          display_name: string
+          headers: Json
+          id: string
+          is_active: boolean
+          method: string
+          model_name: string | null
+          name: string
+          param_location: string
+          parameters_schema: Json
+          priority: number
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_url: string
+          created_at?: string
+          description?: string
+          display_name?: string
+          headers?: Json
+          id?: string
+          is_active?: boolean
+          method?: string
+          model_name?: string | null
+          name: string
+          param_location?: string
+          parameters_schema?: Json
+          priority?: number
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_url?: string
+          created_at?: string
+          description?: string
+          display_name?: string
+          headers?: Json
+          id?: string
+          is_active?: boolean
+          method?: string
+          model_name?: string | null
+          name?: string
+          param_location?: string
+          parameters_schema?: Json
+          priority?: number
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
