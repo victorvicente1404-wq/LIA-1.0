@@ -37,7 +37,9 @@ import type {
   Profile,
   UserIdentity,
   TreatId,
+  CustomApi,
 } from "./types";
+import { syncCustomApisToAccount } from "./custom-apis";
 import { DEFAULT_BOND, rewardBond, TREATS } from "./rewards";
 
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
@@ -83,6 +85,8 @@ interface LiaContextValue {
   bond: LiaBond;
   giveTreat: (id: TreatId) => void;
   greetProactively: (topics: string[]) => void;
+  customApis: CustomApi[];
+  saveCustomApis: (list: CustomApi[]) => void;
 }
 
 // Mantém o mesmo contexto entre recarregamentos ao vivo (evita "fora do LiaProvider").
@@ -285,6 +289,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             messages: history,
             ...(frame ? { frame } : {}),
             ...(whatsapp ? { whatsapp } : {}),
+            ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
               ? {
                   attachments: attachments.map((a) => ({
@@ -308,6 +313,11 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         const finalMsgs = [...withUser, liaMsg];
         setSessionMessages(finalMsgs);
 
+        const registered = "registered" in res ? (res.registered as CustomApi[] | undefined) : undefined;
+        const apisNext = registered?.length
+          ? [...(data?.customApis ?? []).filter((a) => !registered.some((r) => r.name === a.name)), ...registered]
+          : data?.customApis;
+        if (registered?.length) void syncCustomApisToAccount(apisNext ?? []);
         if (data && cardConnected) {
           const memoryModuleOn = data.modules.find((m) => m.id === "memoria")?.ativo;
           const newMemories: MemoryItem[] =
@@ -317,6 +327,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           persist({
             ...data,
             history: finalMsgs.slice(-200),
+            ...(apisNext ? { customApis: apisNext } : {}),
             profiles: data.profiles.map((p) =>
               p.id === data.activeProfileId
                 ? { ...p, memory: [...newMemories, ...p.memory].slice(0, 200) }
@@ -358,6 +369,12 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   );
 
   const value: LiaContextValue = {
+    customApis: data?.customApis ?? [],
+    saveCustomApis: (list) => {
+      if (!data) return;
+      persist({ ...data, customApis: list });
+      void syncCustomApisToAccount(list);
+    },
     booted,
     finishBoot: () => setBooted(true),
     cardConnected,
