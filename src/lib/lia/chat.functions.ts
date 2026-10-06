@@ -152,7 +152,16 @@ export const liaRespond = createServerFn({ method: "POST" })
           console.error("Fallback Gemini falhou:", (geminiError as Error).message);
         }
 
-        // 3) Último recurso: busca pública com a última pergunta do usuário.
+        // 4) Fallback: OpenRouter com modelos gratuitos, mesmo prompt e histórico.
+        try {
+          const { generateWithOpenRouter } = await import("./openrouter.server");
+          const text = await generateWithOpenRouter(systemFinal, messages as Gm);
+          return { ok: true as const, text, provider: "openrouter" as const };
+        } catch (openrouterError) {
+          console.error("Fallback OpenRouter falhou:", (openrouterError as Error).message);
+        }
+
+        // 5) Último recurso: busca pública com a última pergunta do usuário.
         try {
           const { searchFallback } = await import("./gemini.server");
           const last = [...data.messages].reverse().find((m) => m.role === "user");
