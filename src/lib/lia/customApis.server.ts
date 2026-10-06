@@ -56,9 +56,25 @@ const flatten = (c: Msg["content"]) =>
   typeof c === "string" ? c : c.filter((p) => p["type"] === "text").map((p) => String(p["text"] ?? "")).join("\n");
 
 /** Chama um provedor compatível com OpenAI (/chat/completions). */
+/** Normaliza o endereço de um provedor: garante /v1 e /chat/completions para evitar 404. */
+export function normalizeProviderUrl(raw: string): string {
+  const url = new URL(raw);
+  let path = url.pathname.replace(/\/+$/, "");
+  if (/\/chat\/completions$/.test(path)) return url.toString();
+  // Se o usuário colou a raiz do serviço (ex: https://api.groq.com), acrescenta o prefixo padrão.
+  if (!/\/v\d+[a-z0-9]*$/i.test(path) && !path.includes("/openai/")) {
+    const host = url.hostname.toLowerCase();
+    if (host.includes("groq.com")) path = `${path}/openai/v1`;
+    else if (host.includes("openrouter.ai")) path = `${path}/api/v1`;
+    else if (host.includes("deepseek.com")) path = `${path}/v1`;
+    else if (!path || path === "") path = "/v1";
+  }
+  return `${url.origin}${path}/chat/completions`;
+}
+
 export async function callCustomProvider(api: CustomApi, system: string, messages: Msg[], timeoutMs = 7_000): Promise<string> {
-  const url = assertSafeUrl(api.api_url);
-  if (!/\/chat\/completions\/?$/.test(url.pathname)) url.pathname = `${url.pathname.replace(/\/$/, "")}/chat/completions`;
+  assertSafeUrl(api.api_url);
+  const url = new URL(normalizeProviderUrl(api.api_url));
   const headers = new Headers(api.headers);
   headers.set("content-type", "application/json");
   const res = await fetch(url, {
