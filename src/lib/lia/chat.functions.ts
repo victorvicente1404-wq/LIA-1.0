@@ -83,6 +83,13 @@ export const liaRespond = createServerFn({ method: "POST" })
       }
     }
 
+    try {
+      const { buildTavilyTools } = await import("./tavily.server");
+      tools = { ...tools, ...buildTavilyTools() };
+    } catch (error) {
+      console.error("Falha ao preparar a pesquisa web:", (error as Error).message);
+    }
+
     const customApis = data.customApis ?? [];
     try {
       const { buildCustomTools } = await import("./customApis.server");
@@ -163,9 +170,13 @@ export const liaRespond = createServerFn({ method: "POST" })
 
         // 5) Último recurso: busca pública com a última pergunta do usuário.
         try {
-          const { searchFallback } = await import("./gemini.server");
           const last = [...data.messages].reverse().find((m) => m.role === "user");
-          const found = last ? await searchFallback(last.content) : null;
+          const { tavilyFallback } = await import("./tavily.server");
+          let found = last ? await tavilyFallback(last.content) : null;
+          if (!found && last) {
+            const { searchFallback } = await import("./gemini.server");
+            found = await searchFallback(last.content);
+          }
           if (found) return { ok: true as const, text: found, provider: "busca" as const };
         } catch (searchError) {
           console.error("Fallback de busca falhou:", (searchError as Error).message);
