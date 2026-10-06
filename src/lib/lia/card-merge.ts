@@ -3,6 +3,7 @@
  * memórias são acrescentadas (nunca sobrescritas), configurações e perfis
  * sincronizados campo por campo.
  */
+import { mergeCustomApis } from "./custom-apis";
 import type { LiaCardData, MemoryItem, Profile } from "./types";
 
 const memKey = (m: MemoryItem) => `${m.kind}|${m.key.toLowerCase()}|${m.value.toLowerCase()}`;
@@ -44,6 +45,7 @@ export function mergeCardData(current: LiaCardData, incoming: LiaCardData): LiaC
       return other ? { ...m, ativo: m.ativo || other.ativo } : m;
     }),
     settings: { ...current.settings, ...(incoming.settings ?? {}) },
+    customApis: mergeCustomApis(current.customApis, incoming.customApis),
     history: current.history?.length ? current.history : (incoming.history ?? []),
     updatedAt: Date.now(),
   };

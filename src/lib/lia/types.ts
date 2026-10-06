@@ -127,3 +127,20 @@ export interface LiaCardData {
     silencioMs?: number;
   };
 }
+
+/** Integração externa cadastrada pelo usuário ou pela Lia (espelha custom_api_integrations). */
+export interface CustomApi {
+  id: string;
+  name: string;
+  display_name: string;
+  type: "tool" | "llm_provider";
+  description: string;
+  api_url: string;
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  param_location: "auto" | "body" | "query";
+  headers: Record<string, string>;
+  parameters_schema: Record<string, unknown>;
+  model_name?: string | null | undefined;
+  priority: number;
+  is_active: boolean;
+}
