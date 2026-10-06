@@ -36,7 +36,7 @@ export async function callCustomTool(api: CustomApi, params: Record<string, unkn
   const url = assertSafeUrl(api.api_url);
   const loc = api.param_location === "auto" ? (api.method === "GET" || api.method === "DELETE" ? "query" : "body") : api.param_location;
   const headers = new Headers(api.headers);
-  let body: string | undefined;
+  let body: string | null = null;
   if (loc === "query") {
     for (const [k, v] of Object.entries(params ?? {})) {
       if (v !== undefined && v !== null) url.searchParams.set(k, typeof v === "string" ? v : JSON.stringify(v));
