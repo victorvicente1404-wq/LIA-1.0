@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { CustomApisSection } from "./CustomApisSection";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as card from "@/lib/lia/card-storage";
 import { mergeCardData } from "@/lib/lia/card-merge";
@@ -77,7 +78,7 @@ export function DevPanel({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-display">
             <Lock className="h-4 w-4" /> Painel interno da Lia
@@ -161,6 +162,8 @@ export function DevPanel({ open, onOpenChange }: { open: boolean; onOpenChange: 
                 </Button>
               </div>
             </div>
+
+            <CustomApisSection />
 
             <div className="rounded-xl border border-border p-3 text-[11px] text-muted-foreground">
               <p className="mb-1 font-medium text-foreground">Diagnóstico</p>
