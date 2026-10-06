@@ -55,11 +55,11 @@ export const defaultModules: LiaModule[] = [
   },
   {
     id: "automacao",
-    nome: "Automação",
-    descricao: "Ações no computador e dispositivos (Arduino, ESP32).",
+    nome: "Automação Arduino & ESP32",
+    descricao: "A Lia aciona pinos, relés e lê sensores do seu Arduino ou ESP32.",
     ativo: false,
     permissao: "alta",
-    config: "Reservado para expansão",
+    config: "Ponte HTTP plug-and-play",
   },
   {
     id: "rotina",
@@ -67,7 +67,7 @@ export const defaultModules: LiaModule[] = [
     descricao: "Reconhece padrões do dia a dia e antecipa necessidades.",
     ativo: false,
     permissao: "media",
-    config: "Reservado para expansão",
+    config: "Ponte HTTP plug-and-play",
   },
   {
     id: "personalidade",

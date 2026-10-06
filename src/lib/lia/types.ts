@@ -108,6 +108,8 @@ export interface LiaCardData {
   bond?: LiaBond;
   /** Extensões dinâmicas: APIs externas e provedores de IA reservas. */
   customApis?: CustomApi[];
+  /** Módulo IoT (Arduino/ESP32): endereço da ponte e token opcional. */
+  iot?: IotConfig;
   settings: {
     aiExterna: boolean;
     camera: boolean;
@@ -143,4 +145,9 @@ export interface CustomApi {
   model_name?: string | null | undefined;
   priority: number;
   is_active: boolean;
+}
+
+export interface IotConfig {
+  url: string;
+  token: string;
 }

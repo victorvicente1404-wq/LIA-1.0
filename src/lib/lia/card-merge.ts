@@ -46,6 +46,7 @@ export function mergeCardData(current: LiaCardData, incoming: LiaCardData): LiaC
     }),
     settings: { ...current.settings, ...(incoming.settings ?? {}) },
     customApis: mergeCustomApis(current.customApis, incoming.customApis),
+    ...((current.iot ?? incoming.iot) ? { iot: (current.iot?.url ? current.iot : incoming.iot)! } : {}),
     history: current.history?.length ? current.history : (incoming.history ?? []),
     updatedAt: Date.now(),
   };
