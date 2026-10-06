@@ -24,7 +24,10 @@ function Editor({ value, onCancel, onSave }: { value: CustomApi; onCancel: () =>
     try {
       const next = { ...a, headers: JSON.parse(headers || "{}"), parameters_schema: JSON.parse(schema || "{}") };
       const parsed = CustomApiSchema.safeParse(next);
-      if (!parsed.success) return toast.error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+      if (!parsed.success) {
+        toast.error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+        return;
+      }
       onSave(parsed.data as CustomApi);
     } catch {
       toast.error("Cabeçalhos ou parâmetros não são um JSON válido.");
@@ -85,7 +88,10 @@ export function CustomApisSection() {
   }
 
   const upsert = (api: CustomApi) => {
-    if (customApis.some((x) => x.name === api.name && x.id !== api.id)) return toast.error("Já existe uma extensão com esse identificador.");
+    if (customApis.some((x) => x.name === api.name && x.id !== api.id)) {
+      toast.error("Já existe uma extensão com esse identificador.");
+      return;
+    }
     const exists = customApis.some((x) => x.id === api.id);
     saveCustomApis(exists ? customApis.map((x) => (x.id === api.id ? api : x)) : [...customApis, api]);
     setEditing(null);

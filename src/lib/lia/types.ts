@@ -140,7 +140,7 @@ export interface CustomApi {
   param_location: "auto" | "body" | "query";
   headers: Record<string, string>;
   parameters_schema: Record<string, unknown>;
-  model_name?: string | null;
+  model_name?: string | null | undefined;
   priority: number;
   is_active: boolean;
 }
