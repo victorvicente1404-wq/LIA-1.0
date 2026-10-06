@@ -13,16 +13,88 @@ import type { CustomApi } from "@/lib/lia/types";
 
 const selectCls = "h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
 
-function Editor({ value, onCancel, onSave }: { value: CustomApi; onCancel: () => void; onSave: (a: CustomApi) => void }) {
+/** Presets de 1 clique: preenchem endereço e cabeçalhos; o usuário só informa a chave e o modelo. */
+const PROVIDER_PRESETS = [
+  { id: "openrouter", label: "OpenRouter", url: "https://openrouter.ai/api/v1", model: "nvidia/nemotron-3-super-120b-a12b:free", keyHint: "sk-or-v1-… (openrouter.ai/keys)" },
+  { id: "groq", label: "Groq", url: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile", keyHint: "gsk_… (console.groq.com)" },
+  { id: "deepseek", label: "DeepSeek", url: "https://api.deepseek.com/v1", model: "deepseek-chat", keyHint: "sk-… (platform.deepseek.com)" },
+] as const;
+
+function ProviderEditor({ value, onCancel, onSave }: { value: CustomApi; onCancel: () => void; onSave: (a: CustomApi) => void }) {
+  const [preset, setPreset] = useState<string>("");
+  const [name, setName] = useState(value.display_name);
+  const [url, setUrl] = useState(value.api_url);
+  const [model, setModel] = useState(value.model_name ?? "");
+  const [apiKey, setApiKey] = useState(value.headers["Authorization"]?.replace(/^Bearer\s+/i, "") ?? "");
+
+  const applyPreset = (id: string) => {
+    const p = PROVIDER_PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    setPreset(id);
+    setName(p.label);
+    setUrl(p.url);
+    setModel(p.model);
+  };
+
+  const submit = () => {
+    const slug = (preset || name || "provedor").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "provedor";
+    const next: CustomApi = {
+      ...value,
+      name: value.name || slug,
+      display_name: name || slug,
+      api_url: url.trim(),
+      model_name: model.trim(),
+      headers: apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {},
+      description: value.description || `Modelo de IA reserva (${name || slug}).`,
+    };
+    const parsed = CustomApiSchema.safeParse(next);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
+      return;
+    }
+    onSave(parsed.data as CustomApi);
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-primary/40 p-3">
+      <div className="flex flex-wrap gap-1.5">
+        {PROVIDER_PRESETS.map((p) => (
+          <Button key={p.id} size="sm" variant={preset === p.id ? "default" : "secondary"} className="h-7 text-xs" onClick={() => applyPreset(p.id)}>
+            {p.label}
+          </Button>
+        ))}
+        <Button size="sm" variant={preset === "" ? "default" : "ghost"} className="h-7 text-xs" onClick={() => setPreset("")}>Outro</Button>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div><Label className="text-[11px]">Nome visível</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="OpenRouter" /></div>
+        <div><Label className="text-[11px]">Modelo</Label><Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="llama-3.3-70b-versatile" /></div>
+      </div>
+      <div><Label className="text-[11px]">Chave de API</Label><Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={PROVIDER_PRESETS.find((p) => p.id === preset)?.keyHint ?? "Cole a chave aqui"} /></div>
+      <div><Label className="text-[11px]">Endereço (corrigido automaticamente)</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.groq.com/openai/v1" /></div>
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={onCancel}>Cancelar</Button>
+        <Button size="sm" onClick={submit}>Salvar</Button>
+      </div>
+    </div>
+  );
+}
+
+function ToolEditor({ value, onCancel, onSave }: { value: CustomApi; onCancel: () => void; onSave: (a: CustomApi) => void }) {
   const [a, setA] = useState(value);
+  const [apiKey, setApiKey] = useState(value.headers["Authorization"]?.replace(/^Bearer\s+/i, "") ?? "");
+  const [advanced, setAdvanced] = useState(false);
   const [headers, setHeaders] = useState(JSON.stringify(value.headers, null, 2));
   const [schema, setSchema] = useState(JSON.stringify(value.parameters_schema, null, 2));
   const set = (p: Partial<CustomApi>) => setA((x) => ({ ...x, ...p }));
-  const isTool = a.type === "tool";
 
   const submit = () => {
     try {
-      const next = { ...a, headers: JSON.parse(headers || "{}"), parameters_schema: JSON.parse(schema || "{}") };
+      const baseHeaders = apiKey.trim() ? { Authorization: `Bearer ${apiKey.trim()}` } : {};
+      const next = {
+        ...a,
+        headers: advanced ? JSON.parse(headers || "{}") : { ...baseHeaders, ...a.headers },
+        parameters_schema: advanced ? JSON.parse(schema || "{}") : a.parameters_schema,
+      };
       const parsed = CustomApiSchema.safeParse(next);
       if (!parsed.success) {
         toast.error(parsed.error.issues[0]?.message ?? "Dados inválidos.");
@@ -37,27 +109,27 @@ function Editor({ value, onCancel, onSave }: { value: CustomApi; onCancel: () =>
   return (
     <div className="space-y-2 rounded-xl border border-primary/40 p-3">
       <div className="grid grid-cols-2 gap-2">
-        <div><Label className="text-[11px]">Identificador</Label><Input value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder={isTool ? "web_search" : "groq_llama"} /></div>
-        <div><Label className="text-[11px]">Nome visível</Label><Input value={a.display_name} onChange={(e) => set({ display_name: e.target.value })} /></div>
+        <div><Label className="text-[11px]">Identificador</Label><Input value={a.name} onChange={(e) => set({ name: e.target.value })} placeholder="web_search" /></div>
+        <div><Label className="text-[11px]">Nome visível</Label><Input value={a.display_name} onChange={(e) => set({ display_name: e.target.value })} placeholder="Pesquisa Web" /></div>
       </div>
-      <div><Label className="text-[11px]">Endereço</Label><Input value={a.api_url} onChange={(e) => set({ api_url: e.target.value })} placeholder={isTool ? "https://api.exemplo.com/busca" : "https://api.groq.com/openai/v1"} /></div>
-      {isTool ? (
-        <div className="grid grid-cols-2 gap-2">
-          <div><Label className="text-[11px]">Método</Label>
-            <select className={selectCls} value={a.method} onChange={(e) => set({ method: e.target.value as CustomApi["method"] })}>
-              {["GET", "POST", "PUT", "DELETE"].map((m) => <option key={m}>{m}</option>)}
-            </select></div>
-          <div><Label className="text-[11px]">Parâmetros vão no</Label>
-            <select className={selectCls} value={a.param_location} onChange={(e) => set({ param_location: e.target.value as CustomApi["param_location"] })}>
-              <option value="auto">Automático</option><option value="query">Endereço</option><option value="body">Corpo</option>
-            </select></div>
-        </div>
-      ) : (
-        <div><Label className="text-[11px]">Modelo</Label><Input value={a.model_name ?? ""} onChange={(e) => set({ model_name: e.target.value })} placeholder="llama-3.3-70b-versatile" /></div>
+      <div><Label className="text-[11px]">Endereço da API</Label><Input value={a.api_url} onChange={(e) => set({ api_url: e.target.value })} placeholder="https://api.exemplo.com/busca" /></div>
+      <div className="grid grid-cols-2 gap-2">
+        <div><Label className="text-[11px]">Método</Label>
+          <select className={selectCls} value={a.method} onChange={(e) => set({ method: e.target.value as CustomApi["method"] })}>
+            {["GET", "POST", "PUT", "DELETE"].map((m) => <option key={m}>{m}</option>)}
+          </select></div>
+        <div><Label className="text-[11px]">Chave/token (opcional)</Label><Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Cole a chave aqui" /></div>
+      </div>
+      <div><Label className="text-[11px]">O que essa função faz? (para a Lia saber quando usar)</Label><Textarea rows={2} value={a.description} onChange={(e) => set({ description: e.target.value })} placeholder="Busca informações na web sobre um assunto" /></div>
+      <button className="text-[11px] text-muted-foreground underline" onClick={() => setAdvanced(!advanced)}>
+        {advanced ? "Ocultar opções avançadas" : "Opções avançadas (cabeçalhos e parâmetros em JSON)"}
+      </button>
+      {advanced && (
+        <>
+          <div><Label className="text-[11px]">Cabeçalhos (JSON)</Label><Textarea rows={2} className="font-mono text-xs" value={headers} onChange={(e) => setHeaders(e.target.value)} placeholder='{"Authorization": "Bearer ..."}' /></div>
+          <div><Label className="text-[11px]">Parâmetros (JSON Schema)</Label><Textarea rows={4} className="font-mono text-xs" value={schema} onChange={(e) => setSchema(e.target.value)} /></div>
+        </>
       )}
-      <div><Label className="text-[11px]">Descrição (para a Lia saber quando usar)</Label><Textarea rows={2} value={a.description} onChange={(e) => set({ description: e.target.value })} /></div>
-      <div><Label className="text-[11px]">Cabeçalhos (JSON)</Label><Textarea rows={2} className="font-mono text-xs" value={headers} onChange={(e) => setHeaders(e.target.value)} placeholder='{"Authorization": "Bearer ..."}' /></div>
-      {isTool && <div><Label className="text-[11px]">Parâmetros (JSON Schema)</Label><Textarea rows={4} className="font-mono text-xs" value={schema} onChange={(e) => setSchema(e.target.value)} /></div>}
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button size="sm" onClick={submit}>Salvar</Button>
@@ -147,7 +219,7 @@ export function CustomApisSection() {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium">Provedores de IA reservas</p>
-            <p className="text-[11px] text-muted-foreground">Usados em ordem se a IA principal falhar (7s cada). Formato compatível com OpenAI.</p>
+            <p className="text-[11px] text-muted-foreground">Usados em ordem se a IA principal falhar (7s cada). Escolha um preset e cole só a chave.</p>
           </div>
           <Button size="sm" variant="secondary" onClick={() => setEditing(emptyApi("llm_provider", providers.length))}><Plus className="h-3.5 w-3.5" /></Button>
         </div>
@@ -168,7 +240,7 @@ export function CustomApisSection() {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium">Ferramentas dinâmicas</p>
-            <p className="text-[11px] text-muted-foreground">APIs que a Lia pode chamar sozinha no chat. Você também pode pedir: "cadastre a API…".</p>
+            <p className="text-[11px] text-muted-foreground">APIs que a Lia pode chamar sozinha no chat. Só nome, endereço, chave e o que ela faz.</p>
           </div>
           <Button size="sm" variant="secondary" onClick={() => setEditing(emptyApi("tool"))}><Plus className="h-3.5 w-3.5" /></Button>
         </div>
@@ -176,7 +248,9 @@ export function CustomApisSection() {
         {tools.map((t) => row(t))}
       </div>
 
-      {editing && <Editor key={editing.id} value={editing} onCancel={() => setEditing(null)} onSave={upsert} />}
+      {editing && (editing.type === "llm_provider"
+        ? <ProviderEditor key={editing.id} value={editing} onCancel={() => setEditing(null)} onSave={upsert} />
+        : <ToolEditor key={editing.id} value={editing} onCancel={() => setEditing(null)} onSave={upsert} />)}
       <p className="flex items-center gap-1 text-[10px] text-muted-foreground"><CloudDownload className="h-3 w-3" /> As chaves ficam no Lia Card e no backup JSON. Guarde o arquivo com cuidado.</p>
     </div>
   );
