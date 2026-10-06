@@ -3,7 +3,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 export interface TavilyResult {
-  answer?: string;
+  answer?: string | undefined;
   results: Array<{ title: string; url: string; content: string }>;
 }
 
