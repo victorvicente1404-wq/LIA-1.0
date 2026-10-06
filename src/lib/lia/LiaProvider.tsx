@@ -313,7 +313,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         const finalMsgs = [...withUser, liaMsg];
         setSessionMessages(finalMsgs);
 
-        const registered = "registered" in res ? (res.registered as CustomApi[] | undefined) : undefined;
+        const regJson = "registeredJson" in res ? res.registeredJson : undefined;
+        const registered = regJson ? (JSON.parse(regJson) as CustomApi[]) : undefined;
         const apisNext = registered?.length
           ? [...(data?.customApis ?? []).filter((a) => !registered.some((r) => r.name === a.name)), ...registered]
           : data?.customApis;

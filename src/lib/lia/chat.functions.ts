@@ -114,7 +114,7 @@ export const liaRespond = createServerFn({ method: "POST" })
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
-      return { ok: true as const, text, ...(registered.length ? { registered } : {}) };
+      return { ok: true as const, text, ...(registered.length ? { registeredJson: JSON.stringify(registered) } : {}) };
     } catch (error) {
       const status =
         (error as { statusCode?: number; status?: number }).statusCode ??
