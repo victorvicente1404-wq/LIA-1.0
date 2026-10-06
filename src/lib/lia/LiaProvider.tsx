@@ -19,6 +19,8 @@ import { useConnections } from "./useConnections";
 import { connectorLabel } from "./connectors";
 import { liaRespond } from "./chat.functions";
 import { whatsappCredsForChat } from "./whatsappService";
+import { readIot, writeIot } from "./iot";
+import type { IotConfig } from "./types";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
 import * as convo from "./conversations";
@@ -87,6 +89,8 @@ interface LiaContextValue {
   greetProactively: (topics: string[]) => void;
   customApis: CustomApi[];
   saveCustomApis: (list: CustomApi[]) => void;
+  iot: IotConfig;
+  saveIot: (cfg: IotConfig) => void;
 }
 
 // Mantém o mesmo contexto entre recarregamentos ao vivo (evita "fora do LiaProvider").
@@ -271,9 +275,12 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         servicos: [
           ...connectedIds.map(connectorLabel),
           ...(whatsappCredsForChat() ? ["WhatsApp"] : []),
+          ...((data?.iot?.url || readIot().url) && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
         ],
       });
       const whatsapp = whatsappCredsForChat();
+      const iotCfg = data?.iot?.url ? data.iot : readIot();
+      const iotAtivo = !!iotCfg.url && !!modules.find((m) => m.id === "automacao")?.ativo;
       void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
       const systemFinal = extra ? `${system}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : system;
@@ -289,6 +296,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             messages: history,
             ...(frame ? { frame } : {}),
             ...(whatsapp ? { whatsapp } : {}),
+            ...(iotAtivo ? { iot: iotCfg } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
               ? {
@@ -370,6 +378,11 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   );
 
   const value: LiaContextValue = {
+    iot: data?.iot ?? readIot(),
+    saveIot: (cfg) => {
+      writeIot(cfg);
+      if (data) persist({ ...data, iot: cfg });
+    },
     customApis: data?.customApis ?? [],
     saveCustomApis: (list) => {
       if (!data) return;

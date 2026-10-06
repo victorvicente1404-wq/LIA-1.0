@@ -3,6 +3,7 @@ import { generateText, stepCountIs } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { CustomApiSchema } from "./custom-apis";
+import { IotSchema } from "./iot";
 
 const Input = z.object({
   system: z.string().min(1),
@@ -31,6 +32,8 @@ const Input = z.object({
     .optional(),
   /** Extensões dinâmicas do Lia Card (ferramentas e provedores reservas). */
   customApis: z.array(CustomApiSchema).max(40).optional(),
+  /** Módulo IoT ativo: ponte HTTP do Arduino/ESP32. */
+  iot: IotSchema.optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -88,6 +91,15 @@ export const liaRespond = createServerFn({ method: "POST" })
       tools = { ...tools, ...buildTavilyTools() };
     } catch (error) {
       console.error("Falha ao preparar a pesquisa web:", (error as Error).message);
+    }
+
+    if (data.iot) {
+      try {
+        const { buildIotTools } = await import("./iot.server");
+        tools = { ...tools, ...buildIotTools(data.iot) };
+      } catch (error) {
+        console.error("Falha ao preparar o módulo IoT:", (error as Error).message);
+      }
     }
 
     const customApis = data.customApis ?? [];

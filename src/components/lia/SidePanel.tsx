@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { LiaCardPanel } from "./LiaCardPanel";
 import { ConnectorsSection } from "./ConnectorsSection";
 import { WhatsAppConnector } from "./WhatsAppConnector";
+import { IotModule } from "./IotModule";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
@@ -340,6 +341,7 @@ function ModulesSection() {
               <span className="rounded bg-surface-2 px-1.5 py-0.5">permissão {m.permissao}</span>
               <span className="truncate">{m.config}</span>
             </div>
+            {m.id === "automacao" && m.ativo && <IotModule />}
           </div>
         ))}
         <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
