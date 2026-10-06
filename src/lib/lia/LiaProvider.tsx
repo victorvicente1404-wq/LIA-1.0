@@ -275,12 +275,12 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         servicos: [
           ...connectedIds.map(connectorLabel),
           ...(whatsappCredsForChat() ? ["WhatsApp"] : []),
-          ...((data?.iot?.url || readIot().url) && data?.modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
+          ...((data?.iot?.url || readIot().url) && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
         ],
       });
       const whatsapp = whatsappCredsForChat();
       const iotCfg = data?.iot?.url ? data.iot : readIot();
-      const iotAtivo = !!iotCfg.url && !!data?.modules.find((m) => m.id === "automacao")?.ativo;
+      const iotAtivo = !!iotCfg.url && !!modules.find((m) => m.id === "automacao")?.ativo;
       void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
       const systemFinal = extra ? `${system}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : system;
