@@ -22,6 +22,13 @@
       "when": 1791398686929,
       "tag": "0002_lia_link_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791399721903,
+      "tag": "0003_os_agent",
+      "breakpoints": true
     }
   ]
 }
