@@ -126,7 +126,7 @@ function snapshot(): Record<string, unknown> {
   const c = card.isMounted() ? card.readCard() : null;
   if (c) {
     const { history: _h, customApis, faces, updatedAt: _u, ...rest } = c;
-    out.core = { ...rest, profiles: c.profiles.map(({ memory: _m, ...p }) => p) };
+    out["core"] = { ...rest, profiles: c.profiles.map(({ memory: _m, ...p }) => p) };
     for (const p of c.profiles) for (const m of p.memory ?? []) out[`mem:${p.id}:${m.id}`] = m;
     for (const a of customApis ?? []) out[`api:${a.name}`] = a;
     for (const f of faces ?? []) out[`face:${f.nome}`] = f;

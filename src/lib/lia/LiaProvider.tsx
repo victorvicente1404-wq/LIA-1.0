@@ -172,7 +172,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         toast("Lia pediu para abrir um link", { action: { label: "Abrir", onClick: () => window.open(cmd.url, "_blank", "noopener") } });
         note = `link enviado: ${cmd.url}`;
       } else if (cmd.acao === "usb" && cmd.usb) {
-        const out = await sendSerial(cmd.usb);
+        const out = await sendSerial({ ...cmd.usb, value: cmd.usb.value ?? 0 });
         note = cmd.usb.action.endsWith("read") ? `pino ${cmd.usb.pin}: **${out}**` : `pino ${cmd.usb.pin} acionado`;
       }
       link.appendLiaMessage(cmd.conversationId, `📲 Feito em ${link.deviceName()}: ${note}`);
@@ -371,7 +371,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         const remoteJson = "remoteJson" in res ? res.remoteJson : undefined;
         if (remoteJson) {
-          for (const c of JSON.parse(remoteJson) as (link.RemoteCommand & { alvo: "mobile" | "desktop" })[]) {
+          for (const c of JSON.parse(String(remoteJson)) as (link.RemoteCommand & { alvo: "mobile" | "desktop" })[]) {
             const { alvo, ...cmd } = c;
             void link.dispatchRemote(alvo, { ...cmd, ...(activeConversationId ? { conversationId: activeConversationId } : {}) }).catch(() => undefined);
           }
