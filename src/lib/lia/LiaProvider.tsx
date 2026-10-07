@@ -44,6 +44,10 @@ import type {
 } from "./types";
 import { syncCustomApisToAccount } from "./custom-apis";
 import { DEFAULT_BOND, rewardBond, TREATS } from "./rewards";
+import * as link from "./sync/link";
+import { notify } from "./notifications";
+import { applyTheme, readTheme } from "./theme";
+import { toast } from "sonner";
 
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
 
@@ -144,10 +148,46 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Lia Link: aplica mudanças vindas de outros aparelhos e executa comandos remotos.
+  useEffect(() => {
+    const reload = () => {
+      if (card.isMounted()) {
+        setCardPresent(true);
+        setCardConnected(true);
+        setData(card.readCard());
+      }
+      const list = convo.readConversations();
+      setConversations(list);
+      const active = list.find((c) => c.id === convo.readActiveId());
+      if (active) setSessionMessages(active.messages);
+      applyTheme(readTheme());
+    };
+    window.addEventListener(link.APPLIED_EVENT, reload);
+    link.onRemoteCommand(async (cmd) => {
+      let note = "";
+      if (cmd.acao === "notificar") {
+        await notify("Lia", cmd.texto ?? "Aviso da Lia");
+        note = `aviso mostrado: "${cmd.texto ?? ""}"`;
+      } else if (cmd.acao === "abrir_link" && cmd.url) {
+        toast("Lia pediu para abrir um link", { action: { label: "Abrir", onClick: () => window.open(cmd.url, "_blank", "noopener") } });
+        note = `link enviado: ${cmd.url}`;
+      } else if (cmd.acao === "usb" && cmd.usb) {
+        const out = await sendSerial(cmd.usb);
+        note = cmd.usb.action.endsWith("read") ? `pino ${cmd.usb.pin}: **${out}**` : `pino ${cmd.usb.pin} acionado`;
+      }
+      link.appendLiaMessage(cmd.conversationId, `📲 Feito em ${link.deviceName()}: ${note}`);
+    });
+    void link.initLink();
+    return () => window.removeEventListener(link.APPLIED_EVENT, reload);
+  }, []);
+
   // Salva a conversa ativa a cada mudança de mensagens
   useEffect(() => {
     if (!activeConversationId) return;
     setConversations((prev) => {
+      const cur = prev.find((c) => c.id === activeConversationId);
+      const sliced = sessionMessages.slice(-200);
+      if (cur && cur.messages.length === sliced.length && cur.messages.at(-1)?.id === sliced.at(-1)?.id) return prev;
       const next = prev.map((c) =>
         c.id === activeConversationId
           ? {
@@ -302,6 +342,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(whatsapp ? { whatsapp } : {}),
             ...(iotAtivo ? { iot: iotCfg } : {}),
             ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? { usb: true } : {}),
+            ...(link.remoteKinds().length ? { remoteDevices: link.remoteKinds() } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
               ? {
@@ -326,6 +367,13 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             } catch (e) {
               usbNote += `\n\n⚠️ USB: ${(e as Error).message}`;
             }
+          }
+        }
+        const remoteJson = "remoteJson" in res ? res.remoteJson : undefined;
+        if (remoteJson) {
+          for (const c of JSON.parse(remoteJson) as (link.RemoteCommand & { alvo: "mobile" | "desktop" })[]) {
+            const { alvo, ...cmd } = c;
+            void link.dispatchRemote(alvo, { ...cmd, ...(activeConversationId ? { conversationId: activeConversationId } : {}) }).catch(() => undefined);
           }
         }
         const { clean, learned } = extractMemories(res.text + usbNote);
@@ -391,6 +439,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       persist,
       modules,
       connectedIds.join(","),
+      activeConversationId,
     ],
   );
 
