@@ -101,6 +101,105 @@ export type Database = {
         }
         Relationships: []
       }
+      push_cron_config: {
+        Row: {
+          id: number
+          secret: string
+        }
+        Insert: {
+          id?: number
+          secret?: string
+        }
+        Update: {
+          id?: number
+          secret?: string
+        }
+        Relationships: []
+      }
+      push_routines: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sent_on: string | null
+          time_hm: string
+          timezone: string
+          title: string
+          user_id: string
+          weekdays: number[]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sent_on?: string | null
+          time_hm: string
+          timezone?: string
+          title: string
+          user_id: string
+          weekdays?: number[]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sent_on?: string | null
+          time_hm?: string
+          timezone?: string
+          title?: string
+          user_id?: string
+          weekdays?: number[]
+        }
+        Relationships: []
+      }
+      push_sent_events: {
+        Row: {
+          event_key: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          event_key: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          event_key?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
