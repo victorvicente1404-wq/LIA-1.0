@@ -23,7 +23,7 @@ let apiPromise: Promise<FaceApi> | null = null;
 
 export function loadFaceApi(): Promise<FaceApi> {
   apiPromise ??= (async () => {
-    const faceapi = await import("@vladmandic/face-api");
+    const faceapi = (await import("@vladmandic/face-api/dist/face-api.esm.js")) as unknown as FaceApi;
     try {
       await faceapi.tf.setBackend("webgl");
     } catch {
