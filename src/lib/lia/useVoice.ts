@@ -214,7 +214,7 @@ export function useVoice(
       }
     }
     if (monitorRef.current) {
-      monitorRef.current.stop();
+      monitorRef.current?.stop?.();
       monitorRef.current = null;
     }
     setAudioLevel(0);
@@ -299,7 +299,7 @@ export function useVoice(
           /* noop */
         }
       }
-      if (monitorRef.current) monitorRef.current.stop();
+      if (monitorRef.current) monitorRef.current?.stop?.();
     };
   }, []);
 
