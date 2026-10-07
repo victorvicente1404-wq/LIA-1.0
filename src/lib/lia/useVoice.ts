@@ -69,10 +69,12 @@ export function useVoice(
   });
 
   const recRef = useRef<SpeechRecognitionLike | null>(null);
+  const buildRecognitionRef = useRef<(() => SpeechRecognitionLike | null) | null>(null);
   const monitorRef = useRef<AudioMonitor | null>(null);
   const wakeActiveRef = useRef(false); // acordada pela palavra de ativação
   const speakingRef = useRef(false);
   const micOnRef = useRef(false);
+  const speakStartRef = useRef(0);
   const wantListeningRef = useRef(false); // intent de manter reconhecimento ativo
   const optsRef = useRef({ wakeWord, wakeWordName, onTranscript });
   optsRef.current = { wakeWord, wakeWordName, onTranscript };
@@ -103,7 +105,8 @@ export function useVoice(
       onLevel: (l) => setAudioLevel(l),
       onVoice: (v) => {
         // Interrompe a fala da Lia quando o usuário começa a falar.
-        if (v && speakingRef.current) {
+        // Ignora o começo da fala (eco da própria voz da Lia no microfone).
+        if (v && speakingRef.current && Date.now() - speakStartRef.current > 1500) {
           cancelSpeech();
           speakingRef.current = false;
           setSpeaking(false);
@@ -148,30 +151,37 @@ export function useVoice(
         cb(t);
       }
     };
-    rec.onspeechstart = () => {
-      // Backup: interrompe a fala se o áudio do usuário for detectado.
-      if (speakingRef.current) {
-        cancelSpeech();
-        speakingRef.current = false;
-        setSpeaking(false);
+    rec.onerror = (e: any) => {
+      const err = e?.error as string | undefined;
+      if (err === "not-allowed" || err === "service-not-allowed" || err === "audio-capture") {
+        // Sem permissão de microfone: desliga em vez de entrar em loop.
+        wantListeningRef.current = false;
+        micOnRef.current = false;
+        setMicOn(false);
         updateState();
       }
     };
-    rec.onerror = () => {
-      /* erros transitórios; onend reinicia */
-    };
     rec.onend = () => {
-      // Reinício automático: mantém a escuta contínua enquanto ativa.
-      if (wantListeningRef.current && !speakingRef.current) {
+      // Reinício automático com pequeno atraso (Chrome rejeita start imediato).
+      if (!wantListeningRef.current) return;
+      setTimeout(() => {
+        if (!wantListeningRef.current || recRef.current !== rec) return;
         try {
           rec.start();
         } catch {
-          /* já iniciado */
+          const fresh = buildRecognitionRef.current?.();
+          recRef.current = fresh ?? null;
+          try {
+            fresh?.start();
+          } catch {
+            /* noop */
+          }
         }
-      }
+      }, 250);
     };
     return rec;
   }, [updateState]);
+  buildRecognitionRef.current = buildRecognition;
 
   const startListening = useCallback(() => {
     if (!supported.mic) return;
@@ -224,6 +234,7 @@ export function useVoice(
       if (!supported.tts) return;
       cancelSpeech();
       speakingRef.current = true;
+      speakStartRef.current = Date.now();
       setSpeaking(true);
       updateState();
       const ttsOpts: import("./tts").TtsSpeakOptions = {
