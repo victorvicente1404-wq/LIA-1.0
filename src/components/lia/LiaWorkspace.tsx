@@ -10,7 +10,7 @@ import { useLia } from "@/lib/lia/LiaProvider";
 import { useVoice } from "@/lib/lia/useVoice";
 import { TreatDialog } from "./TreatDialog";
 import { Button } from "@/components/ui/button";
-import { Menu, Settings2 } from "lucide-react";
+import { Eye, Menu, Settings2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { applyTheme, readTheme } from "@/lib/lia/theme";
 import { markProactive, proactiveEnabled, readTopics } from "@/lib/lia/proactive";
@@ -29,6 +29,7 @@ export function LiaWorkspace() {
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [treatOpen, setTreatOpen] = useState(false);
+  const [mobileVisionOpen, setMobileVisionOpen] = useState(false);
   const clicksRef = useRef<number[]>([]);
   const greetedRef = useRef(false);
   useWhatsAppWatcher();
@@ -149,18 +150,24 @@ export function LiaWorkspace() {
             />
             <span className="hidden sm:inline">{cardConnected ? "Lia Card conectado" : "Lia Card não conectado"}</span>
           </span>
+          <Button size="icon" variant={mobileVisionOpen ? "secondary" : "ghost"} className="xl:hidden" onClick={() => setMobileVisionOpen((v) => !v)} title="Visão da Lia">
+            <Eye className="h-4 w-4" />
+          </Button>
           <Button size="icon" variant="ghost" className="lg:hidden" onClick={() => setMobileSettingsOpen(true)} title="Painel da Lia">
             <Settings2 className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[auto_minmax(0,1fr)_24rem] xl:grid-cols-[auto_18rem_minmax(26rem,1fr)_24rem]">
+      <main className="grid min-h-0 flex-1 grid-cols-1 auto-rows-min [&>*:last-child]:min-h-0 gap-3 overflow-hidden lg:grid-cols-[auto_minmax(0,1fr)_24rem] xl:grid-cols-[auto_18rem_minmax(26rem,1fr)_24rem]">
         <div className="hidden min-h-0 lg:flex">
           <ConversationsSidebar open={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
         </div>
         <div ref={perceptionRef} className="hidden min-h-0 xl:flex">
           <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
+        </div>
+        <div className={`min-h-0 xl:hidden ${mobileVisionOpen ? "" : "hidden"}`}>
+          <PerceptionPanel compact listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
         </div>
         <ChatPanel
           listening={voice.hearing}
@@ -171,7 +178,7 @@ export function LiaWorkspace() {
           onMic={() => (voice.micOn ? voice.stopListening() : voice.startListening())}
           onStopSpeech={voice.shutUp}
           onCameraFocus={() =>
-            window.innerWidth < 1280 ? setMobileSettingsOpen(true) : perceptionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+            window.innerWidth < 1280 ? setMobileVisionOpen((v) => !v) : perceptionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
           }
           onTreat={() => setTreatOpen(true)}
         />
@@ -190,7 +197,6 @@ export function LiaWorkspace() {
         <SheetContent side="right" className="w-[94vw] overflow-y-auto p-2 sm:max-w-md">
           <SheetHeader className="sr-only"><SheetTitle>Painel da Lia</SheetTitle><SheetDescription>Percepção, configurações e Lia Card</SheetDescription></SheetHeader>
           <div className="space-y-3 pt-8 xl:hidden">
-            <PerceptionPanel listening={voice.hearing} speaking={voice.speaking} audioLevel={voice.audioLevel} />
             <SidePanel />
           </div>
         </SheetContent>
