@@ -36,6 +36,8 @@ const Input = z.object({
   iot: IotSchema.optional(),
   /** Arduino ligado por USB neste navegador (Web Serial). */
   usb: z.boolean().optional(),
+  /** Outros aparelhos pareados pelo Lia Link. */
+  remoteDevices: z.array(z.enum(["mobile", "desktop"])).max(2).optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -106,6 +108,27 @@ export const liaRespond = createServerFn({ method: "POST" })
     if (data.usb) {
       const { buildUsbTool } = await import("./iot.server");
       tools = { ...tools, ...buildUsbTool() };
+    }
+    if (data.remoteDevices?.length) {
+      const { tool } = await import("ai");
+      const alvos = data.remoteDevices;
+      tools = {
+        ...tools,
+        comando_outro_dispositivo: tool({
+          description: `Envia uma ação para outro aparelho pareado do usuário pelo Lia Link (disponíveis: ${alvos.join(", ")}). acao: notificar (mostra um aviso com 'texto'), abrir_link ('url'), usb (controla o Arduino ligado por USB naquele aparelho). Use quando o pedido só pode ser feito no outro aparelho. O resultado aparece no chat sincronizado.`,
+          inputSchema: z.object({
+            alvo: z.enum(["mobile", "desktop"]),
+            acao: z.enum(["notificar", "abrir_link", "usb"]),
+            texto: z.string().max(500).optional(),
+            url: z.string().url().max(1000).optional(),
+            usb: z
+              .object({ action: z.enum(["digital_write", "pwm", "digital_read", "analog_read"]), pin: z.number().int().min(0).max(99), value: z.number().int().min(0).max(255).optional() })
+              .optional(),
+          }),
+          execute: async ({ alvo }) =>
+            alvos.includes(alvo) ? { ok: true, enviado: `para o aparelho ${alvo}` } : { ok: false, erro: "nenhum aparelho desse tipo pareado" },
+        }),
+      };
     }
 
     const customApis = data.customApis ?? [];

@@ -9,6 +9,7 @@ import { ConversationsSidebar } from "./ConversationsSidebar";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { useVoice } from "@/lib/lia/useVoice";
 import { TreatDialog } from "./TreatDialog";
+import { LiaLinkBadge } from "./LiaLink";
 import { Button } from "@/components/ui/button";
 import { Eye, Menu, Settings2 } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -138,6 +139,7 @@ export function LiaWorkspace() {
         </div>
         <div className="flex shrink-0 items-center gap-2 text-[11px]">
           <span className="hidden text-muted-foreground sm:inline">perfil {profile.nome}</span>
+          <LiaLinkBadge />
           <span
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
               cardConnected
