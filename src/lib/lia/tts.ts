@@ -27,7 +27,10 @@ export function textToSpeech(text: string): string {
   return text
     .replace(/\[\[[^\]]*\]\]/g, "")
     .replace(/```[\s\S]*?```/g, " (trecho de código) ")
-    .replace(/[*_#`>]/g, "")
+    .replace(/_Humor[^_\n]*_/g, "")
+    .replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE0F\u20E3\u200D]/gu, "")
+    .replace(/:[a-z0-9_+-]+:/gi, "")
+    .replace(/[*_#`>~|]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
