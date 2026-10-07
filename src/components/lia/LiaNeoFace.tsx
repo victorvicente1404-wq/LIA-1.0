@@ -142,7 +142,7 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
             />
             {/* Brilho do olho */}
             <motion.circle cx={cx + 3} cy={30} r={2} fill="var(--color-foreground)" stroke="none"
-              animate={{ opacity: happy || blink ? 0 : emotion === "excited" ? 1 : 0.6 }} />
+              animate={{ opacity: happy || blink ? 0 : curious || surprised ? 1 : 0.6 }} />
             <motion.path
               d={`M${cx - 9} 38 Q${cx} 24 ${cx + 9} 38`} fill="none" strokeWidth={3.2} strokeLinecap="round"
               initial={false}
