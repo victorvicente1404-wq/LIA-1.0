@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as OauthReturnRouteImport } from './routes/oauth.return'
+import { Route as ApiPublicOsAgentRouteImport } from './routes/api/public/os-agent'
 import { Route as ApiPublicPushCronRouteImport } from './routes/api/public/push-cron'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const OauthReturnRoute = OauthReturnRouteImport.update({
   path: '/oauth/return',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOsAgentRoute = ApiPublicOsAgentRouteImport.update({
+  id: '/api/public/os-agent',
+  path: '/api/public/os-agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPushCronRoute = ApiPublicPushCronRouteImport.update({
   id: '/api/public/push-cron',
   path: '/api/public/push-cron',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/oauth/return': typeof OauthReturnRoute
+  '/api/public/os-agent': typeof ApiPublicOsAgentRoute
   '/api/public/push-cron': typeof ApiPublicPushCronRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/oauth/return': typeof OauthReturnRoute
+  '/api/public/os-agent': typeof ApiPublicOsAgentRoute
   '/api/public/push-cron': typeof ApiPublicPushCronRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,38 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/oauth/return': typeof OauthReturnRoute
+  '/api/public/os-agent': typeof ApiPublicOsAgentRoute
   '/api/public/push-cron': typeof ApiPublicPushCronRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/oauth/return' | '/api/public/push-cron'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/oauth/return'
+    | '/api/public/os-agent'
+    | '/api/public/push-cron'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/oauth/return' | '/api/public/push-cron'
-  id: '__root__' | '/' | '/auth' | '/oauth/return' | '/api/public/push-cron'
+  to:
+    | '/'
+    | '/auth'
+    | '/oauth/return'
+    | '/api/public/os-agent'
+    | '/api/public/push-cron'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/oauth/return'
+    | '/api/public/os-agent'
+    | '/api/public/push-cron'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   OauthReturnRoute: typeof OauthReturnRoute
+  ApiPublicOsAgentRoute: typeof ApiPublicOsAgentRoute
   ApiPublicPushCronRoute: typeof ApiPublicPushCronRoute
 }
 
@@ -92,6 +118,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OauthReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/os-agent': {
+      id: '/api/public/os-agent'
+      path: '/api/public/os-agent'
+      fullPath: '/api/public/os-agent'
+      preLoaderRoute: typeof ApiPublicOsAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/push-cron': {
       id: '/api/public/push-cron'
       path: '/api/public/push-cron'
@@ -106,6 +139,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   OauthReturnRoute: OauthReturnRoute,
+  ApiPublicOsAgentRoute: ApiPublicOsAgentRoute,
   ApiPublicPushCronRoute: ApiPublicPushCronRoute,
 }
 export const routeTree = rootRouteImport
