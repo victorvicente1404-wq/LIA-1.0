@@ -67,7 +67,8 @@ export const visionSource = {
   },
   /** Chamado pelo loop de percepção contínua. */
   setFaces(faces: VisionObservation["faces"], source: VisionObservation["source"]) {
-    observation = { ...observation, faces, source, presence: (faces?.count ?? 0) > 0 };
+    const { faces: _f, source: _s, ...rest } = observation;
+    observation = { ...rest, ...(faces ? { faces } : {}), ...(source ? { source } : {}), presence: (faces?.count ?? 0) > 0 };
     emit();
   },
   pushFrame(frame: VisionFrame, change: number, presence: boolean) {
