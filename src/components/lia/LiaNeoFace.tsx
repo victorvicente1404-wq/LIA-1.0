@@ -154,6 +154,7 @@ function useEmotion(): NeoEmotion {
       prevTreats.current = bond.petiscos;
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [bond.petiscos]);
 
   useEffect(() => {
@@ -162,6 +163,7 @@ function useEmotion(): NeoEmotion {
       const t = setTimeout(() => setEmotion("neutral"), 7000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [last?.createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
