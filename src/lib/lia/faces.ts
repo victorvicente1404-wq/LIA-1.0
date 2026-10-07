@@ -25,11 +25,11 @@ export function loadFaceApi(): Promise<FaceApi> {
   apiPromise ??= (async () => {
     const faceapi = (await import("@vladmandic/face-api/dist/face-api.esm.js")) as unknown as FaceApi;
     try {
-      await faceapi.tf.setBackend("webgl");
+      await (faceapi.tf as unknown as { setBackend: (b: string) => Promise<boolean> }).setBackend("webgl");
     } catch {
-      await faceapi.tf.setBackend("cpu");
+      await (faceapi.tf as unknown as { setBackend: (b: string) => Promise<boolean> }).setBackend("cpu");
     }
-    await faceapi.tf.ready();
+    await (faceapi.tf as unknown as { ready: () => Promise<void> }).ready();
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
