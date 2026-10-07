@@ -74,3 +74,19 @@ export function buildIotTools(cfg: IotConfig) {
     }),
   };
 }
+
+/** Arduino via USB: o comando é executado no navegador do usuário após a resposta. */
+export function buildUsbTool() {
+  return {
+    usb_comando: tool({
+      description:
+        "Controla o Arduino ligado por USB ao computador do usuário. digital_write liga (1)/desliga (0) pino ou relé; pwm 0-255; digital_read/analog_read leem entradas (o valor lido aparece logo após sua resposta). Execute direto quando pedido e confirme em uma frase.",
+      inputSchema: z.object({
+        action: IotAction,
+        pin: z.number().int().min(0).max(99),
+        value: z.number().int().min(0).max(255).optional(),
+      }),
+      execute: async () => ({ ok: true, enviado: "via USB no navegador do usuário" }),
+    }),
+  };
+}

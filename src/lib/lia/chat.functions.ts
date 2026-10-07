@@ -34,6 +34,8 @@ const Input = z.object({
   customApis: z.array(CustomApiSchema).max(40).optional(),
   /** Módulo IoT ativo: ponte HTTP do Arduino/ESP32. */
   iot: IotSchema.optional(),
+  /** Arduino ligado por USB neste navegador (Web Serial). */
+  usb: z.boolean().optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -101,6 +103,10 @@ export const liaRespond = createServerFn({ method: "POST" })
         console.error("Falha ao preparar o módulo IoT:", (error as Error).message);
       }
     }
+    if (data.usb) {
+      const { buildUsbTool } = await import("./iot.server");
+      tools = { ...tools, ...buildUsbTool() };
+    }
 
     const customApis = data.customApis ?? [];
     try {
@@ -130,10 +136,19 @@ export const liaRespond = createServerFn({ method: "POST" })
         .filter((r) => r.toolName === "register_new_api_tool")
         .map((r) => (r as { output?: { registered?: unknown } }).output?.registered)
         .filter(Boolean) as z.infer<typeof CustomApiSchema>[];
+      const usbCmds = result.steps
+        .flatMap((s) => s.toolCalls ?? [])
+        .filter((c) => c.toolName === "usb_comando")
+        .map((c) => (c as { input?: unknown }).input);
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
-      return { ok: true as const, text, ...(registered.length ? { registeredJson: JSON.stringify(registered) } : {}) };
+      return {
+        ok: true as const,
+        text,
+        ...(registered.length ? { registeredJson: JSON.stringify(registered) } : {}),
+        ...(usbCmds.length ? { usbJson: JSON.stringify(usbCmds) } : {}),
+      };
     } catch (error) {
       const status =
         (error as { statusCode?: number; status?: number }).statusCode ??
