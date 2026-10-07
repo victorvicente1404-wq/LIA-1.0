@@ -4,8 +4,8 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 
-/** Voz feminina padrão da Lia (Sarah — natural, multilíngue). */
-export const LIA_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
+/** Voz feminina padrão da Lia (Jessica — jovem, alegre e brincalhona). */
+export const LIA_VOICE_ID = "cgSgspJ2msm6clMCkdW9";
 
 function toBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
@@ -39,10 +39,11 @@ export const synthesizeSpeech = createServerFn({ method: "POST" })
           text,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.45,
-            similarity_boost: 0.75,
-            style: 0.35,
+            stability: 0.32,
+            similarity_boost: 0.8,
+            style: 0.55,
             use_speaker_boost: true,
+            speed: 1.06,
           },
         }),
       },

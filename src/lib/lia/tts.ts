@@ -152,6 +152,58 @@ export function createBrowserTts(): TtsEngine {
  * Motor ElevenLabs: voz neural feminina da Lia.
  * Se a síntese falhar (sem chave, cota, rede), cai para o motor do navegador.
  */
+// Nível de voz em tempo real (0–1) para o lip-sync do rosto da Lia.
+let speechCtx: AudioContext | null = null;
+let speechAnalyser: AnalyserNode | null = null;
+let speechBuf: Uint8Array<ArrayBuffer> | null = null;
+let browserSpeaking = false;
+
+function ensureSpeechCtx() {
+  if (typeof window === "undefined") return null;
+  if (!speechCtx) {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return null;
+    speechCtx = new Ctx();
+    speechAnalyser = speechCtx.createAnalyser();
+    speechAnalyser.fftSize = 512;
+    speechAnalyser.connect(speechCtx.destination);
+    speechBuf = new Uint8Array(new ArrayBuffer(speechAnalyser.fftSize));
+  }
+  if (speechCtx.state === "suspended") void speechCtx.resume().catch(() => {});
+  return speechCtx;
+}
+
+// Destrava o áudio no primeiro toque/clique (política de autoplay).
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    ensureSpeechCtx();
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+  };
+  window.addEventListener("pointerdown", unlock);
+  window.addEventListener("keydown", unlock);
+}
+
+export function setBrowserSpeaking(v: boolean) {
+  browserSpeaking = v;
+}
+
+/** Volume atual da fala da Lia (0–1). Para a voz do navegador, -1 = desconhecido. */
+export function getSpeechLevel(): number {
+  if (speechAnalyser && speechBuf && activeElevenAudio && !activeElevenAudio.paused) {
+    speechAnalyser.getByteTimeDomainData(speechBuf);
+    let sum = 0;
+    for (let i = 0; i < speechBuf.length; i++) {
+      const v = (speechBuf[i]! - 128) / 128;
+      sum += v * v;
+    }
+    return Math.min(1, Math.sqrt(sum / speechBuf.length) * 4.5);
+  }
+  return browserSpeaking ? -1 : 0;
+}
+
+let activeElevenAudio: HTMLAudioElement | null = null;
+
 export function createElevenLabsTts(fallback: TtsEngine): TtsEngine {
   let audio: HTMLAudioElement | null = null;
   let cancelled = false;
@@ -185,6 +237,15 @@ export function createElevenLabsTts(fallback: TtsEngine): TtsEngine {
           if (cancelled) return;
           const a = new Audio(res.audio);
           audio = a;
+          activeElevenAudio = a;
+          const ctx = ensureSpeechCtx();
+          if (ctx && speechAnalyser) {
+            try {
+              ctx.createMediaElementSource(a).connect(speechAnalyser);
+            } catch {
+              /* sem analisador: toca direto */
+            }
+          }
           let started = false;
           a.onplay = () => {
             if (!started) {
