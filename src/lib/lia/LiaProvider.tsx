@@ -20,6 +20,7 @@ import { connectorLabel } from "./connectors";
 import { liaRespond } from "./chat.functions";
 import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
+import { sendSerial, serialConnected } from "./webserial";
 import type { IotConfig } from "./types";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
@@ -276,6 +277,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           ...connectedIds.map(connectorLabel),
           ...(whatsappCredsForChat() ? ["WhatsApp"] : []),
           ...((data?.iot?.url || readIot().url) && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
+          ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino Uno via USB (ferramenta usb_comando)"] : []),
         ],
       });
       const whatsapp = whatsappCredsForChat();
@@ -297,6 +299,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(frame ? { frame } : {}),
             ...(whatsapp ? { whatsapp } : {}),
             ...(iotAtivo ? { iot: iotCfg } : {}),
+            ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? { usb: true } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
               ? {
@@ -311,7 +314,19 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           },
         });
         if (token.cancelled) return;
-        const { clean, learned } = extractMemories(res.text);
+        const usbJson = "usbJson" in res ? res.usbJson : undefined;
+        let usbNote = "";
+        if (usbJson) {
+          for (const c of JSON.parse(usbJson) as Parameters<typeof sendSerial>[0][]) {
+            try {
+              const out = await sendSerial(c);
+              if (c.action.endsWith("read")) usbNote += `\n\n🔌 Pino ${c.pin}: **${out}**`;
+            } catch (e) {
+              usbNote += `\n\n⚠️ USB: ${(e as Error).message}`;
+            }
+          }
+        }
+        const { clean, learned } = extractMemories(res.text + usbNote);
         const liaMsg: ChatMessage = {
           id: uid(),
           role: "lia",

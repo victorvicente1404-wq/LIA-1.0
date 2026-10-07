@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Check, Copy, Cpu } from "lucide-react";
+import { useEffect, useState } from "react";
+import { connectSerial, disconnectSerial, onSerialChange, sendSerial, serialConnected, serialSupported } from "@/lib/lia/webserial";
+import { Check, Copy, Cpu, Usb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,28 @@ export function IotModule() {
   const [tab, setTab] = useState<(typeof CODES)[number]["id"]>("esp32");
   const [copied, setCopied] = useState(false);
 
+  const [usbOn, setUsbOn] = useState(false);
+  const [usbMsg, setUsbMsg] = useState("");
+  const [supported, setSupported] = useState(true);
+  useEffect(() => {
+    setSupported(serialSupported());
+    setUsbOn(serialConnected());
+    const off = onSerialChange(() => setUsbOn(serialConnected()));
+    return () => { off(); };
+  }, []);
+  const toggleUsb = async () => {
+    setUsbMsg("");
+    try {
+      if (usbOn) return void (await disconnectSerial());
+      await connectSerial();
+      const r = await sendSerial({ action: "digital_write", pin: 13, value: 1 });
+      setTimeout(() => void sendSerial({ action: "digital_write", pin: 13, value: 0 }).catch(() => null), 600);
+      setUsbMsg(r === "1" ? "LED 13 piscou — tudo certo!" : `Resposta: ${r}`);
+    } catch (e) {
+      setUsbMsg((e as Error).name === "NotFoundError" ? "Nenhuma porta escolhida." : (e as Error).message);
+    }
+  };
+
   const test = async () => {
     const cfg = { url: url.trim(), token: token.trim() };
     saveIot(cfg);
@@ -43,6 +66,25 @@ export function IotModule() {
 
   return (
     <div className="mt-3 space-y-3 border-t border-border pt-3">
+      <div className="space-y-2 rounded-md bg-surface-2 p-3">
+        <p className="text-xs font-medium">Arduino Uno pelo cabo USB</p>
+        {supported ? (
+          <>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={toggleUsb} variant={usbOn ? "outline" : "default"}>
+                <Usb className="mr-2 h-4 w-4" /> {usbOn ? "Desconectar" : "Conectar via USB"}
+              </Button>
+              <span className="text-xs">{usbOn ? "🟢 Conectado" : "⚪ Desligado"}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Grave o sketch "Arduino Uno" (abaixo), clique em conectar e escolha a porta. Feche o Monitor Serial da Arduino IDE antes.
+            </p>
+          </>
+        ) : (
+          <p className="text-[11px] text-muted-foreground">Seu navegador não suporta USB. Use Chrome ou Edge no computador.</p>
+        )}
+        {usbMsg && <p className="text-[11px] text-muted-foreground">{usbMsg}</p>}
+      </div>
       <div className="space-y-1">
         <Label className="text-xs">Endereço do dispositivo / ponte</Label>
         <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://seu-tunel.ngrok-free.app" />
@@ -102,7 +144,7 @@ export function IotModule() {
             </pre>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Arduino Uno: grave o sketch, rode a ponte Python no PC ligado por USB e exponha a porta 5000 com um túnel.
+            Arduino Uno: basta gravar o sketch e usar "Conectar via USB". A ponte Python só é necessária para controlar o Uno de outro computador.
           </p>
         </div>
       )}
