@@ -119,12 +119,14 @@ export function createBrowserTts(): TtsEngine {
         u.pitch = Math.min(1.6, Math.max(0.6, basePitch + (question ? 0.07 : drift * 1.2)));
         u.volume = 1;
         u.onstart = () => {
+          setBrowserSpeaking(true);
           if (!started) {
             started = true;
             opts.onStart?.();
           }
         };
         u.onend = () => {
+          setBrowserSpeaking(false);
           if (cancelled) return;
           timer = setTimeout(() => speakPart(i + 1), part.pauseAfter);
         };
