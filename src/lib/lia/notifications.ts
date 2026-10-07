@@ -23,15 +23,33 @@ export async function setNotificationsEnabled(on: boolean) {
   return ok;
 }
 
-export function notify(title: string, body: string) {
+function canUseSw() {
+  if (!("serviceWorker" in navigator) || window.self !== window.top) return false;
+  const h = window.location.hostname;
+  return !h.includes("id-preview--") && !h.includes("lovableproject.com") && h !== "localhost";
+}
+
+export async function notify(title: string, body: string) {
   if (!notificationsEnabled()) return;
+  const opts = { body, icon: "/icon-192.png", badge: "/badge.png", tag: "lia", data: { url: "/" } };
+  // Celulares Android não aceitam `new Notification`: usar o service worker.
+  if (canUseSw()) {
+    try {
+      const reg = (await navigator.serviceWorker.getRegistration()) ?? (await navigator.serviceWorker.register("/sw.js"));
+      await navigator.serviceWorker.ready;
+      await reg.showNotification(title, opts);
+      return;
+    } catch {
+      /* cai para o modo simples */
+    }
+  }
   try {
-    const n = new Notification(title, { body, icon: "/favicon.png", tag: "lia" });
+    const n = new Notification(title, opts);
     n.onclick = () => {
       window.focus();
       n.close();
     };
   } catch {
-    /* alguns navegadores exigem service worker; nesse caso a notificação é ignorada */
+    /* navegador sem suporte */
   }
 }
