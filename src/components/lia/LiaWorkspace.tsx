@@ -15,6 +15,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { applyTheme, readTheme } from "@/lib/lia/theme";
 import { markProactive, proactiveEnabled, readTopics } from "@/lib/lia/proactive";
 import { notify } from "@/lib/lia/notifications";
+import { hasPushSubscription } from "@/lib/lia/push-client";
+import { sendSelfPush } from "@/lib/lia/push.functions";
 import { useWhatsAppWatcher } from "@/lib/lia/useWhatsAppWatcher";
 
 export function LiaWorkspace() {
@@ -94,7 +96,14 @@ export function LiaWorkspace() {
 
   useEffect(() => {
     if (!last || last.role !== "lia" || last.id === "greeting" || document.visibilityState === "visible") return;
-    notify("Lia", last.content.replace(/[*_#`]/g, "").slice(0, 180));
+    const body = last.content.replace(/[*_#`]/g, "").slice(0, 180);
+    void (async () => {
+      if (await hasPushSubscription()) {
+        const r = await sendSelfPush({ data: { title: "Tarefa concluída", body, tag: "lia-chat" } }).catch(() => null);
+        if (r?.sent) return;
+      }
+      notify("Lia", body);
+    })();
   }, [last]);
 
   if (!lia.booted) {

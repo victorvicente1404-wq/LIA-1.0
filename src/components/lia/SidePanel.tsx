@@ -32,6 +32,7 @@ import {
   notificationsSupported,
   setNotificationsEnabled,
 } from "@/lib/lia/notifications";
+import { NotificationsSection } from "./NotificationsSection";
 import {
   proactiveEnabled,
   readTopics,
@@ -402,17 +403,7 @@ function SettingsSection() {
           checked={settings.fala !== false}
           onChange={(v) => updateSettings({ fala: v })}
         />
-        <Toggle
-          label="Notificações"
-          desc={notificationsSupported() ? "Alertas quando a aba estiver em segundo plano." : "Não disponível neste navegador."}
-          checked={notificationsOn}
-          onChange={(value) => {
-            void setNotificationsEnabled(value).then((enabled) => {
-              setNotificationsOn(enabled);
-              if (value && !enabled) toast.error("A permissão de notificações não foi concedida.");
-            });
-          }}
-        />
+        <NotificationsSection />
         <Toggle
           label="Iniciativa própria"
           desc="A Lia inicia a conversa e acompanha assuntos escolhidos."
