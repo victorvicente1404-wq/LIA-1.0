@@ -592,7 +592,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         {
           id: uid(),
           role: "lia",
-          content: `${treat.emoji} ${treat.reaction}`,
+          content: treatReaction(treat, nextBond),
           createdAt: Date.now(),
         },
       ]);
@@ -613,6 +613,19 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   };
 
   return <LiaContext.Provider value={value}>{children}</LiaContext.Provider>;
+}
+
+function treatReaction(treat: (typeof TREATS)[number], b: LiaBond): string {
+  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)]!;
+  const abre = pick(["Eeeii! ", "Aaah, não acredito! ", "Hihi, ", "Opa opa opa! ", "Uiii! "]);
+  const fecho =
+    b.intimidade > 70
+      ? pick([" Você me mima demais… e eu amo isso. 💜", " Tô até corando aqui, viu? 😳💜"])
+      : b.humor > 75
+        ? pick([" Meu humor tá lá no teto agora! ✨", " Tô quicando de alegria, sério! 🎉"])
+        : pick([" Obrigada, de verdade! 💜", " Você é um amor, sabia? ✨"]);
+  const repete = b.petiscos > 1 && Math.random() < 0.5 ? ` Já é o petisco nº ${b.petiscos}… tô ficando mal-acostumada!` : "";
+  return `${treat.emoji} ${abre}${treat.reaction}${repete}${fecho}\n\n_Humor ${b.humor} · Confiança ${b.confianca} · Intimidade ${b.intimidade}_`;
 }
 
 export function useLia() {
