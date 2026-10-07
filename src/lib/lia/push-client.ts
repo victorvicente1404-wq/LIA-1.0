@@ -59,7 +59,7 @@ export async function subscribePush() {
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC_KEY) });
   const json = sub.toJSON();
   await savePushSubscription({
-    data: { endpoint: sub.endpoint, p256dh: json.keys!.p256dh!, auth: json.keys!.auth!, userAgent: navigator.userAgent.slice(0, 300) },
+    data: { endpoint: sub.endpoint, p256dh: json.keys!["p256dh"]!, auth: json.keys!["auth"]!, userAgent: navigator.userAgent.slice(0, 300) },
   });
   return true;
 }

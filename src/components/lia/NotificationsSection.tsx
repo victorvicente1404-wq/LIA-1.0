@@ -72,11 +72,11 @@ export function NotificationsSection() {
   async function test() {
     if (supported && logged && on) {
       const r = await sendSelfPush({ data: { title: "Teste", body: "Tudo certo! As notificações da Lia estão funcionando." } }).catch(() => null);
-      if (r?.sent) return toast.success("Notificação enviada.");
+      if (r?.sent) { toast.success("Notificação enviada."); return; }
     }
     if (notificationsEnabled()) {
       notify("Lia • Teste", "Tudo certo! As notificações da Lia estão funcionando.");
-      return toast.success("Notificação enviada.");
+      toast.success("Notificação enviada."); return;
     }
     toast.error("Ative as notificações primeiro.");
   }

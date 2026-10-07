@@ -12,7 +12,7 @@ const fromB64u = (s: string) => {
   const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4));
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 };
-const concat = (...parts: Uint8Array[]) => {
+const concat = (...parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
   for (const p of parts) {
@@ -22,7 +22,7 @@ const concat = (...parts: Uint8Array[]) => {
   return out;
 };
 
-async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, len: number) {
+async function hkdf(salt: Uint8Array<ArrayBuffer>, ikm: Uint8Array<ArrayBuffer>, info: Uint8Array<ArrayBuffer>, len: number) {
   const key = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, key, len * 8));
 }
@@ -63,7 +63,7 @@ async function encrypt(payload: string, p256dh: string, auth: string) {
   return concat(salt, rs, new Uint8Array([localPub.length]), localPub, cipher);
 }
 
-export type PushPayload = { title: string; body: string; url?: string; tag?: string };
+export type PushPayload = { title: string; body: string; url?: string; tag?: string | undefined };
 export type StoredSub = { id: string; endpoint: string; p256dh: string; auth: string };
 
 /** Retorna o status HTTP do serviço de push (404/410 = inscrição expirada). */
