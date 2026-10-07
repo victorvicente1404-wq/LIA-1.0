@@ -73,10 +73,12 @@ export function NotificationsSection() {
     if (supported && logged && on) {
       const r = await sendSelfPush({ data: { title: "Teste", body: "Tudo certo! As notificações da Lia estão funcionando." } }).catch(() => null);
       if (r?.sent) { toast.success("Notificação enviada."); return; }
+      toast.error("O servidor não conseguiu entregar o push. Desligue e ligue as notificações de novo.");
     }
     if (notificationsEnabled()) {
-      notify("Lia • Teste", "Tudo certo! As notificações da Lia estão funcionando.");
-      toast.success("Notificação enviada."); return;
+      await notify("Lia • Teste", "Tudo certo! As notificações da Lia estão funcionando.");
+      toast.success(logged ? "Notificação enviada." : "Notificação enviada (entre na conta para receber com a aba fechada).");
+      return;
     }
     toast.error("Ative as notificações primeiro.");
   }
