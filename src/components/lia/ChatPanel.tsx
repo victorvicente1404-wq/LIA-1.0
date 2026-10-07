@@ -3,6 +3,7 @@ import { Camera, Cookie, LoaderCircle, Mic, Paperclip, Send, Square, Trash2, Vol
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { LiaOrb, stateLabel } from "./LiaOrb";
+import { LiaNeoFace } from "./LiaNeoFace";
 import { Markdown } from "./Markdown";
 import { AttachmentCard, AttachmentPreview } from "./AttachmentView";
 import { useLia } from "@/lib/lia/LiaProvider";
@@ -69,7 +70,7 @@ export function ChatPanel({
     <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
-          <LiaOrb state={listening ? "listening" : speaking ? "speaking" : state} size={38} />
+          <LiaNeoFace mode={listening ? "listening" : speaking ? "speaking" : state === "thinking" ? "thinking" : "idle"} size={56} />
           <div>
             <p className="font-display text-sm font-semibold">Conversa com a Lia</p>
             <p className="text-[11px] text-muted-foreground">
