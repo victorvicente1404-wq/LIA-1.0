@@ -53,7 +53,11 @@ const readKnown = (): Known => {
 const writeKnown = (k: Known) => localStorage.setItem(KNOWN_KEY, JSON.stringify(k));
 
 // ---------- criptografia ----------
-const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
+const b64 = (u: Uint8Array) => {
+  let out = "";
+  for (let i = 0; i < u.length; i += 0x8000) out += String.fromCharCode.apply(null, Array.from(u.subarray(i, i + 0x8000)));
+  return btoa(out);
+};
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 async function deriveKey(password: string, salt: string): Promise<CryptoKey> {
@@ -263,7 +267,7 @@ async function pushChanges() {
     if (rows.length) {
       setSnap({ status: "syncing" });
       for (let i = 0; i < rows.length; i += 50) {
-        const { error } = await supabase.from("sync_blobs").upsert(rows.slice(i, i + 50));
+        const { error } = await supabase.from("sync_blobs").upsert(rows.slice(i, i + 50), { onConflict: "space_id,item_key" });
         if (error) throw error;
       }
       writeKnown(known);
@@ -281,7 +285,9 @@ async function pullAll() {
   const { data, error } = await supabase.from("sync_blobs").select("item_key, ciphertext, updated_at, deleted, device_id").eq("space_id", state.spaceId);
   if (error) throw error;
   let changed = false;
-  for (const row of data ?? []) {
+  const rank = (k: string) => (k === "core" ? 0 : 1);
+  const rows = [...(data ?? [])].sort((a, b) => rank(a.item_key) - rank(b.item_key));
+  for (const row of rows) {
     try { if (await processRow(row)) changed = true; } catch { /* item de outra senha: ignora */ }
   }
   if (changed) window.dispatchEvent(new Event(APPLIED_EVENT));
@@ -289,8 +295,9 @@ async function pullAll() {
 
 async function refreshDevices() {
   if (!state) return;
-  const { data } = await supabase.from("sync_devices").select("id, name, kind, last_seen").eq("space_id", state.spaceId).order("created_at");
-  const devices = data ?? [];
+  const { data, error } = await supabase.from("sync_devices").select("id, name, kind, last_seen").eq("space_id", state.spaceId).order("created_at");
+  if (error || !data) return; // falha de rede: nunca desvincula
+  const devices = data;
   if (!devices.some((d) => d.id === state!.deviceId)) {
     // Este aparelho foi desvinculado em outro dispositivo.
     await leave(false);
