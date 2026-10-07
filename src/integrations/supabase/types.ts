@@ -200,12 +200,188 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_blobs: {
+        Row: {
+          ciphertext: string
+          deleted: boolean
+          device_id: string | null
+          item_key: string
+          space_id: string
+          updated_at: number
+        }
+        Insert: {
+          ciphertext: string
+          deleted?: boolean
+          device_id?: string | null
+          item_key: string
+          space_id: string
+          updated_at: number
+        }
+        Update: {
+          ciphertext?: string
+          deleted?: boolean
+          device_id?: string | null
+          item_key?: string
+          space_id?: string
+          updated_at?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_blobs_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "sync_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_commands: {
+        Row: {
+          created_at: string
+          from_device: string | null
+          id: string
+          payload: string
+          space_id: string
+          status: string
+          target: string
+        }
+        Insert: {
+          created_at?: string
+          from_device?: string | null
+          id?: string
+          payload: string
+          space_id: string
+          status?: string
+          target: string
+        }
+        Update: {
+          created_at?: string
+          from_device?: string | null
+          id?: string
+          payload?: string
+          space_id?: string
+          status?: string
+          target?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_commands_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "sync_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_devices: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          last_seen: string
+          name: string
+          space_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          last_seen?: string
+          name?: string
+          space_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          last_seen?: string
+          name?: string
+          space_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_devices_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "sync_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_pairings: {
+        Row: {
+          code: string
+          created_by: string
+          expires_at: string
+          space_id: string
+          used: boolean
+        }
+        Insert: {
+          code: string
+          created_by: string
+          expires_at: string
+          space_id: string
+          used?: boolean
+        }
+        Update: {
+          code?: string
+          created_by?: string
+          expires_at?: string
+          space_id?: string
+          used?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_pairings_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "sync_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_spaces: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          salt: string
+          verifier: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          salt: string
+          verifier: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          salt?: string
+          verifier?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_space_member: { Args: { _space: string }; Returns: boolean }
+      redeem_pairing: {
+        Args: { _code: string; _kind: string; _name: string }
+        Returns: {
+          device_id: string
+          salt: string
+          space_id: string
+          verifier: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
