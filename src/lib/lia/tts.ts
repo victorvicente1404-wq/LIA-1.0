@@ -148,8 +148,68 @@ export function createBrowserTts(): TtsEngine {
   };
 }
 
+/**
+ * Motor ElevenLabs: voz neural feminina da Lia.
+ * Se a síntese falhar (sem chave, cota, rede), cai para o motor do navegador.
+ */
+export function createElevenLabsTts(fallback: TtsEngine): TtsEngine {
+  let audio: HTMLAudioElement | null = null;
+  let cancelled = false;
+
+  const cancel = () => {
+    cancelled = true;
+    if (audio) {
+      audio.pause();
+      audio.onended = null;
+      audio.onerror = null;
+      audio = null;
+    }
+    fallback.cancel();
+  };
+
+  return {
+    id: "elevenlabs",
+    supported: typeof window !== "undefined",
+    cancel,
+    speak(raw, opts = {}) {
+      if (typeof window === "undefined") return;
+      const clean = textToSpeech(raw);
+      if (!clean) return;
+      cancel();
+      cancelled = false;
+
+      void (async () => {
+        try {
+          const { synthesizeSpeech } = await import("./tts.functions");
+          const res = await synthesizeSpeech({ data: { text: clean } });
+          if (cancelled) return;
+          const a = new Audio(res.audio);
+          audio = a;
+          let started = false;
+          a.onplay = () => {
+            if (!started) {
+              started = true;
+              opts.onStart?.();
+            }
+          };
+          a.onended = () => {
+            if (!cancelled) opts.onEnd?.();
+          };
+          a.onerror = () => {
+            if (!cancelled) fallback.speak(raw, opts);
+          };
+          await a.play();
+        } catch {
+          if (!cancelled) fallback.speak(raw, opts);
+        }
+      })();
+    },
+  };
+}
+
 /** Instância singleton do motor de TTS ativo. */
-const ttsEngine = typeof window !== "undefined" ? createBrowserTts() : null;
+const ttsEngine =
+  typeof window !== "undefined" ? createElevenLabsTts(createBrowserTts()) : null;
 
 /** Fala o texto usando o motor TTS ativo. */
 export function speak(text: string, opts?: TtsSpeakOptions) {
