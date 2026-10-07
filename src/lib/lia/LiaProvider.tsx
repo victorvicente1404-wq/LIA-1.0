@@ -1,7 +1,7 @@
 /**
- * Núcleo da Lia no cliente: estado, memória, perfis, personalidade,
  * módulos e ciclo de vida do Lia Card.
  */
+import { readOsAgentPrefs } from "./os-agent";
 import {
   createContext,
   useCallback,
