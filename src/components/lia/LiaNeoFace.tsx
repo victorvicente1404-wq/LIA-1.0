@@ -3,15 +3,21 @@ import { AnimatePresence, motion, useAnimationFrame } from "motion/react";
 import { X } from "lucide-react";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { cn } from "@/lib/utils";
+import { getSpeechLevel } from "@/lib/lia/tts";
 
-export type NeoEmotion = "neutral" | "happy" | "tired";
+export type NeoEmotion = "neutral" | "happy" | "tired" | "curious" | "sad" | "excited" | "surprised";
 type Mode = "idle" | "speaking" | "listening" | "thinking";
 
 const OMEGA = "M48 55 C50 62 57 62 60 55 C63 62 70 62 72 55";
 const spring = { type: "spring", stiffness: 260, damping: 18 } as const;
 
-function Face({ mode, emotion, size }: { mode: Mode; emotion: NeoEmotion; size: number }) {
-  const mouthRef = useRef<SVGPathElement>(null);
+function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion; size: number; burst: number }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const mouthRef = useRef<SVGEllipseElement>(null);
+  const omegaRef = useRef<SVGPathElement>(null);
+  const pupilRefs = useRef<(SVGGElement | null)[]>([]);
+  const gaze = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+  const open = useRef(0);
   const [blink, setBlink] = useState(false);
 
   // Piscadas orgânicas a cada 3–6 s.
@@ -28,35 +34,71 @@ function Face({ mode, emotion, size }: { mode: Mode; emotion: NeoEmotion; size: 
     return () => clearTimeout(t);
   }, []);
 
-  // Lip-sync procedural direto no DOM (sem re-render do React).
+  // Olhar segue o cursor/toque em tempo real.
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const r = svgRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      const d = Math.max(1, Math.hypot(dx, dy));
+      const k = Math.min(1, d / 300);
+      gaze.current.tx = (dx / d) * 3.2 * k;
+      gaze.current.ty = (dy / d) * 2.4 * k;
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
+
+  // Lip-sync pelo volume real da voz + olhar suave (direto no DOM, sem re-render).
   useAnimationFrame((time) => {
-    const el = mouthRef.current;
-    if (!el) return;
-    if (mode !== "speaking") {
-      el.setAttribute("d", OMEGA);
-      return;
+    let target = 0;
+    if (mode === "speaking") {
+      const lvl = getSpeechLevel();
+      if (lvl >= 0) target = lvl;
+      else {
+        const s = time / 1000;
+        target = Math.max(0, Math.sin(s * 13) * 0.5 + Math.sin(s * 21 + 1) * 0.35 + 0.15);
+      }
     }
-    const s = time / 1000;
-    const a = Math.max(0, Math.sin(s * 14) * 0.6 + Math.sin(s * 23 + 1) * 0.4) * 7;
-    const w = Math.sin(s * 9) * 1.5;
-    el.setAttribute(
-      "d",
-      `M${48 - w} 55 C${50 - w} ${62 + a} 57 ${62 + a} 60 ${55 + a * 0.45} C63 ${62 + a} ${70 + w} ${62 + a} ${72 + w} 55`,
-    );
+    // Abre rápido, fecha um pouco mais devagar — como uma boca de verdade.
+    open.current += (target - open.current) * (target > open.current ? 0.45 : 0.22);
+    const o = open.current;
+    const m = mouthRef.current;
+    if (m) {
+      m.setAttribute("ry", String(0.6 + o * 7));
+      m.setAttribute("rx", String(5 + o * 2.2));
+      m.setAttribute("cy", String(56 + o * 2));
+      m.style.opacity = mode === "speaking" ? String(Math.min(1, 0.25 + o * 3)) : "0";
+    }
+    if (omegaRef.current) omegaRef.current.style.opacity = mode === "speaking" ? String(Math.max(0, 1 - o * 4)) : "";
+    const g = gaze.current;
+    if (mode === "thinking") {
+      g.tx = Math.sin(time / 700) * 2.5;
+      g.ty = -2;
+    }
+    g.x += (g.tx - g.x) * 0.12;
+    g.y += (g.ty - g.y) * 0.12;
+    for (const el of pupilRefs.current) el?.setAttribute("transform", `translate(${g.x.toFixed(2)} ${g.y.toFixed(2)})`);
   });
 
-  const happy = emotion === "happy";
+  const happy = emotion === "happy" || emotion === "excited";
   const tired = emotion === "tired" && mode === "idle";
   const listening = mode === "listening";
-  const eyeScaleY = blink ? 0.08 : tired ? 0.35 : listening ? 1.12 : 1;
+  const curious = emotion === "curious";
+  const surprised = emotion === "surprised";
+  const sad = emotion === "sad";
+  const eyeScaleY = blink ? 0.08 : tired ? 0.35 : sad ? 0.7 : surprised ? 1.25 : listening || curious ? 1.12 : 1;
+  const showOmega = !happy && !tired && !surprised;
 
   return (
     <motion.svg
+      ref={svgRef}
       viewBox="0 0 120 80"
       width={size}
       height={(size * 80) / 120}
-      animate={{ y: [0, -1.5, 0] }}
-      transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
+      animate={{ y: [0, -1.5, 0], rotate: curious ? -4 : 0 }}
+      transition={{ y: { duration: 3.6, repeat: Infinity, ease: "easeInOut" }, rotate: spring }}
       style={{ willChange: "transform" }}
       className="overflow-visible"
     >
@@ -76,9 +118,14 @@ function Face({ mode, emotion, size }: { mode: Mode; emotion: NeoEmotion; size: 
       <rect x="10" y="8" width="100" height="14" rx="7" fill="var(--color-foreground)" opacity="0.04" />
 
       <g filter="url(#neo-glow)" fill="var(--color-primary)" stroke="var(--color-primary)">
+        {/* Sobrancelhas tristes */}
+        {[40, 80].map((cx, i) => (
+          <motion.line key={`b${cx}`} x1={cx - 7} x2={cx + 7} y1={i ? 18 : 22} y2={i ? 22 : 18} strokeWidth={2} strokeLinecap="round"
+            initial={false} animate={{ opacity: sad ? 0.9 : 0 }} transition={{ duration: 0.3 }} />
+        ))}
         {/* Olhos */}
-        {[40, 80].map((cx) => (
-          <g key={cx}>
+        {[40, 80].map((cx, i) => (
+          <g key={cx} ref={(el) => { pupilRefs.current[i] = el; }}>
             {listening && (
               <motion.circle
                 cx={cx} cy={34} r={14} fill="none" strokeWidth={1}
@@ -93,6 +140,9 @@ function Face({ mode, emotion, size }: { mode: Mode; emotion: NeoEmotion; size: 
               transition={blink ? { duration: 0.07 } : spring}
               style={{ transformOrigin: `${cx}px 34px` }}
             />
+            {/* Brilho do olho */}
+            <motion.circle cx={cx + 3} cy={30} r={2} fill="var(--color-foreground)" stroke="none"
+              animate={{ opacity: happy || blink ? 0 : emotion === "excited" ? 1 : 0.6 }} />
             <motion.path
               d={`M${cx - 9} 38 Q${cx} 24 ${cx + 9} 38`} fill="none" strokeWidth={3.2} strokeLinecap="round"
               initial={false}
@@ -102,24 +152,26 @@ function Face({ mode, emotion, size }: { mode: Mode; emotion: NeoEmotion; size: 
           </g>
         ))}
 
-        {/* Boca ω (lip-sync) */}
+        {/* Boca ω em repouso */}
         <motion.path
-          ref={mouthRef} d={OMEGA} fill="none" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"
-          animate={{ opacity: happy || tired ? 0 : 1 }} transition={{ duration: 0.25 }}
+          ref={omegaRef} d={OMEGA} fill="none" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round"
+          animate={{ opacity: showOmega ? 1 : 0 }} transition={{ duration: 0.25 }}
         />
+        {/* Boca falando: abre de verdade, arredondada, sem deformar */}
+        <ellipse ref={mouthRef} cx={60} cy={56} rx={5} ry={0.6} fill="var(--color-background)" strokeWidth={2.2} style={{ opacity: 0 }} />
         {/* Sorriso aberto (feliz) */}
         <motion.path
           d="M47 52 C51 66 69 66 73 52 Z" stroke="none"
           initial={false}
-          animate={{ opacity: happy ? 0.9 : 0, scale: happy ? 1 : 0.4 }}
+          animate={{ opacity: happy && mode !== "speaking" ? 0.9 : 0, scale: happy ? 1 : 0.4 }}
           transition={spring} style={{ transformOrigin: "60px 56px" }}
         />
-        {/* Bocejo 'O' */}
+        {/* Bocejo / surpresa 'O' */}
         <motion.ellipse
           cx={60} cy={58} rx={5} ry={6} fill="none" strokeWidth={2.4}
           initial={false}
-          animate={tired ? { opacity: 1, scaleY: [0.6, 1.25, 1], scaleX: [0.8, 1.1, 1] } : { opacity: 0, scaleY: 0.3, scaleX: 0.5 }}
-          transition={{ duration: 1.2, ease: "easeInOut" }} style={{ transformOrigin: "60px 58px" }}
+          animate={tired || surprised ? { opacity: 1, scaleY: tired ? [0.6, 1.25, 1] : 0.8, scaleX: tired ? [0.8, 1.1, 1] : 0.8 } : { opacity: 0, scaleY: 0.3, scaleX: 0.5 }}
+          transition={{ duration: tired ? 1.2 : 0.25, ease: "easeInOut" }} style={{ transformOrigin: "60px 58px" }}
         />
       </g>
 
@@ -134,54 +186,100 @@ function Face({ mode, emotion, size }: { mode: Mode; emotion: NeoEmotion; size: 
           <line x1={cx + 5} y1={48} x2={cx + 8} y2={44} />
         </motion.g>
       ))}
+
+      {/* Faíscas ao receber petisco */}
+      <AnimatePresence>
+        {burst > 0 && (
+          <motion.g key={burst} fill="var(--color-blush)" filter="url(#neo-glow)">
+            {Array.from({ length: 8 }, (_, i) => {
+              const a = (i / 8) * Math.PI * 2;
+              return (
+                <motion.path key={i} d="M0 -3 L1 -1 L3 0 L1 1 L0 3 L-1 1 L-3 0 L-1 -1 Z"
+                  initial={{ x: 60, y: 40, scale: 0, opacity: 1 }}
+                  animate={{ x: 60 + Math.cos(a) * 62, y: 40 + Math.sin(a) * 44, scale: [0, 1.4, 0.6], opacity: [1, 1, 0], rotate: 180 }}
+                  transition={{ duration: 1.3, ease: "easeOut" }} />
+              );
+            })}
+          </motion.g>
+        )}
+      </AnimatePresence>
     </motion.svg>
   );
 }
 
-const ELOGIO = /\b(linda|fofa|obrigad|amo voc|te amo|incr[ií]vel|perfeita|parab[eé]ns|ador[oa]|maravilhosa|boa garota)/i;
+const ELOGIO = /(linda|fofa|obrigad|amo voc|te amo|incr[ií]vel|perfeita|parab[eé]ns|ador[oa]|maravilhosa|boa garota|gostei|muito bem|show|top|legal|demais)/i;
+const RISO = /(k{3,}|haha|hehe|rsrs|😂|🤣|😄|😁|😊|🥰|❤)/i;
+const TRISTE = /(triste|chatead|cansad|ruim|p[eé]ssim|mal\b|desculp|chorar|sozinh|😢|😭|😞)/i;
+const SURPRESA = /(nossa|uau|caramba|s[eé]rio\?|que\?!|wow|meu deus|😮|😱)/i;
 
-/** Emoção derivada: feliz após petisco/elogio; cansada após muito tempo parada ou de madrugada. */
-function useEmotion(): NeoEmotion {
-  const { bond, messages: history } = useLia();
+function classify(text: string, role: "user" | "lia"): NeoEmotion | null {
+  if (SURPRESA.test(text)) return "surprised";
+  if (TRISTE.test(text)) return "sad";
+  if (ELOGIO.test(text) || RISO.test(text)) return "happy";
+  if (role === "user" && /\?\s*$/.test(text.trim())) return "curious";
+  if ((text.match(/!/g)?.length ?? 0) >= 2) return "excited";
+  return null;
+}
+
+/**
+ * Emoção ao vivo: lê cada nova mensagem (sua e dela) no momento em que chega
+ * e reage ao conteúdo; a intensidade decai aos poucos, proporcional ao texto.
+ */
+function useEmotion(): { emotion: NeoEmotion; burst: number } {
+  const { bond, messages: history, sending } = useLia();
   const [emotion, setEmotion] = useState<NeoEmotion>("neutral");
+  const [burst, setBurst] = useState(0);
   const prevTreats = useRef(bond.petiscos);
-  const last = history?.filter((m) => m.role === "user").at(-1);
+  const lastAt = useRef(Date.now());
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const lastMsg = history?.at(-1);
+
+  const react = (e: NeoEmotion, ms: number) => {
+    setEmotion(e);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setEmotion("neutral"), ms);
+  };
 
   useEffect(() => {
     if (bond.petiscos > prevTreats.current) {
-      setEmotion("happy");
-      const t = setTimeout(() => setEmotion("neutral"), 7000);
-      prevTreats.current = bond.petiscos;
-      return () => clearTimeout(t);
+      setBurst((b) => b + 1);
+      react("excited", 6000 + bond.humor * 40);
     }
-    return undefined;
-  }, [bond.petiscos]);
+    prevTreats.current = bond.petiscos;
+  }, [bond.petiscos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (last && Date.now() - last.createdAt < 10_000 && ELOGIO.test(last.content)) {
-      setEmotion("happy");
-      const t = setTimeout(() => setEmotion("neutral"), 7000);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [last?.createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!lastMsg || Date.now() - lastMsg.createdAt > 15_000) return;
+    lastAt.current = Date.now();
+    const e = classify(lastMsg.content, lastMsg.role === "user" ? "user" : "lia");
+    if (e) react(e, 2500 + Math.min(6000, lastMsg.content.length * 25));
+    else if (emotion === "tired") setEmotion("neutral");
+  }, [lastMsg?.id, lastMsg?.content]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Enquanto pensa numa resposta, fica curiosa.
+  useEffect(() => {
+    if (sending) setEmotion((e) => (e === "neutral" || e === "tired" ? "curious" : e));
+  }, [sending]);
 
   useEffect(() => {
     const check = () => {
       const h = new Date().getHours();
-      const quiet = !last || Date.now() - last.createdAt > 120_000;
-      setEmotion((e) => (e === "happy" ? e : quiet && (h < 6 || Math.random() < 0.15) ? "tired" : "neutral"));
+      const quiet = Date.now() - lastAt.current > 120_000;
+      if (quiet && (h < 6 || Math.random() < 0.15)) setEmotion((e) => (e === "neutral" ? "tired" : e));
     };
     const t = setInterval(check, 20_000);
-    return () => clearInterval(t);
-  }, [last?.createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      clearInterval(t);
+      clearTimeout(timer.current);
+    };
+  }, []);
 
-  return emotion;
+  return { emotion, burst };
 }
 
 /** Avatar "Lia Neo-Face": compacto no cabeçalho; clique abre modo flutuante. */
 export function LiaNeoFace({ mode, size = 52 }: { mode: Mode; size?: number }) {
-  const emotion = useEmotion();
+  const { emotion, burst } = useEmotion();
   const [floating, setFloating] = useState(false);
   return (
     <>
@@ -189,7 +287,7 @@ export function LiaNeoFace({ mode, size = 52 }: { mode: Mode; size?: number }) {
         type="button" onClick={() => setFloating((v) => !v)} aria-label="Expandir rosto da Lia"
         className="shrink-0 rounded-[40%] transition-[filter] hover:drop-shadow-[0_0_10px_var(--color-primary)]"
       >
-        <Face mode={mode} emotion={emotion} size={size} />
+        <Face mode={mode} emotion={emotion} size={size} burst={burst} />
       </button>
       <AnimatePresence>
         {floating && (
@@ -202,7 +300,7 @@ export function LiaNeoFace({ mode, size = 52 }: { mode: Mode; size?: number }) {
             <button type="button" onClick={() => setFloating(false)} aria-label="Fechar" className="absolute right-3 top-3 text-muted-foreground hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
-            <Face mode={mode} emotion={emotion} size={220} />
+            <Face mode={mode} emotion={emotion} size={220} burst={burst} />
           </motion.div>
         )}
       </AnimatePresence>
