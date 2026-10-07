@@ -107,7 +107,7 @@ function LiaLinkDialog({ open, onOpenChange, prefill }: { open: boolean; onOpenC
                     </Button>
                   </div>
                 ))}
-                {s.error && <p className="text-xs text-destructive">Falha ao sincronizar; tentando de novo.</p>}
+                {s.error && <p className="text-xs text-destructive">Falha ao sincronizar; tentando de novo. ({s.error})</p>}
               </section>
             )}
 
