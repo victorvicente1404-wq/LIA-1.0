@@ -142,7 +142,7 @@ const ELOGIO = /\b(linda|fofa|obrigad|amo voc|te amo|incr[ií]vel|perfeita|parab
 
 /** Emoção derivada: feliz após petisco/elogio; cansada após muito tempo parada ou de madrugada. */
 function useEmotion(): NeoEmotion {
-  const { bond, history } = useLia() as unknown as { bond: { petiscos: number }; history?: { role: string; content: string; createdAt: number }[] };
+  const { bond, messages: history } = useLia();
   const [emotion, setEmotion] = useState<NeoEmotion>("neutral");
   const prevTreats = useRef(bond.petiscos);
   const last = history?.filter((m) => m.role === "user").at(-1);
