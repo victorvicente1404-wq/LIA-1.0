@@ -20,7 +20,7 @@ function toBase64(buf: ArrayBuffer): string {
 export const synthesizeSpeech = createServerFn({ method: "POST" })
   .inputValidator((d: { text: string; voiceId?: string }) => d)
   .handler(async ({ data }) => {
-    const apiKey = process.env.ELEVENLABS_API_KEY;
+    const apiKey = process.env["ELEVENLABS_API_KEY"];
     if (!apiKey) throw new Error("ElevenLabs não está conectado a este projeto");
 
     const text = (data.text ?? "").trim().slice(0, 4500);
