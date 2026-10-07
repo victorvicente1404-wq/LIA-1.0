@@ -110,6 +110,8 @@ export interface LiaCardData {
   customApis?: CustomApi[];
   /** Módulo IoT (Arduino/ESP32): endereço da ponte e token opcional. */
   iot?: IotConfig;
+  /** Rostos cadastrados: apenas vetores biométricos, nunca fotos. */
+  faces?: { nome: string; descriptor: number[] }[];
   settings: {
     aiExterna: boolean;
     camera: boolean;

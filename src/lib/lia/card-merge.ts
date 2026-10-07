@@ -47,6 +47,14 @@ export function mergeCardData(current: LiaCardData, incoming: LiaCardData): LiaC
     settings: { ...current.settings, ...(incoming.settings ?? {}) },
     customApis: mergeCustomApis(current.customApis, incoming.customApis),
     ...((current.iot ?? incoming.iot) ? { iot: (current.iot?.url ? current.iot : incoming.iot)! } : {}),
+    ...((current.faces?.length || incoming.faces?.length)
+      ? {
+          faces: [
+            ...(current.faces ?? []),
+            ...(incoming.faces ?? []).filter((f) => !(current.faces ?? []).some((c) => c.nome === f.nome)),
+          ],
+        }
+      : {}),
     history: current.history?.length ? current.history : (incoming.history ?? []),
     updatedAt: Date.now(),
   };

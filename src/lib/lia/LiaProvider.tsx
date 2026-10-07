@@ -92,6 +92,8 @@ interface LiaContextValue {
   saveCustomApis: (list: CustomApi[]) => void;
   iot: IotConfig;
   saveIot: (cfg: IotConfig) => void;
+  faces: { nome: string; descriptor: number[] }[];
+  saveFaces: (list: { nome: string; descriptor: number[] }[]) => void;
 }
 
 // Mantém o mesmo contexto entre recarregamentos ao vivo (evita "fora do LiaProvider").
@@ -393,6 +395,10 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   );
 
   const value: LiaContextValue = {
+    faces: data?.faces ?? [],
+    saveFaces: (list) => {
+      if (data) persist({ ...data, faces: list });
+    },
     iot: data?.iot ?? readIot(),
     saveIot: (cfg) => {
       writeIot(cfg);

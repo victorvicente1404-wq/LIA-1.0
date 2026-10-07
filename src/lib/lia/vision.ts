@@ -28,6 +28,10 @@ export interface VisionObservation {
   change: number;
   lastChangeAt: number | null;
   erro: string | null;
+  /** origem da imagem: câmera ou tela compartilhada */
+  source?: "camera" | "tela";
+  /** rostos detectados no último frame e nomes reconhecidos */
+  faces?: { count: number; nomes: string[]; desconhecidos: number };
 }
 
 type FrameProvider = () => VisionFrame | null;
@@ -62,6 +66,11 @@ export const visionSource = {
     emit();
   },
   /** Chamado pelo loop de percepção contínua. */
+  setFaces(faces: VisionObservation["faces"], source: VisionObservation["source"]) {
+    const { faces: _f, source: _s, ...rest } = observation;
+    observation = { ...rest, ...(faces ? { faces } : {}), ...(source ? { source } : {}), presence: (faces?.count ?? 0) > 0 };
+    emit();
+  },
   pushFrame(frame: VisionFrame, change: number, presence: boolean) {
     observation = {
       ...observation,
@@ -99,7 +108,12 @@ export function describeVision(o: VisionObservation, moduleOn: boolean): string 
     return "A câmera está ligando, mas ainda não há um frame válido — você ainda não está vendo.";
   return [
     "A câmera está ATIVA e o frame atual foi enviado junto com esta mensagem: você está realmente vendo.",
-    `Presença detectada por movimento: ${o.presence ? "sim" : "não"}.`,
+    o.source === "tela"
+      ? "A imagem é a TELA compartilhada do usuário (não a câmera): leia janelas, textos e campos visíveis para ajudar."
+      : "A imagem vem da câmera.",
+    o.faces
+      ? `Detecção facial real: ${o.faces.count} rosto(s). Reconhecidos: ${o.faces.nomes.join(", ") || "nenhum"}. Desconhecidos: ${o.faces.desconhecidos}.`
+      : `Presença detectada: ${o.presence ? "sim" : "não"}.`,
     `Variação recente da cena: ${(o.change * 100).toFixed(0)}%.`,
     "Descreva apenas o que realmente aparece na imagem enviada. Nunca invente.",
   ].join("\n");
