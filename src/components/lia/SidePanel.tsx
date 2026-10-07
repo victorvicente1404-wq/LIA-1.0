@@ -22,6 +22,7 @@ import { LiaCardPanel } from "./LiaCardPanel";
 import { ConnectorsSection } from "./ConnectorsSection";
 import { WhatsAppConnector } from "./WhatsAppConnector";
 import { IotModule } from "./IotModule";
+import { OsAgentModule } from "./OsAgentModule";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as memoryStore from "@/lib/lia/memory-store";
 import { cn } from "@/lib/utils";
@@ -343,6 +344,7 @@ function ModulesSection() {
               <span className="truncate">{m.config}</span>
             </div>
             {m.id === "automacao" && m.ativo && <IotModule />}
+            {m.id === "automacao" && m.ativo && <OsAgentModule />}
           </div>
         ))}
         <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">

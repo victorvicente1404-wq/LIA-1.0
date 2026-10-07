@@ -1,7 +1,7 @@
 /**
- * Núcleo da Lia no cliente: estado, memória, perfis, personalidade,
  * módulos e ciclo de vida do Lia Card.
  */
+import { readOsAgentPrefs } from "./os-agent";
 import {
   createContext,
   useCallback,
@@ -343,6 +343,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(iotAtivo ? { iot: iotCfg } : {}),
             ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? { usb: true } : {}),
             ...(link.remoteKinds().length ? { remoteDevices: link.remoteKinds() } : {}),
+            ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
               ? {

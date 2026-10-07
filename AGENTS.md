@@ -15,3 +15,4 @@
 - Web Push is sent only via Web Crypto in webpush.server.ts and scheduled by pg_cron hitting /api/public/push-cron with a secret stored in push_cron_config, because the Worker runtime cannot run the Node web-push library.
 - Face recognition runs only in the browser (face-api browser build, models from CDN) and stores only 128-number descriptors in LiaCardData.faces, because photos must never leave the device.
 - Lia Link syncs by diffing the existing Lia Card/localStorage into per-item AES-GCM blobs (sync_blobs) encrypted client-side with the pairing password, because the server must never read user data and the memory system must stay unchanged.
+- The OS agent (Lia Agent) polls /api/public/os-agent with a per-user token whose SHA-256 hash lives in os_agent_tokens; actions queue in os_actions, because the Worker cannot hold long-lived sockets to a local Python agent.

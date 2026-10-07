@@ -38,6 +38,8 @@ const Input = z.object({
   usb: z.boolean().optional(),
   /** Outros aparelhos pareados pelo Lia Link. */
   remoteDevices: z.array(z.enum(["mobile", "desktop"])).max(2).optional(),
+  /** Lia Agent (controle do computador) ligado; autonomo = sem confirmação prévia. */
+  osAgent: z.object({ autonomo: z.boolean() }).optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -129,6 +131,48 @@ export const liaRespond = createServerFn({ method: "POST" })
             alvos.includes(alvo) ? { ok: true, enviado: `para o aparelho ${alvo}` } : { ok: false, erro: "nenhum aparelho desse tipo pareado" },
         }),
       };
+    }
+
+    if (data.osAgent) {
+      try {
+        const { resolveOptionalUserId } = await import("@/server/optionalAuth.server");
+        const uid = await resolveOptionalUserId();
+        if (uid) {
+          const { tool } = await import("ai");
+          const { ACAO_MAP } = await import("./os-agent");
+          const autonomo = data.osAgent.autonomo;
+          tools = {
+            ...tools,
+            executar_acao_os: tool({
+              description:
+                "Controla o computador do usuário via Lia Desktop Agent (mouse, teclado, programas, comandos). Use só quando o usuário pedir uma ação na tela/sistema. parametros: x,y (clicar/mover_mouse), texto (digitar), atalho ex 'ctrl+t' (tecla_atalho), programa (abrir_programa), quantidade negativa=desce (rolar), comando (executar_comando).",
+              inputSchema: z.object({
+                dispositivo: z.enum(["desktop", "mobile"]),
+                acao: z.enum(["clicar", "mover_mouse", "digitar", "abrir_programa", "tecla_atalho", "rolar", "executar_comando"]),
+                parametros: z
+                  .object({
+                    x: z.number().optional(), y: z.number().optional(), texto: z.string().max(4000).optional(),
+                    atalho: z.string().max(60).optional(), programa: z.string().max(200).optional(),
+                    quantidade: z.number().optional(), comando: z.string().max(2000).optional(),
+                  })
+                  .default({}),
+              }),
+              execute: async ({ dispositivo, acao, parametros: p }) => {
+                const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+                const payload = { x: p.x, y: p.y, text: p.texto, key: p.atalho, app_name: p.programa, amount: p.quantidade, script: p.comando };
+                const { error } = await supabaseAdmin.from("os_actions").insert({
+                  user_id: uid, target: dispositivo, action: ACAO_MAP[acao], payload, status: autonomo ? "approved" : "pending",
+                });
+                if (error) return { ok: false, erro: "falha ao enviar" };
+                if (dispositivo === "mobile") return { ok: true, aviso: "registrado, mas o celular ainda não tem agente que execute ações" };
+                return { ok: true, status: autonomo ? "enviado ao Desktop Agent" : "aguardando o usuário aprovar no painel Lia Agent" };
+              },
+            }),
+          };
+        }
+      } catch (error) {
+        console.error("Falha ao preparar o Lia Agent:", (error as Error).message);
+      }
     }
 
     const customApis = data.customApis ?? [];

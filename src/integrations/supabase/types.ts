@@ -101,6 +101,66 @@ export type Database = {
         }
         Relationships: []
       }
+      os_actions: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          payload: Json
+          result: string | null
+          status: string
+          target: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          result?: string | null
+          status?: string
+          target: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          result?: string | null
+          status?: string
+          target?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      os_agent_tokens: {
+        Row: {
+          created_at: string
+          last_seen: string | null
+          platform: string | null
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen?: string | null
+          platform?: string | null
+          token_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_seen?: string | null
+          platform?: string | null
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       push_cron_config: {
         Row: {
           id: number
