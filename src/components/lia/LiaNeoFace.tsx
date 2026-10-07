@@ -16,7 +16,9 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
   const mouthRef = useRef<SVGEllipseElement>(null);
   const omegaRef = useRef<SVGPathElement>(null);
   const pupilRefs = useRef<(SVGGElement | null)[]>([]);
-  const gaze = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+  const gaze = useRef({ x: 0, y: 0, tx: 0, ty: 0, moved: 0, sacc: 0 });
+  const visorRef = useRef<SVGRectElement>(null);
+  const scanRef = useRef<SVGRectElement>(null);
   const open = useRef(0);
   const [blink, setBlink] = useState(false);
 
@@ -27,6 +29,10 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
       t = setTimeout(() => {
         setBlink(true);
         setTimeout(() => setBlink(false), 140);
+        if (Math.random() < 0.25) {
+          setTimeout(() => setBlink(true), 260);
+          setTimeout(() => setBlink(false), 390);
+        }
         loop();
       }, 3000 + Math.random() * 3000);
     };
@@ -45,6 +51,7 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
       const k = Math.min(1, d / 300);
       gaze.current.tx = (dx / d) * 3.2 * k;
       gaze.current.ty = (dy / d) * 2.4 * k;
+      gaze.current.moved = performance.now();
     };
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => window.removeEventListener("pointermove", onMove);
@@ -73,6 +80,24 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
     }
     if (omegaRef.current) omegaRef.current.style.opacity = mode === "speaking" ? String(Math.max(0, 1 - o * 4)) : "";
     const g = gaze.current;
+    // Microssacadas: sem cursor por perto, o olhar passeia sozinho.
+    if (time - g.moved > 2500 && time > g.sacc) {
+      g.tx = (Math.random() - 0.5) * 4;
+      g.ty = (Math.random() - 0.5) * 2.5;
+      g.sacc = time + 900 + Math.random() * 2200;
+    }
+    // Luz do visor pulsa com a voz; varredura enquanto pensa.
+    const v = visorRef.current;
+    if (v) {
+      const glow = mode === "speaking" ? 0.45 + o * 0.55 : mode === "listening" ? 0.6 + Math.sin(time / 300) * 0.2 : 0.5;
+      v.setAttribute("stroke-opacity", glow.toFixed(2));
+      v.setAttribute("stroke-width", (1.5 + o * 1.4).toFixed(2));
+    }
+    const sc = scanRef.current;
+    if (sc) {
+      sc.style.opacity = mode === "thinking" ? "0.35" : "0";
+      sc.setAttribute("y", String(8 + ((time / 18) % 60)));
+    }
     if (mode === "thinking") {
       g.tx = Math.sin(time / 700) * 2.5;
       g.ty = -2;
@@ -114,15 +139,26 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
       </defs>
 
       {/* Visor fumê */}
-      <rect x="4" y="4" width="112" height="72" rx="30" fill="url(#neo-visor)" stroke="var(--color-primary)" strokeOpacity="0.55" strokeWidth="1.5" />
+      <rect ref={visorRef} x="4" y="4" width="112" height="72" rx="30" fill="url(#neo-visor)" stroke="var(--color-primary)" strokeOpacity="0.55" strokeWidth="1.5" filter="url(#neo-glow)" />
+      <clipPath id="neo-clip"><rect x="4" y="4" width="112" height="72" rx="30" /></clipPath>
+      <rect ref={scanRef} x="4" y="10" width="112" height="3" fill="var(--color-primary)" clipPath="url(#neo-clip)" style={{ opacity: 0, transition: "opacity .3s" }} />
       <rect x="10" y="8" width="100" height="14" rx="7" fill="var(--color-foreground)" opacity="0.04" />
 
       <g filter="url(#neo-glow)" fill="var(--color-primary)" stroke="var(--color-primary)">
-        {/* Sobrancelhas tristes */}
-        {[40, 80].map((cx, i) => (
-          <motion.line key={`b${cx}`} x1={cx - 7} x2={cx + 7} y1={i ? 18 : 22} y2={i ? 22 : 18} strokeWidth={2} strokeLinecap="round"
-            initial={false} animate={{ opacity: sad ? 0.9 : 0 }} transition={{ duration: 0.3 }} />
-        ))}
+        {/* Sobrancelhas expressivas */}
+        {[40, 80].map((cx, i) => {
+          const inner = i ? cx - 7 : cx + 7;
+          const outer = i ? cx + 7 : cx - 7;
+          const yIn = sad ? 18 : curious && i ? 15 : surprised ? 14 : happy ? 17 : 19;
+          const yOut = sad ? 22 : curious && i ? 13 : surprised ? 14 : happy ? 16 : 19;
+          const show = sad || curious || surprised || happy || listening;
+          return (
+            <motion.path key={`b${cx}`} fill="none" strokeWidth={2} strokeLinecap="round"
+              initial={false}
+              animate={{ d: `M${outer} ${yOut} Q${cx} ${Math.min(yIn, yOut) - 2} ${inner} ${yIn}`, opacity: show ? 0.85 : 0.25 }}
+              transition={spring} />
+          );
+        })}
         {/* Olhos */}
         {[40, 80].map((cx, i) => (
           <g key={cx} ref={(el) => { pupilRefs.current[i] = el; }}>
