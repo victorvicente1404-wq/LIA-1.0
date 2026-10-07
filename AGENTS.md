@@ -12,3 +12,4 @@
 - Keep Lia's affective rewards as optional Lia Card state separate from persistent memory, because treats must never alter learned user facts.
 - Normalize multimodal files in the browser and convert provider payloads only at the server boundary, because both AI providers must receive the same validated media.
 - Custom APIs live in LiaCardData.customApis (portable source) and mirror to custom_api_integrations when signed in; server fetches them only through the SSRF guard in customApis.server.ts, because user-supplied URLs must never reach internal hosts.
+- Web Push is sent only via Web Crypto in webpush.server.ts and scheduled by pg_cron hitting /api/public/push-cron with a secret stored in push_cron_config, because the Worker runtime cannot run the Node web-push library.
