@@ -238,6 +238,9 @@ export function useVoice(
       setSpeaking(true);
       updateState();
       const ttsOpts: import("./tts").TtsSpeakOptions = {
+        onStart: () => {
+          speakStartRef.current = Date.now();
+        },
         onEnd: () => {
           speakingRef.current = false;
           setSpeaking(false);
