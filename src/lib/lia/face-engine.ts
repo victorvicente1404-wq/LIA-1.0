@@ -67,6 +67,11 @@ export function triggerGesture(g: FaceGesture) {
   emit();
 }
 
+const EMPTY: Partial<FaceParams> = {};
+export function getEmptyOverride() {
+  return EMPTY;
+}
+
 export function getLastGesture() {
   return lastGesture;
 }

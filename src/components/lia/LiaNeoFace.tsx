@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { getSpeechLevel } from "@/lib/lia/tts";
 import { useSyncExternalStore } from "react";
 import { useAnimationControls } from "motion/react";
-import { getFaceOverride, getLastGesture, subscribeFace, type FaceGesture } from "@/lib/lia/face-engine";
+import { getEmptyOverride, getFaceOverride, getLastGesture, subscribeFace, type FaceGesture } from "@/lib/lia/face-engine";
 
 export type NeoEmotion = "neutral" | "happy" | "tired" | "curious" | "sad" | "excited" | "surprised";
 type Mode = "idle" | "speaking" | "listening" | "thinking";
@@ -24,7 +24,7 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
   const scanRef = useRef<SVGRectElement>(null);
   const open = useRef(0);
   const [blink, setBlink] = useState(false);
-  const ov = useSyncExternalStore(subscribeFace, getFaceOverride, () => ({}));
+  const ov = useSyncExternalStore(subscribeFace, getFaceOverride, getEmptyOverride);
   const gesture = useSyncExternalStore(subscribeFace, getLastGesture, () => null);
   const head = useAnimationControls();
   const ovRef = useRef(ov);
