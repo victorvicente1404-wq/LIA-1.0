@@ -43,7 +43,8 @@ import type {
   CustomApi,
 } from "./types";
 import { syncCustomApisToAccount } from "./custom-apis";
-import { DEFAULT_BOND, rewardBond, TREATS } from "./rewards";
+import { DEFAULT_BOND, driftBond, evolveBond, rewardBond, TREATS } from "./rewards";
+import { applyFaceTags } from "./face-engine";
 import * as link from "./sync/link";
 import { notify } from "./notifications";
 import { applyTheme, readTheme } from "./theme";
@@ -234,7 +235,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     sensibilidade: 60,
     silencioMs: 1200,
   };
-  const bond = data?.bond ?? DEFAULT_BOND;
+  const bond = useMemo(() => driftBond(data?.bond ?? DEFAULT_BOND), [data?.bond]);
 
   const messages = useMemo(
     () =>
@@ -321,6 +322,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           ...((data?.iot?.url || readIot().url) && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
           ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino Uno via USB (ferramenta usb_comando)"] : []),
         ],
+        bond: evolveBond(data?.bond, trimmed),
       });
       const whatsapp = whatsappCredsForChat();
       const iotCfg = data?.iot?.url ? data.iot : readIot();
@@ -377,7 +379,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             void link.dispatchRemote(alvo, { ...cmd, ...(activeConversationId ? { conversationId: activeConversationId } : {}) }).catch(() => undefined);
           }
         }
-        const { clean, learned } = extractMemories(res.text + usbNote);
+        const { clean, learned } = extractMemories(applyFaceTags(res.text) + usbNote);
         const liaMsg: ChatMessage = {
           id: uid(),
           role: "lia",
@@ -402,6 +404,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           persist({
             ...data,
             history: finalMsgs.slice(-200),
+            bond: evolveBond(data.bond, trimmed),
             ...(apisNext ? { customApis: apisNext } : {}),
             profiles: data.profiles.map((p) =>
               p.id === data.activeProfileId
@@ -587,16 +590,19 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       if (!treat) return;
       const nextBond = rewardBond(data?.bond, id);
       if (data) persist({ ...data, bond: nextBond });
-      setSessionMessages((prev) => [
-        ...prev,
-        {
-          id: uid(),
-          role: "lia",
-          content: treatReaction(treat, nextBond),
-          createdAt: Date.now(),
-        },
-      ]);
-      setState("speaking");
+      const msgId = uid();
+      setState("thinking");
+      const system = buildSystemPrompt({ user, profile, personality, memory, cardConnected, bond: nextBond, memoriaLocal: data?.settings.memoriaLocal ?? null });
+      const repetido = data?.bond?.ultimoPetisco === id;
+      const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido ? " Ele repetiu o mesmo sabor da última vez." : ""} Reaja de forma espontânea, curta (1–3 frases), brincalhona e coerente com seu estado emocional e com a conversa recente; descreva o sabor do seu jeito, sem repetir frases prontas. Use uma tag de rosto.`;
+      const history = sessionMessages.slice(-8).map((m) => ({ role: m.role === "lia" ? ("assistant" as const) : ("user" as const), content: m.content }));
+      void liaRespond({ data: { system, messages: [...history, { role: "user" as const, content: ctx }] } })
+        .then((res) => (res.ok && res.text ? extractMemories(applyFaceTags(res.text)).clean : treatReaction(treat, nextBond)))
+        .catch(() => treatReaction(treat, nextBond))
+        .then((content) => {
+          setSessionMessages((prev) => [...prev, { id: msgId, role: "lia", content: `${treat.emoji} ${content}`.replace(/^(\S+) \1/, "$1"), createdAt: Date.now() }]);
+          setState("speaking");
+        });
     },
     greetProactively: (topics) => {
       const hour = new Date().getHours();
@@ -625,7 +631,7 @@ function treatReaction(treat: (typeof TREATS)[number], b: LiaBond): string {
         ? pick([" Meu humor tá lá no teto agora! ✨", " Tô quicando de alegria, sério! 🎉"])
         : pick([" Obrigada, de verdade! 💜", " Você é um amor, sabia? ✨"]);
   const repete = b.petiscos > 1 && Math.random() < 0.5 ? ` Já é o petisco nº ${b.petiscos}… tô ficando mal-acostumada!` : "";
-  return `${treat.emoji} ${abre}${treat.reaction}${repete}${fecho}\n\n_Humor ${b.humor} · Confiança ${b.confianca} · Intimidade ${b.intimidade}_`;
+  return `${abre}${treat.reaction}${repete}${fecho}`;
 }
 
 export function useLia() {

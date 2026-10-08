@@ -4,12 +4,15 @@ import { X } from "lucide-react";
 import { useLia } from "@/lib/lia/LiaProvider";
 import { cn } from "@/lib/utils";
 import { getSpeechLevel } from "@/lib/lia/tts";
+import { useSyncExternalStore } from "react";
+import { useAnimationControls } from "motion/react";
+import { getEmptyOverride, getFaceOverride, getLastGesture, subscribeFace, type FaceGesture } from "@/lib/lia/face-engine";
 
 export type NeoEmotion = "neutral" | "happy" | "tired" | "curious" | "sad" | "excited" | "surprised";
 type Mode = "idle" | "speaking" | "listening" | "thinking";
 
 const OMEGA = "M48 55 C50 62 57 62 60 55 C63 62 70 62 72 55";
-const spring = { type: "spring", stiffness: 260, damping: 18 } as const;
+const spring = { type: "spring", stiffness: 170, damping: 22 } as const;
 
 function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion; size: number; burst: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -21,6 +24,25 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
   const scanRef = useRef<SVGRectElement>(null);
   const open = useRef(0);
   const [blink, setBlink] = useState(false);
+  const ov = useSyncExternalStore(subscribeFace, getFaceOverride, getEmptyOverride);
+  const gesture = useSyncExternalStore(subscribeFace, getLastGesture, () => null);
+  const head = useAnimationControls();
+  const ovRef = useRef(ov);
+  ovRef.current = ov;
+
+  useEffect(() => {
+    if (!gesture) return;
+    const g: FaceGesture = gesture.g;
+    const t = { duration: 0.9, ease: "easeInOut" } as const;
+    if (g === "nod") void head.start({ y: [0, 5, -2, 4, 0], transition: t });
+    else if (g === "shake") void head.start({ x: [0, -6, 6, -5, 5, 0], transition: t });
+    else if (g === "tilt") void head.start({ rotate: [0, -10, -8, 0], transition: { duration: 1.8 } });
+    else if (g === "bounce") void head.start({ y: [0, -8, 0, -5, 0], scale: [1, 1.05, 1, 1.03, 1], transition: t });
+    else if (g === "blink") {
+      setBlink(true);
+      setTimeout(() => setBlink(false), 160);
+    }
+  }, [gesture?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Piscadas orgânicas a cada 3–6 s.
   useEffect(() => {
@@ -59,13 +81,13 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
 
   // Lip-sync pelo volume real da voz + olhar suave (direto no DOM, sem re-render).
   useAnimationFrame((time) => {
-    let target = 0;
+    let target = ovRef.current.mouthOpen ?? 0;
     if (mode === "speaking") {
       const lvl = getSpeechLevel();
-      if (lvl >= 0) target = lvl;
+      if (lvl >= 0) target = Math.max(target, lvl);
       else {
         const s = time / 1000;
-        target = Math.max(0, Math.sin(s * 13) * 0.5 + Math.sin(s * 21 + 1) * 0.35 + 0.15);
+        target = Math.max(target, Math.sin(s * 13) * 0.5 + Math.sin(s * 21 + 1) * 0.35 + 0.15);
       }
     }
     // Abre rápido, fecha um pouco mais devagar — como uma boca de verdade.
@@ -76,9 +98,9 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
       m.setAttribute("ry", String(0.6 + o * 7));
       m.setAttribute("rx", String(5 + o * 2.2));
       m.setAttribute("cy", String(56 + o * 2));
-      m.style.opacity = mode === "speaking" ? String(Math.min(1, 0.25 + o * 3)) : "0";
+      m.style.opacity = mode === "speaking" || o > 0.05 ? String(Math.min(1, 0.25 + o * 3)) : "0";
     }
-    if (omegaRef.current) omegaRef.current.style.opacity = mode === "speaking" ? String(Math.max(0, 1 - o * 4)) : "";
+    if (omegaRef.current) omegaRef.current.style.opacity = mode === "speaking" || o > 0.05 ? String(Math.max(0, 1 - o * 4)) : "";
     const g = gaze.current;
     // Microssacadas: sem cursor por perto, o olhar passeia sozinho.
     if (time - g.moved > 2500 && time > g.sacc) {
@@ -107,22 +129,27 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
     for (const el of pupilRefs.current) el?.setAttribute("transform", `translate(${g.x.toFixed(2)} ${g.y.toFixed(2)})`);
   });
 
-  const happy = emotion === "happy" || emotion === "excited";
+  const happy = ov.eyeSmile !== undefined ? ov.eyeSmile > 0.5 : emotion === "happy" || emotion === "excited";
+  const smile = ov.mouthSmile ?? (happy ? 1 : 0);
+  const blushLvl = ov.blush ?? (happy ? 1 : 0);
+  const browUp = (ov.browRaise ?? 0) * 4;
+  const browTilt = (ov.browTilt ?? 0) * 3;
   const tired = emotion === "tired" && mode === "idle";
   const listening = mode === "listening";
   const curious = emotion === "curious";
   const surprised = emotion === "surprised";
   const sad = emotion === "sad";
-  const eyeScaleY = blink ? 0.08 : tired ? 0.35 : sad ? 0.7 : surprised ? 1.25 : listening || curious ? 1.12 : 1;
-  const showOmega = !happy && !tired && !surprised;
+  const eyeScaleY = blink ? 0.08 : ov.eyeOpen !== undefined ? Math.max(0.08, ov.eyeOpen) : tired ? 0.35 : sad ? 0.7 : surprised ? 1.25 : listening || curious ? 1.12 : 1;
+  const showOmega = smile < 0.5 && !tired && !surprised;
 
   return (
+    <motion.div animate={head} style={{ display: "inline-block", willChange: "transform" }}>
     <motion.svg
       ref={svgRef}
       viewBox="0 0 120 80"
       width={size}
       height={(size * 80) / 120}
-      animate={{ y: [0, -1.5, 0], rotate: curious ? -4 : 0 }}
+      animate={{ y: [0, -1.5, 0], rotate: (curious ? -4 : 0) + (ov.headTilt ?? 0) }}
       transition={{ y: { duration: 3.6, repeat: Infinity, ease: "easeInOut" }, rotate: spring }}
       style={{ willChange: "transform" }}
       className="overflow-visible"
@@ -149,9 +176,9 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
         {[40, 80].map((cx, i) => {
           const inner = i ? cx - 7 : cx + 7;
           const outer = i ? cx + 7 : cx - 7;
-          const yIn = sad ? 18 : curious && i ? 15 : surprised ? 14 : happy ? 17 : 19;
-          const yOut = sad ? 22 : curious && i ? 13 : surprised ? 14 : happy ? 16 : 19;
-          const show = sad || curious || surprised || happy || listening;
+          const yIn = browTilt * (i ? 1 : 1) + -browUp + (sad ? 18 : curious && i ? 15 : surprised ? 14 : happy ? 17 : 19);
+          const yOut = -browTilt - browUp + (sad ? 22 : curious && i ? 13 : surprised ? 14 : happy ? 16 : 19);
+          const show = sad || curious || surprised || happy || listening || browUp !== 0 || browTilt !== 0;
           return (
             <motion.path key={`b${cx}`} fill="none" strokeWidth={2} strokeLinecap="round"
               initial={false}
@@ -199,7 +226,7 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
         <motion.path
           d="M47 52 C51 66 69 66 73 52 Z" stroke="none"
           initial={false}
-          animate={{ opacity: happy && mode !== "speaking" ? 0.9 : 0, scale: happy ? 1 : 0.4 }}
+          animate={{ opacity: smile > 0 && mode !== "speaking" ? 0.9 * Math.min(1, smile) : 0, scale: 0.4 + Math.max(0, smile) * 0.6 }}
           transition={spring} style={{ transformOrigin: "60px 56px" }}
         />
         {/* Bocejo / surpresa 'O' */}
@@ -213,8 +240,8 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
 
       {/* Blush LED */}
       {[26, 94].map((cx) => (
-        <motion.g key={cx} initial={false} animate={{ opacity: happy ? [0.55, 1, 0.55] : 0 }}
-          transition={happy ? { duration: 1.6, repeat: Infinity } : { duration: 0.4 }}
+        <motion.g key={cx} initial={false} animate={{ opacity: blushLvl > 0 ? [0.55 * blushLvl, blushLvl, 0.55 * blushLvl] : 0 }}
+          transition={blushLvl > 0 ? { duration: 1.6, repeat: Infinity } : { duration: 0.4 }}
           stroke="var(--color-blush)" strokeWidth={1.6} strokeLinecap="round" filter="url(#neo-glow)"
         >
           <line x1={cx - 5} y1={48} x2={cx - 2} y2={44} />
@@ -240,6 +267,7 @@ function Face({ mode, emotion, size, burst }: { mode: Mode; emotion: NeoEmotion;
         )}
       </AnimatePresence>
     </motion.svg>
+    </motion.div>
   );
 }
 

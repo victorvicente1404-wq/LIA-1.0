@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { CustomApisSection } from "./CustomApisSection";
+import { FacePlayground } from "./FacePlayground";
 import { useLia } from "@/lib/lia/LiaProvider";
 import * as card from "@/lib/lia/card-storage";
 import { mergeCardData } from "@/lib/lia/card-merge";
@@ -163,6 +164,7 @@ export function DevPanel({ open, onOpenChange }: { open: boolean; onOpenChange: 
               </div>
             </div>
 
+            <FacePlayground />
             <CustomApisSection />
 
             <div className="rounded-xl border border-border p-3 text-[11px] text-muted-foreground">
