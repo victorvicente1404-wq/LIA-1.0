@@ -322,6 +322,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           ...((data?.iot?.url || readIot().url) && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
           ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino Uno via USB (ferramenta usb_comando)"] : []),
         ],
+        bond: evolveBond(data?.bond, trimmed),
       });
       const whatsapp = whatsappCredsForChat();
       const iotCfg = data?.iot?.url ? data.iot : readIot();
