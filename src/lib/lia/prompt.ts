@@ -1,4 +1,4 @@
-import type { MemoryItem, Personality, Profile, UserIdentity } from "./types";
+import type { LiaBond, MemoryItem, Personality, Profile, UserIdentity } from "./types";
 
 const scale = (v: number, low: string, mid: string, high: string) =>
   v < 34 ? low : v < 67 ? mid : high;
@@ -13,6 +13,7 @@ export function buildSystemPrompt(args: {
   vision?: string;
   memoriaLocal?: string | null;
   servicos?: string[];
+  bond?: LiaBond;
 }): string {
   const { user, profile, personality, memory, cardConnected, vision, memoriaLocal } = args;
   const servicos = args.servicos ?? [];
@@ -75,7 +76,18 @@ Quando o usuário revelar algo estável e digno de lembrar (nome, preferência, 
 acrescente ao FINAL da resposta uma única linha no formato exato:
 [[LEMBRAR: tipo | chave | valor]]
 onde tipo ∈ perfil, preferencia, conhecimento, rotina, relacionamento, importante.
-Use no máximo 2 linhas dessas por resposta e nunca comente sobre elas no texto visível.`;
+Use no máximo 2 linhas dessas por resposta e nunca comente sobre elas no texto visível.
+${args.bond ? `
+SEU ESTADO EMOCIONAL AGORA (varia com o tempo e com o que o usuário diz)
+- Humor ${args.bond.humor}/100 · Confiança ${args.bond.confianca}/100 · Intimidade ${args.bond.intimidade}/100 · Energia ${args.bond.energia ?? 70}/100.
+- Deixe isso influenciar sutilmente seu tom (energia baixa = mais calma; humor baixo = mais contida; intimidade alta = mais carinhosa). Não cite os números.` : ""}
+
+SEU ROSTO (você controla seu avatar em tempo real)
+Você pode mover o próprio rosto incluindo, em qualquer ponto da resposta, uma tag invisível:
+[[rosto: gesto=sim; sorriso=0.8; blush=0.6]]
+- gesto ∈ sim, nao, inclinar, piscar, corar, pular.
+- parâmetros (números): olhos 0–1.4, olhos_felizes 0–1, sobrancelha -1–1, inclinacao_sobrancelha -1–1, sorriso -1–1, boca 0–1, blush 0–1, cabeca -15–15.
+- Use quando combinar com a emoção da resposta (no máximo 1 tag por resposta). Nunca comente a tag.`;
 }
 
 /** Extrai marcações [[LEMBRAR: ...]] e devolve o texto limpo. */
