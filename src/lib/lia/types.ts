@@ -28,7 +28,17 @@ export type TreatId =
   | "chocolate-laranja"
   | "cafe-turbinado"
   | "menta-refrescante"
-  | "frutas-criativas";
+  | "frutas-criativas"
+  | "uva"
+  | "morango"
+  | "melancia"
+  | "maracuja"
+  | "algodao-doce"
+  | "pipoca-caramelo"
+  | "matcha"
+  | "coco-gelado"
+  | "pimenta-chocolate"
+  | "limao-siciliano";
 
 export interface LiaBond {
   humor: number;
@@ -36,6 +46,9 @@ export interface LiaBond {
   intimidade: number;
   petiscos: number;
   ultimoPetisco?: TreatId;
+  /** Última vez que o vínculo foi recalculado (deriva por hora/dia). */
+  atualizadoEm?: number;
+  energia?: number;
 }
 
 export interface MemoryItem {
