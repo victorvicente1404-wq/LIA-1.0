@@ -62,15 +62,20 @@ function AuthPage() {
 
   async function handleGoogle() {
     setBusy(true);
-    const { isNativeApp, NATIVE_AUTH_SCHEME } = await import("@/lib/lia/capacitor-auth");
+    const { isNativeApp, NATIVE_AUTH_BRIDGE } = await import("@/lib/lia/capacitor-auth");
     const native = await isNativeApp();
 
     if (native) {
-      // No app nativo, abre a autenticação no navegador do sistema e volta via liaapp://auth.
+      // No app nativo: abre o login no navegador, volta para a página ponte,
+      // que reabre o app via liaapp://auth com a sessão.
       try {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: NATIVE_AUTH_SCHEME, skipBrowserRedirect: true },
+          options: {
+            redirectTo: NATIVE_AUTH_BRIDGE,
+            skipBrowserRedirect: true,
+            queryParams: { prompt: "select_account" },
+          },
         });
         if (error) {
           console.error("[Google Auth] Erro do Supabase:", error);
