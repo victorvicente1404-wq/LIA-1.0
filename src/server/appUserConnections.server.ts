@@ -12,7 +12,7 @@ export async function saveConnectionKeyForUser(
     {
       user_id: userId,
       connector_id: connectorId,
-      connection_key_ciphertext: encryptConnectionKey(connectionAPIKey),
+      connection_key_ciphertext: await encryptConnectionKey(connectionAPIKey),
       account_label: accountLabel ?? null,
       updated_at: new Date().toISOString(),
     },
@@ -30,7 +30,7 @@ export async function getConnectionKeyForUser(userId: string, connectorId: strin
     .eq("connector_id", connectorId)
     .maybeSingle();
   if (error) throw error;
-  return data ? decryptConnectionKey(data.connection_key_ciphertext) : null;
+  return data ? await decryptConnectionKey(data.connection_key_ciphertext) : null;
 }
 
 export async function listConnectionsForUser(userId: string) {
