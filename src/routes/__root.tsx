@@ -142,7 +142,8 @@ function RootComponent() {
         const { toast } = await import("sonner");
         if (r.ok) {
           toast.success("Login concluído.");
-          void router.navigate({ to: "/" });
+          await router.invalidate();
+          void router.navigate({ to: "/", replace: true });
         } else if (r.error) {
           toast.error(r.error);
         }
