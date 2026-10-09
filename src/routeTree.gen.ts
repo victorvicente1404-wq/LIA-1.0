@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as NativeCallbackRouteImport } from './routes/native-callback'
 import { Route as OauthReturnRouteImport } from './routes/oauth.return'
 import { Route as ApiPublicOsAgentRouteImport } from './routes/api/public/os-agent'
 import { Route as ApiPublicPushCronRouteImport } from './routes/api/public/push-cron'
@@ -23,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NativeCallbackRoute = NativeCallbackRouteImport.update({
+  id: '/native-callback',
+  path: '/native-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OauthReturnRoute = OauthReturnRouteImport.update({
@@ -44,6 +50,7 @@ const ApiPublicPushCronRoute = ApiPublicPushCronRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/native-callback': typeof NativeCallbackRoute
   '/oauth/return': typeof OauthReturnRoute
   '/api/public/os-agent': typeof ApiPublicOsAgentRoute
   '/api/public/push-cron': typeof ApiPublicPushCronRoute
@@ -51,6 +58,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/native-callback': typeof NativeCallbackRoute
   '/oauth/return': typeof OauthReturnRoute
   '/api/public/os-agent': typeof ApiPublicOsAgentRoute
   '/api/public/push-cron': typeof ApiPublicPushCronRoute
@@ -59,6 +67,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/native-callback': typeof NativeCallbackRoute
   '/oauth/return': typeof OauthReturnRoute
   '/api/public/os-agent': typeof ApiPublicOsAgentRoute
   '/api/public/push-cron': typeof ApiPublicPushCronRoute
@@ -68,6 +77,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/native-callback'
     | '/oauth/return'
     | '/api/public/os-agent'
     | '/api/public/push-cron'
@@ -75,6 +85,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/native-callback'
     | '/oauth/return'
     | '/api/public/os-agent'
     | '/api/public/push-cron'
@@ -82,6 +93,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/auth'
+    | '/native-callback'
     | '/oauth/return'
     | '/api/public/os-agent'
     | '/api/public/push-cron'
@@ -90,6 +102,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  NativeCallbackRoute: typeof NativeCallbackRoute
   OauthReturnRoute: typeof OauthReturnRoute
   ApiPublicOsAgentRoute: typeof ApiPublicOsAgentRoute
   ApiPublicPushCronRoute: typeof ApiPublicPushCronRoute
@@ -109,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/native-callback': {
+      id: '/native-callback'
+      path: '/native-callback'
+      fullPath: '/native-callback'
+      preLoaderRoute: typeof NativeCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/oauth/return': {
@@ -138,6 +158,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  NativeCallbackRoute: NativeCallbackRoute,
   OauthReturnRoute: OauthReturnRoute,
   ApiPublicOsAgentRoute: ApiPublicOsAgentRoute,
   ApiPublicPushCronRoute: ApiPublicPushCronRoute,
