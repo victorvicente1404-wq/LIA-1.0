@@ -62,8 +62,10 @@ function AuthPage() {
 
   async function handleGoogle() {
     setBusy(true);
+    const { isNativeApp, NATIVE_AUTH_SCHEME } = await import("@/lib/lia/capacitor-auth");
+    const native = await isNativeApp();
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: native ? NATIVE_AUTH_SCHEME : window.location.origin,
     });
     if (result.error) {
       setBusy(false);

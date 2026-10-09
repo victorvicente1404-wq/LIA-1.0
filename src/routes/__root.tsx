@@ -132,6 +132,30 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    let cleanup = () => {};
+    let cancelled = false;
+    void import("@/lib/lia/capacitor-auth").then(({ registerCapacitorAuthListener }) =>
+      registerCapacitorAuthListener(async (r) => {
+        const { toast } = await import("sonner");
+        if (r.ok) {
+          toast.success("Login concluído.");
+          void router.navigate({ to: "/" });
+        } else if (r.error) {
+          toast.error(r.error);
+        }
+      }).then((fn) => {
+        if (cancelled) fn();
+        else cleanup = fn;
+      }),
+    );
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
+  }, [router]);
 
   return (
     <QueryClientProvider client={queryClient}>

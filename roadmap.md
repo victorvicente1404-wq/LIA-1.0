@@ -13,3 +13,4 @@
 - [x] Painel dev: presets de 1 clique (OpenRouter, Groq), normalização automática de URLs e formulário simplificado de ferramentas
 - [x] Câmera fixa no celular, detecção/reconhecimento facial, ver a tela
 - [ ] Controlar mouse/teclado do PC (bloqueado: precisa de um programa instalado no PC; navegador não permite)
+- [x] Tratar retorno de login do app nativo (liaapp://auth)
