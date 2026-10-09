@@ -25,11 +25,23 @@ function NativeCallback() {
   useEffect(() => {
     const { search, hash } = window.location;
     const { scheme, intent } = buildNativeReturn(search, hash);
+    // Remove os tokens da barra de endereço do navegador externo.
+    window.history.replaceState(null, "", window.location.pathname);
+
+    // Se esta página abriu dentro do próprio app (WebView), salva a sessão aqui mesmo.
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } })
+      .Capacitor;
+    if (cap?.isNativePlatform?.()) {
+      void import("@/lib/lia/capacitor-auth").then(async ({ handleAuthDeepLink }) => {
+        const r = await handleAuthDeepLink(scheme);
+        window.location.replace(r.ok ? "/" : "/auth");
+      });
+      return;
+    }
+
     const isAndroid = /android/i.test(navigator.userAgent);
     const url = isAndroid ? intent : scheme;
     setTarget(url);
-    // Remove os tokens da barra de endereço do navegador externo.
-    window.history.replaceState(null, "", window.location.pathname);
     window.location.href = url;
     // Se o intent for ignorado, tenta o esquema direto.
     if (isAndroid) {
