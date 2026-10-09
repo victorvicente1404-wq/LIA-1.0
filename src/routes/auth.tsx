@@ -67,17 +67,36 @@ function AuthPage() {
 
     if (native) {
       // No app nativo, abre a autenticação no navegador do sistema e volta via liaapp://auth.
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: NATIVE_AUTH_SCHEME, skipBrowserRedirect: true },
-      });
-      if (error || !data?.url) {
-        setBusy(false);
-        toast.error("Não consegui entrar com o Google.");
-        return;
+      try {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: NATIVE_AUTH_SCHEME, skipBrowserRedirect: true },
+        });
+        if (error) {
+          console.error("[Google Auth] Erro do Supabase:", error);
+          toast.error(error.message);
+          setBusy(false);
+          return;
+        }
+        if (!data?.url) {
+          console.error("[Google Auth] Resposta sem URL de autenticação.");
+          toast.error("O Google não retornou o link de login.");
+          setBusy(false);
+          return;
+        }
+        console.log("[Google Auth] Abrindo URL de autenticação:", data.url);
+        try {
+          const { Browser } = await import("@capacitor/browser");
+          await Browser.open({ url: data.url });
+        } catch (browserErr) {
+          console.warn("[Google Auth] @capacitor/browser indisponível, usando fallback:", browserErr);
+          const opened = window.open(data.url, "_system");
+          if (!opened) window.location.href = data.url;
+        }
+      } catch (err) {
+        console.error("[Google Auth] Falha inesperada:", err);
+        toast.error(err instanceof Error ? err.message : "Não consegui entrar com o Google.");
       }
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url: data.url });
       setBusy(false);
       return; // o listener de deep link conclui o login
     }
