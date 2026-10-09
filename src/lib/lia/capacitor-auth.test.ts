@@ -25,3 +25,16 @@ describe("parseAuthDeepLink", () => {
     expect(parseAuthDeepLink("https://example.com/?code=x")).toBeNull();
   });
 });
+
+import { describe as d2, it as i2, expect as e2 } from "vitest";
+import { parseAuthDeepLink as p2 } from "./capacitor-auth";
+d2("intent:// do Android", () => {
+  i2("extrai tokens de intent://auth", () => {
+    const r = p2("intent://auth?access_token=a&refresh_token=b#Intent;scheme=liaapp;end");
+    e2(r?.access_token).toBe("a");
+    e2(r?.refresh_token).toBe("b");
+  });
+  i2("aceita liaapp:auth sem barras", () => {
+    e2(p2("liaapp:auth?code=x")?.code).toBe("x");
+  });
+});

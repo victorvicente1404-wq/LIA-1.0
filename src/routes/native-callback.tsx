@@ -40,13 +40,12 @@ function NativeCallback() {
     }
 
     const isAndroid = /android/i.test(navigator.userAgent);
-    const url = isAndroid ? intent : scheme;
-    setTarget(url);
-    window.location.href = url;
-    // Se o intent for ignorado, tenta o esquema direto.
+    setTarget(scheme);
+    window.location.href = scheme;
+    // Se o esquema direto for ignorado, tenta o intent do Android.
     if (isAndroid) {
       const t = window.setTimeout(() => {
-        if (document.visibilityState === "visible") window.location.href = scheme;
+        if (document.visibilityState === "visible") window.location.href = intent;
       }, 1200);
       return () => window.clearTimeout(t);
     }

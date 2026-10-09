@@ -21,9 +21,28 @@ export type AuthDeepLinkParams = {
   error?: string | undefined;
 };
 
+/**
+ * Normaliza o link de retorno para liaapp://auth...
+ * Aceita liaapp://auth, liaapp:/auth, liaapp:auth e intent://auth...#Intent;scheme=liaapp;end.
+ */
+export function normalizeAuthDeepLink(url: string): string | null {
+  if (!url) return null;
+  let u = url.trim();
+  if (/^intent:\/\//i.test(u)) {
+    const marker = u.search(/#Intent;/i);
+    let body = marker >= 0 ? u.slice("intent://".length, marker) : u.slice("intent://".length);
+    // Hash real (tokens) pode vir antes do #Intent; já está em body se houver.
+    u = `liaapp://${body}`;
+  }
+  u = u.replace(/^liaapp:\/*/i, "liaapp://");
+  if (!u.toLowerCase().startsWith(NATIVE_AUTH_SCHEME)) return null;
+  return u;
+}
+
 /** Lê ?query e #hash do deep link (os dois formatos) e junta num só objeto. */
-export function parseAuthDeepLink(url: string): AuthDeepLinkParams | null {
-  if (!url || !url.toLowerCase().startsWith(NATIVE_AUTH_SCHEME)) return null;
+export function parseAuthDeepLink(rawUrl: string): AuthDeepLinkParams | null {
+  const url = normalizeAuthDeepLink(rawUrl);
+  if (!url) return null;
   const rest = url.slice(NATIVE_AUTH_SCHEME.length);
   const hashIdx = rest.indexOf("#");
   const beforeHash = hashIdx >= 0 ? rest.slice(0, hashIdx) : rest;
@@ -112,7 +131,8 @@ export async function registerCapacitorAuthListener(
   };
 
   const run = async (url: string) => {
-    if (!url?.toLowerCase().startsWith(NATIVE_AUTH_SCHEME)) return;
+    console.log("[Native Auth] appUrlOpen:", url?.slice(0, 40));
+    if (!normalizeAuthDeepLink(url)) return;
     if (handled.has(url)) return; // getLaunchUrl + appUrlOpen podem repetir o mesmo link
     handled.add(url);
     void closeBrowser(); // não bloqueia a criação da sessão
