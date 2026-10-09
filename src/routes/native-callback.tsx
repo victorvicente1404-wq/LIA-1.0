@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { buildNativeReturn } from "@/lib/lia/native-return";
 
 export const Route = createFileRoute("/native-callback")({
   head: () => ({
@@ -23,11 +24,20 @@ function NativeCallback() {
 
   useEffect(() => {
     const { search, hash } = window.location;
-    const url = `liaapp://auth${search}${hash}`;
+    const { scheme, intent } = buildNativeReturn(search, hash);
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const url = isAndroid ? intent : scheme;
     setTarget(url);
     // Remove os tokens da barra de endereço do navegador externo.
     window.history.replaceState(null, "", window.location.pathname);
     window.location.href = url;
+    // Se o intent for ignorado, tenta o esquema direto.
+    if (isAndroid) {
+      const t = window.setTimeout(() => {
+        if (document.visibilityState === "visible") window.location.href = scheme;
+      }, 1200);
+      return () => window.clearTimeout(t);
+    }
   }, []);
 
   return (
