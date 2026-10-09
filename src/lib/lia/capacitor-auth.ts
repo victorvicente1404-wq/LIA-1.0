@@ -1,6 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const NATIVE_AUTH_SCHEME = "liaapp://auth";
+/**
+ * Página web pública que recebe o retorno do login e repassa para liaapp://auth.
+ * O servidor de login só aceita endereços web autorizados; esquemas próprios
+ * (liaapp://) são recusados e caem na versão web — por isso a ponte.
+ */
+export const NATIVE_AUTH_BRIDGE = "https://lia-portable-ai.lovable.app/native-callback";
 
 export async function isNativeApp(): Promise<boolean> {
   if (typeof window === "undefined") return false;
