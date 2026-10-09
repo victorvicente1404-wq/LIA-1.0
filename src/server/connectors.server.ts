@@ -167,12 +167,18 @@ export async function fetchRecentEmails(userId: string, max = 8) {
   return messages;
 }
 
+function utf8ToB64(input: string) {
+  const bytes = new TextEncoder().encode(input);
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(bin);
+}
+
 function base64Url(input: string) {
-  return Buffer.from(input, "utf8")
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return utf8ToB64(input).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export async function sendEmail(
@@ -182,7 +188,7 @@ export async function sendEmail(
   const raw = base64Url(
     [
       `To: ${input.to}`,
-      `Subject: =?UTF-8?B?${Buffer.from(input.subject, "utf8").toString("base64")}?=`,
+      `Subject: =?UTF-8?B?${utf8ToB64(input.subject)}?=`,
       "MIME-Version: 1.0",
       'Content-Type: text/plain; charset="UTF-8"',
       "",
@@ -437,7 +443,10 @@ export async function searchEmails(userId: string, query: string, max = 8) {
 
 function decodeBase64Url(data: string) {
   const normalized = data.replace(/-/g, "+").replace(/_/g, "/");
-  return Buffer.from(normalized, "base64").toString("utf8");
+  const bin = atob(normalized);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
 }
 
 function collectBody(part: any): string {
