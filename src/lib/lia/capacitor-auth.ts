@@ -15,10 +15,10 @@ export async function isNativeApp(): Promise<boolean> {
 }
 
 export type AuthDeepLinkParams = {
-  code?: string;
-  access_token?: string;
-  refresh_token?: string;
-  error?: string;
+  code?: string | undefined;
+  access_token?: string | undefined;
+  refresh_token?: string | undefined;
+  error?: string | undefined;
 };
 
 /** Lê ?query e #hash do deep link (os dois formatos) e junta num só objeto. */
