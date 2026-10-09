@@ -50,6 +50,7 @@ function NativeCallback() {
       }, 1200);
       return () => window.clearTimeout(t);
     }
+    return undefined;
   }, []);
 
   return (
