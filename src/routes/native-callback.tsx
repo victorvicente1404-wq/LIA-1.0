@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { buildNativeReturn } from "@/lib/lia/native-return";
 
 export const Route = createFileRoute("/native-callback")({
   head: () => ({
@@ -23,11 +24,33 @@ function NativeCallback() {
 
   useEffect(() => {
     const { search, hash } = window.location;
-    const url = `liaapp://auth${search}${hash}`;
-    setTarget(url);
+    const { scheme, intent } = buildNativeReturn(search, hash);
     // Remove os tokens da barra de endereço do navegador externo.
     window.history.replaceState(null, "", window.location.pathname);
+
+    // Se esta página abriu dentro do próprio app (WebView), salva a sessão aqui mesmo.
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } })
+      .Capacitor;
+    if (cap?.isNativePlatform?.()) {
+      void import("@/lib/lia/capacitor-auth").then(async ({ handleAuthDeepLink }) => {
+        const r = await handleAuthDeepLink(scheme);
+        window.location.replace(r.ok ? "/" : "/auth");
+      });
+      return;
+    }
+
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const url = isAndroid ? intent : scheme;
+    setTarget(url);
     window.location.href = url;
+    // Se o intent for ignorado, tenta o esquema direto.
+    if (isAndroid) {
+      const t = window.setTimeout(() => {
+        if (document.visibilityState === "visible") window.location.href = scheme;
+      }, 1200);
+      return () => window.clearTimeout(t);
+    }
+    return undefined;
   }, []);
 
   return (
