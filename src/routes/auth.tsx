@@ -64,8 +64,26 @@ function AuthPage() {
     setBusy(true);
     const { isNativeApp, NATIVE_AUTH_SCHEME } = await import("@/lib/lia/capacitor-auth");
     const native = await isNativeApp();
+
+    if (native) {
+      // No app nativo, abre a autenticação no navegador do sistema e volta via liaapp://auth.
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: NATIVE_AUTH_SCHEME, skipBrowserRedirect: true },
+      });
+      if (error || !data?.url) {
+        setBusy(false);
+        toast.error("Não consegui entrar com o Google.");
+        return;
+      }
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: data.url });
+      setBusy(false);
+      return; // o listener de deep link conclui o login
+    }
+
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: native ? NATIVE_AUTH_SCHEME : window.location.origin,
+      redirect_uri: window.location.origin,
     });
     if (result.error) {
       setBusy(false);
