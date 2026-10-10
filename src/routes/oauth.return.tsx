@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/oauth/return")({
@@ -19,7 +19,11 @@ export const Route = createFileRoute("/oauth/return")({
 function OAuthReturn() {
   const [message, setMessage] = useState("Finalizando a conexão…");
 
+  const handled = useRef(false);
   useEffect(() => {
+    // Strict Mode roda efeitos duas vezes: o código só pode ser enviado uma vez.
+    if (handled.current) return;
+    handled.current = true;
     const params = new URLSearchParams(window.location.search);
     const connectorId = params.get("connector_id") ?? "";
     const notify = (
