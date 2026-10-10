@@ -272,6 +272,7 @@ async function pushChanges() {
         if (error) throw error;
       }
       writeKnown(known);
+      announceChange();
     }
     setSnap({ status: "active", error: null });
   } catch (e) {
@@ -409,6 +410,7 @@ async function subscribeChannel(forceSocket = false) {
   }
   if (my !== channelGen || !state) return;
   rtStatus = "CONNECTING";
+  connectingSince = Date.now();
   setSnap({ live: false });
   try {
     if (forceSocket) supabase.realtime.disconnect();
@@ -417,8 +419,14 @@ async function subscribeChannel(forceSocket = false) {
   } catch { /* segue com o token atual */ }
   if (my !== channelGen || !state) return;
   const sid = state.spaceId;
+  // Mesmo canal (mesmo nome) na Web e no app: postgres_changes + broadcast.
+  const topic = `lia-link-${sid}`;
+  for (const ch of supabase.getChannels()) {
+    if (ch.topic === `realtime:${topic}`) await supabase.removeChannel(ch).catch(() => undefined);
+  }
+  if (my !== channelGen || !state) return;
   channel = supabase
-    .channel(`lia-link-${sid}-${my}`)
+    .channel(topic, { config: { broadcast: { self: false } } })
     .on("postgres_changes", { event: "*", schema: "public", table: "sync_blobs", filter: `space_id=eq.${sid}` }, async (p) => {
       const row = p.new as Parameters<typeof processRow>[0];
       if (row?.item_key && (await processRow(row).catch(() => false))) window.dispatchEvent(new Event(APPLIED_EVENT));
@@ -427,11 +435,14 @@ async function subscribeChannel(forceSocket = false) {
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "sync_commands", filter: `space_id=eq.${sid}` }, (p) => {
       void handleCommandRow(p.new as CommandRow);
     })
+    // Aviso instantâneo de outro aparelho: busca já, mesmo se postgres_changes atrasar.
+    .on("broadcast", { event: "changed" }, () => void silentSync(0))
     .subscribe((s) => {
       if (my !== channelGen) return; // canal antigo
       rtStatus = s;
       if (s === "SUBSCRIBED") {
         reconnectAttempts = 0;
+        connectingSince = 0;
         setSnap({ live: true });
         void silentSync(0); // recupera o que passou enquanto estava fora
       } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
@@ -441,15 +452,24 @@ async function subscribeChannel(forceSocket = false) {
     });
 }
 
-/** App voltou ao primeiro plano / ganhou foco. */
+let connectingSince = 0;
+/** Avisa os outros aparelhos que há novidades (sem conteúdo: só um sinal). */
+function announceChange() {
+  if (channel && rtStatus === "SUBSCRIBED") {
+    void channel.send({ type: "broadcast", event: "changed", payload: { d: state?.deviceId } }).catch(() => undefined);
+  }
+}
+
+/** App/aba voltou ao primeiro plano ou ganhou foco (Web e nativo). */
 function onResume() {
   if (!state || !key) return;
   const away = hiddenAt ? Date.now() - hiddenAt : 0;
   hiddenAt = 0;
+  const connecting = rtStatus === "CONNECTING" && Date.now() - connectingSince < 10_000;
   // Ficou muito tempo suspenso: o socket pode estar "zumbi" mesmo dizendo conectado.
-  if (!realtimeHealthy() || away > 30_000) {
+  if (away > 30_000 || (!realtimeHealthy() && !connecting)) {
     reconnectAttempts = 0;
-    void subscribeChannel(away > 30_000 || !supabase.realtime.isConnected());
+    void subscribeChannel(away > 30_000);
   }
   void refreshDevices();
   void silentSync(0);
@@ -518,7 +538,7 @@ async function start() {
     if (!state || !key || !isVisible()) return;
     if (realtimeHealthy()) return;
     void silentSync(POLL_MS - 500);
-    if (rtStatus !== "CONNECTING") scheduleReconnect();
+    if (rtStatus !== "CONNECTING" || Date.now() - connectingSince > 10_000) scheduleReconnect();
   }, POLL_MS);
   bindLifecycle();
 }
