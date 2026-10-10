@@ -314,6 +314,19 @@ async function pullAll() {
   if (changed) window.dispatchEvent(new Event(APPLIED_EVENT));
 }
 
+async function refreshDevices() {
+  if (!state) return;
+  const { data, error } = await supabase.from("sync_devices").select("id, name, kind, last_seen").eq("space_id", state.spaceId).order("created_at");
+  if (error || !data) return; // falha de rede: nunca desvincula
+  const devices = data;
+  if (!devices.some((d) => d.id === state!.deviceId)) {
+    // Este aparelho foi desvinculado em outro dispositivo.
+    await leave(false);
+    return;
+  }
+  setSnap({ devices });
+}
+
 type CommandRow = { id: string; target: string; from_device: string | null; payload: string; status: string };
 async function handleCommandRow(row: CommandRow) {
   if (!key || row.status !== "pending" || row.from_device === state?.deviceId || row.target !== deviceKind()) return;
