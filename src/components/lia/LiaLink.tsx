@@ -25,8 +25,15 @@ export function LiaLinkBadge() {
   }, []);
 
   const label =
-    s.status === "syncing" ? "Sincronizando..." : s.status === "active" ? `Lia Link ativo (${s.devices.length})` : "Modo local";
-  const dot = s.status === "active" ? "bg-glow" : s.status === "syncing" ? "bg-accent animate-pulse" : "bg-muted-foreground";
+    s.status === "syncing"
+      ? "Sincronizando..."
+      : s.status === "active"
+        ? `Lia Link ${s.live ? "ao vivo" : "reconectando"} (${s.devices.length})`
+        : "Modo local";
+  const dot =
+    s.status === "active"
+      ? s.live ? "bg-glow" : "bg-accent animate-pulse"
+      : s.status === "syncing" ? "bg-accent animate-pulse" : "bg-muted-foreground";
 
   return (
     <>
