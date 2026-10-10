@@ -25,17 +25,25 @@ function OAuthReturn() {
     const notify = (
       type: "appUserConnectorOAuthComplete" | "appUserConnectorOAuthFailed",
       code?: string | null,
+      error?: string,
     ) => {
       window.opener?.postMessage(
-        { type, connectorId, code: code ?? null },
+        { type, connectorId, code: code ?? null, error: error ?? null },
         window.location.origin,
       );
       window.close();
     };
 
     if (params.get("success") !== "true") {
-      setMessage(params.get("error") ?? "A autorização não foi concluída.");
-      notify("appUserConnectorOAuthFailed");
+      const parts = [params.get("error"), params.get("error_description"), params.get("error_uri")]
+        .filter(Boolean)
+        .map((v) => v!.slice(0, 300));
+      const detail = parts.length ? parts.join(" — ") : "A autorização não foi concluída (nenhum detalhe retornado).";
+      console.warn("[OAuth] retorno com erro:", detail);
+      setMessage(`Falha: ${detail}`);
+      // Mantém a janela aberta um instante para a pessoa ler o erro.
+      window.opener?.postMessage({ type: "appUserConnectorOAuthFailed", connectorId, code: null, error: detail }, window.location.origin);
+      setTimeout(() => window.close(), 4000);
       return;
     }
     const code = params.get("code");
@@ -45,7 +53,7 @@ function OAuthReturn() {
         return;
       }
       setMessage("A autorização terminou sem código de troca.");
-      notify("appUserConnectorOAuthFailed");
+      notify("appUserConnectorOAuthFailed", null, "A autorização terminou sem código de troca.");
       return;
     }
     notify("appUserConnectorOAuthComplete", code);
