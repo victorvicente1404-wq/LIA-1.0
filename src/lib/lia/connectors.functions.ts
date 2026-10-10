@@ -16,7 +16,7 @@ export const listMyConnections = createServerFn({ method: "GET" })
 
 export const startConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { connectorId: string }) => input)
+  .inputValidator((input: { connectorId: string; origin?: string; fresh?: boolean }) => input)
   .handler(async ({ data, context }) => {
     const { buildAuthorizationUrl } = await import("@/server/connectors.server");
     const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
@@ -25,9 +25,14 @@ export const startConnect = createServerFn({ method: "POST" })
     const url = new URL(request.url);
     const sandboxHost =
       url.hostname === "localhost" ? request.headers.get("x-forwarded-host") : null;
-    const origin = sandboxHost ? `https://${sandboxHost}` : url.origin;
+    const serverOrigin = sandboxHost ? `https://${sandboxHost}` : url.origin;
+    // Usa a origem exata da página que abriu a janela (preview, publicado ou domínio próprio),
+    // desde que seja confiável; senão, a origem vista pelo servidor.
+    const origin = trustedOrigin(data.origin, serverOrigin, request.headers.get("origin"));
     const returnUrl = new URL("/oauth/return", origin).toString();
-    const existingKey = await getConnectionKeyForUser(context.userId, data.connectorId);
+    const existingKey = data.fresh
+      ? null
+      : await getConnectionKeyForUser(context.userId, data.connectorId).catch(() => null);
     const authorizationUrl = await buildAuthorizationUrl({
       connectorId: data.connectorId,
       userId: context.userId,
@@ -46,15 +51,24 @@ export const completeConnect = createServerFn({ method: "POST" })
     );
     const { GATEWAY_BASE_URL, CONNECTOR_CONFIG } = await import("@/server/connectors.server");
     const { saveConnectionKeyForUser } = await import("@/server/appUserConnections.server");
-    const { connectionAPIKey, connectorId } = await exchangeAppUserOAuthCode(
-      GATEWAY_BASE_URL,
-      data.code,
-    );
+    let result: { connectionAPIKey: string; connectorId: string };
+    try {
+      result = await exchangeAppUserOAuthCode(GATEWAY_BASE_URL, data.code);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[Conectores] troca do código falhou:", msg);
+      throw new Error(`Não consegui finalizar a autorização: ${msg.slice(0, 300)}`);
+    }
+    const { connectionAPIKey, connectorId } = result;
     if (!CONNECTOR_CONFIG[connectorId]) {
       throw new Error("A autorização retornou um serviço desconhecido.");
     }
     await saveConnectionKeyForUser(context.userId, connectorId, connectionAPIKey);
-    return { ok: true, connectorId };
+    // Confere se ficou salvo de verdade.
+    const { getConnectionKeyForUser } = await import("@/server/appUserConnections.server");
+    const saved = await getConnectionKeyForUser(context.userId, connectorId);
+    if (saved !== connectionAPIKey) throw new Error("A autorização foi feita, mas não consegui salvá-la. Tente de novo.");
+    return { ok: true, connectorId, scopes: CONNECTOR_CONFIG[connectorId]!.scopes };
   });
 
 export const disconnectConnector = createServerFn({ method: "POST" })
@@ -126,3 +140,20 @@ export const readGoogleSlides = createServerFn({ method: "POST" })
     const { readPresentation } = await import("@/server/connectors.server");
     return readPresentation(context.userId, data.ref);
   });
+
+function trustedOrigin(client: string | undefined, server: string, header: string | null): string {
+  try {
+    if (!client) return server;
+    const u = new URL(client);
+    if (u.protocol !== "https:" && u.hostname !== "localhost") return server;
+    const host = u.hostname;
+    const allowed =
+      u.origin === server ||
+      u.origin === header ||
+      host.endsWith(".lovable.app") ||
+      host.endsWith(".lovableproject.com");
+    return allowed ? u.origin : server;
+  } catch {
+    return server;
+  }
+}

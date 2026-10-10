@@ -37,8 +37,8 @@ function waitForOAuthCompletion(popup: Window) {
         resolve(typeof event.data?.code === "string" ? event.data.code : null);
         return;
       }
-      popup.close();
-      reject(new Error("A autorização falhou."));
+      const detail = typeof event.data?.error === "string" && event.data.error ? event.data.error : "sem detalhes";
+      reject(new Error(`A autorização falhou: ${detail}`));
     };
     window.addEventListener("message", onMessage);
     poll = window.setInterval(() => {
@@ -52,6 +52,8 @@ function waitForOAuthCompletion(popup: Window) {
 export function ConnectorsSection() {
   const { user, authLoading, connectedIds, isLoading, refresh } = useConnections();
   const [busy, setBusy] = useState<string | null>(null);
+  // Após uma falha, a próxima tentativa pede autorização do zero (ignora conexão expirada).
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
 
   async function connect(connectorId: string) {
     const popup = window.open("", "lia-oauth", "width=600,height=720");
@@ -61,16 +63,21 @@ export function ConnectorsSection() {
     }
     setBusy(connectorId);
     try {
-      const { authorizationUrl } = await startConnect({ data: { connectorId } });
+      const { authorizationUrl } = await startConnect({
+        data: { connectorId, origin: window.location.origin, fresh: !!failed[connectorId] },
+      });
       const completion = waitForOAuthCompletion(popup);
       popup.location.href = authorizationUrl;
       const code = await completion;
       if (code) await completeConnect({ data: { code } });
       await refresh();
+      setFailed((f) => ({ ...f, [connectorId]: false }));
       toast.success("Serviço conectado.");
     } catch (err) {
-      popup.close();
-      toast.error(err instanceof Error ? err.message : "Não consegui conectar.");
+      setFailed((f) => ({ ...f, [connectorId]: true }));
+      const msg = err instanceof Error ? err.message : "Não consegui conectar.";
+      console.warn("[Conectores]", connectorId, msg);
+      toast.error(msg, { description: "Tente de novo: a próxima tentativa pede uma autorização nova.", duration: 12000 });
     } finally {
       setBusy(null);
     }
