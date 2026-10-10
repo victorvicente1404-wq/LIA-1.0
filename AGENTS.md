@@ -18,3 +18,4 @@
 - The OS agent (Lia Agent) polls /api/public/os-agent with a per-user token whose SHA-256 hash lives in os_agent_tokens; actions queue in os_actions, because the Worker cannot hold long-lived sockets to a local Python agent.
 - Native (Capacitor) login redirects to the public /native-callback web bridge, which forwards the session to the liaapp://auth deep link handled in capacitor-auth.ts, because the auth server rejects custom schemes and native WebViews cannot receive same-origin OAuth redirects.
 - Connector key encryption and Gmail base64 use Web Crypto/TextEncoder only (connectionKeyCrypto.ts, connectors.server.ts), because node:crypto and Buffer do not exist on the Worker runtime.
+- Native Google login also returns through an encrypted cloud relay (auth_relays, authRelay.functions.ts) polled by /auth, because Android Chrome may block the liaapp:// redirect.

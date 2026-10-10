@@ -22,9 +22,28 @@ export const Route = createFileRoute("/native-callback")({
 function NativeCallback() {
   const [target, setTarget] = useState<string | null>(null);
 
+  const [relayed, setRelayed] = useState(false);
   useEffect(() => {
-    const { search, hash } = window.location;
+    const params = new URLSearchParams(window.location.search);
+    const relay = params.get("relay");
+    params.delete("relay");
+    const search = params.toString() ? `?${params.toString()}` : "";
+    const hash = window.location.hash;
     const { scheme, intent } = buildNativeReturn(search, hash);
+    // Relé em nuvem: entrega o login ao app mesmo se o Android bloquear o link.
+    if (relay && /^[a-f0-9]{64}$/.test(relay)) {
+      void (async () => {
+        try {
+          const { encryptRelay, relayIdHash } = await import("@/lib/lia/auth-relay");
+          const { putAuthRelay } = await import("@/lib/lia/authRelay.functions");
+          const payload = await encryptRelay(relay, scheme);
+          const r = await putAuthRelay({ data: { idHash: await relayIdHash(relay), ...payload } });
+          if (r.ok) setRelayed(true);
+        } catch (e) {
+          console.error("[Native Auth] Relé falhou", e);
+        }
+      })();
+    }
     // Remove os tokens da barra de endereço do navegador externo.
     window.history.replaceState(null, "", window.location.pathname);
 
@@ -57,7 +76,9 @@ function NativeCallback() {
       <div className="panel w-full max-w-sm p-6 text-center">
         <h1 className="text-lg font-semibold text-glow">Voltando para a Lia…</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Se o app não abrir sozinho, toque no botão abaixo.
+          {relayed
+            ? "Login concluído! Pode voltar para o app da Lia — ele entra sozinho."
+            : "Se o app não abrir sozinho, toque no botão abaixo."}
         </p>
         {target && (
           <a
