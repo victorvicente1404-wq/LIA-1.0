@@ -410,6 +410,7 @@ async function subscribeChannel(forceSocket = false) {
   }
   if (my !== channelGen || !state) return;
   rtStatus = "CONNECTING";
+  connectingSince = Date.now();
   setSnap({ live: false });
   try {
     if (forceSocket) supabase.realtime.disconnect();
@@ -537,7 +538,7 @@ async function start() {
     if (!state || !key || !isVisible()) return;
     if (realtimeHealthy()) return;
     void silentSync(POLL_MS - 500);
-    if (rtStatus !== "CONNECTING") scheduleReconnect();
+    if (rtStatus !== "CONNECTING" || Date.now() - connectingSince > 10_000) scheduleReconnect();
   }, POLL_MS);
   bindLifecycle();
 }
