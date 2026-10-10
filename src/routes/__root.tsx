@@ -158,6 +158,13 @@ function RootComponent() {
     };
   }, [router]);
 
+  // Qualquer novidade do Lia Link (tempo real ou busca de contingência) atualiza os dados em cache.
+  useEffect(() => {
+    const onApplied = () => void queryClient.invalidateQueries();
+    window.addEventListener("lia-link-applied", onApplied);
+    return () => window.removeEventListener("lia-link-applied", onApplied);
+  }, [queryClient]);
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
