@@ -44,6 +44,27 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_relays: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          id_hash: string
+          iv: string
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          id_hash: string
+          iv: string
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          id_hash?: string
+          iv?: string
+        }
+        Relationships: []
+      }
       custom_api_integrations: {
         Row: {
           api_url: string
