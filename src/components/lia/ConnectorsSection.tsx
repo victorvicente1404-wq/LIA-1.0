@@ -17,6 +17,9 @@ import {
   startConnect,
 } from "@/lib/lia/connectors.functions";
 
+// Cada código de autorização vale uma única troca: nunca reenviar o mesmo.
+const exchangedCodes = new Set<string>();
+
 function waitForOAuthCompletion(popup: Window) {
   return new Promise<string | null>((resolve, reject) => {
     let poll: number | undefined;
@@ -56,6 +59,7 @@ export function ConnectorsSection() {
   const [failed, setFailed] = useState<Record<string, boolean>>({});
 
   async function connect(connectorId: string) {
+    if (busy) return; // evita dois cliques disparando duas autorizações
     const popup = window.open("", "lia-oauth", "width=600,height=720");
     if (!popup) {
       toast.error("Permita janelas pop-up para conectar.");
@@ -69,7 +73,10 @@ export function ConnectorsSection() {
       const completion = waitForOAuthCompletion(popup);
       popup.location.href = authorizationUrl;
       const code = await completion;
-      if (code) await completeConnect({ data: { code } });
+      if (code && !exchangedCodes.has(code)) {
+        exchangedCodes.add(code);
+        await completeConnect({ data: { code } });
+      }
       await refresh();
       setFailed((f) => ({ ...f, [connectorId]: false }));
       toast.success("Serviço conectado.");
