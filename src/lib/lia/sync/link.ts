@@ -14,9 +14,10 @@ import type { ChatMessage, CustomApi, LiaCardData, MemoryItem } from "../types";
 // ---------- estado público ----------
 export type LinkStatus = "local" | "syncing" | "active";
 export interface LinkDevice { id: string; name: string; kind: string; last_seen: string }
-export interface LinkSnapshot { status: LinkStatus; devices: LinkDevice[]; deviceId: string | null; error: string | null }
+/** live = tempo real conectado; false com status "active" = modo de busca periódica (plano B). */
+export interface LinkSnapshot { status: LinkStatus; devices: LinkDevice[]; deviceId: string | null; error: string | null; live: boolean }
 
-let snap: LinkSnapshot = { status: "local", devices: [], deviceId: null, error: null };
+let snap: LinkSnapshot = { status: "local", devices: [], deviceId: null, error: null, live: false };
 const listeners = new Set<() => void>();
 const setSnap = (p: Partial<LinkSnapshot>) => {
   snap = { ...snap, ...p };
@@ -280,30 +281,204 @@ async function pushChanges() {
   }
 }
 
+/**
+ * Puxa da nuvem só o que mudou: primeiro um índice leve (sem conteúdo cifrado),
+ * depois o conteúdo apenas dos itens mais novos que a cópia local.
+ */
 async function pullAll() {
   if (!state) return;
-  const { data, error } = await supabase.from("sync_blobs").select("item_key, ciphertext, updated_at, deleted, device_id").eq("space_id", state.spaceId);
+  const sid = state.spaceId;
+  const { data: index, error } = await supabase.from("sync_blobs").select("item_key, updated_at, device_id").eq("space_id", sid);
   if (error) throw error;
+  const known = readKnown();
+  const stale = (index ?? [])
+    .filter((r) => r.device_id !== state?.deviceId && !(known[r.item_key] && known[r.item_key]!.t >= Number(r.updated_at)))
+    .map((r) => r.item_key);
+  if (!stale.length) return;
+  const rows: Parameters<typeof processRow>[0][] = [];
+  for (let i = 0; i < stale.length; i += 100) {
+    const { data, error: e2 } = await supabase
+      .from("sync_blobs")
+      .select("item_key, ciphertext, updated_at, deleted, device_id")
+      .eq("space_id", sid)
+      .in("item_key", stale.slice(i, i + 100));
+    if (e2) throw e2;
+    rows.push(...(data ?? []));
+  }
   let changed = false;
   const rank = (k: string) => (k === "core" ? 0 : 1);
-  const rows = [...(data ?? [])].sort((a, b) => rank(a.item_key) - rank(b.item_key));
+  rows.sort((a, b) => rank(a.item_key) - rank(b.item_key));
   for (const row of rows) {
     try { if (await processRow(row)) changed = true; } catch { /* item de outra senha: ignora */ }
   }
   if (changed) window.dispatchEvent(new Event(APPLIED_EVENT));
 }
 
-async function refreshDevices() {
-  if (!state) return;
-  const { data, error } = await supabase.from("sync_devices").select("id, name, kind, last_seen").eq("space_id", state.spaceId).order("created_at");
-  if (error || !data) return; // falha de rede: nunca desvincula
-  const devices = data;
-  if (!devices.some((d) => d.id === state!.deviceId)) {
-    // Este aparelho foi desvinculado em outro dispositivo.
-    await leave(false);
-    return;
+type CommandRow = { id: string; target: string; from_device: string | null; payload: string; status: string };
+async function handleCommandRow(row: CommandRow) {
+  if (!key || row.status !== "pending" || row.from_device === state?.deviceId || row.target !== deviceKind()) return;
+  const { data } = await supabase.from("sync_commands").update({ status: "running" }).eq("id", row.id).eq("status", "pending").select("id");
+  if (!data?.length) return; // outro aparelho já pegou
+  try {
+    await commandHandler?.(await dec<RemoteCommand>(key, row.payload));
+    await supabase.from("sync_commands").update({ status: "done" }).eq("id", row.id);
+  } catch {
+    await supabase.from("sync_commands").update({ status: "failed" }).eq("id", row.id);
   }
-  setSnap({ devices });
+}
+
+/** Comandos que chegaram enquanto o tempo real estava fora do ar. */
+async function pollCommands() {
+  if (!state || !key) return;
+  const since = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data } = await supabase
+    .from("sync_commands")
+    .select("id, target, from_device, payload, status")
+    .eq("space_id", state.spaceId)
+    .eq("status", "pending")
+    .eq("target", deviceKind())
+    .gte("created_at", since)
+    .order("created_at");
+  for (const row of data ?? []) await handleCommandRow(row);
+}
+
+// ---------- tempo real, watchdog e ciclo de vida ----------
+let rtStatus: string = "CLOSED";
+let channelGen = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
+let watchdog: ReturnType<typeof setInterval> | null = null;
+let hiddenAt = 0;
+let lastSilent = 0;
+let silentRunning = false;
+let lifecycleCleanup: (() => void) | null = null;
+
+const POLL_MS = 4500;
+const isVisible = () => typeof document === "undefined" || document.visibilityState === "visible";
+const realtimeHealthy = () => rtStatus === "SUBSCRIBED" && supabase.realtime.isConnected();
+
+/** Verificação silenciosa: puxa, envia e busca comandos pendentes. */
+async function silentSync(minGap = 1500) {
+  if (!state || !key || silentRunning) return;
+  if (Date.now() - lastSilent < minGap) return;
+  silentRunning = true;
+  lastSilent = Date.now();
+  try {
+    await pullAll();
+    await pushChanges();
+    await pollCommands();
+  } catch {
+    /* rede instável: tenta de novo no próximo ciclo */
+  } finally {
+    silentRunning = false;
+  }
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer || !state || !key) return;
+  const delay = Math.min(30_000, 1000 * 2 ** reconnectAttempts);
+  reconnectAttempts++;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void subscribeChannel();
+  }, delay);
+}
+
+/** Desmonta e (re)inscreve o canal do Lia Link. */
+async function subscribeChannel(forceSocket = false) {
+  if (!state || !key) return;
+  const my = ++channelGen;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (channel) {
+    const old = channel;
+    channel = null;
+    await supabase.removeChannel(old).catch(() => undefined);
+  }
+  if (my !== channelGen || !state) return;
+  rtStatus = "CONNECTING";
+  setSnap({ live: false });
+  try {
+    if (forceSocket) supabase.realtime.disconnect();
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.access_token) await supabase.realtime.setAuth(data.session.access_token);
+  } catch { /* segue com o token atual */ }
+  if (my !== channelGen || !state) return;
+  const sid = state.spaceId;
+  channel = supabase
+    .channel(`lia-link-${sid}-${my}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "sync_blobs", filter: `space_id=eq.${sid}` }, async (p) => {
+      const row = p.new as Parameters<typeof processRow>[0];
+      if (row?.item_key && (await processRow(row).catch(() => false))) window.dispatchEvent(new Event(APPLIED_EVENT));
+    })
+    .on("postgres_changes", { event: "*", schema: "public", table: "sync_devices", filter: `space_id=eq.${sid}` }, () => void refreshDevices())
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "sync_commands", filter: `space_id=eq.${sid}` }, (p) => {
+      void handleCommandRow(p.new as CommandRow);
+    })
+    .subscribe((s) => {
+      if (my !== channelGen) return; // canal antigo
+      rtStatus = s;
+      if (s === "SUBSCRIBED") {
+        reconnectAttempts = 0;
+        setSnap({ live: true });
+        void silentSync(0); // recupera o que passou enquanto estava fora
+      } else if (s === "CHANNEL_ERROR" || s === "TIMED_OUT" || s === "CLOSED") {
+        setSnap({ live: false });
+        scheduleReconnect();
+      }
+    });
+}
+
+/** App voltou ao primeiro plano / ganhou foco. */
+function onResume() {
+  if (!state || !key) return;
+  const away = hiddenAt ? Date.now() - hiddenAt : 0;
+  hiddenAt = 0;
+  // Ficou muito tempo suspenso: o socket pode estar "zumbi" mesmo dizendo conectado.
+  if (!realtimeHealthy() || away > 30_000) {
+    reconnectAttempts = 0;
+    void subscribeChannel(away > 30_000 || !supabase.realtime.isConnected());
+  }
+  void refreshDevices();
+  void silentSync(0);
+}
+function onHide() {
+  hiddenAt = Date.now();
+}
+
+function bindLifecycle() {
+  if (lifecycleCleanup || typeof window === "undefined") return;
+  const onVis = () => (isVisible() ? onResume() : onHide());
+  const onFocus = () => onResume();
+  const onInteract = () => void silentSync(5000);
+  const onOnlineEv = () => { reconnectAttempts = 0; onResume(); };
+  document.addEventListener("visibilitychange", onVis);
+  window.addEventListener("focus", onFocus);
+  window.addEventListener("pageshow", onFocus);
+  window.addEventListener("online", onOnlineEv);
+  window.addEventListener("pointerdown", onInteract, { passive: true });
+  window.addEventListener("keydown", onInteract);
+  let removeNative: (() => void) | null = null;
+  let cancelled = false;
+  void (async () => {
+    try {
+      const { Capacitor } = await import("@capacitor/core");
+      if (!Capacitor.isNativePlatform()) return;
+      const { App } = await import("@capacitor/app");
+      const h = await App.addListener("appStateChange", ({ isActive }) => (isActive ? onResume() : onHide()));
+      if (cancelled) void h.remove();
+      else removeNative = () => void h.remove();
+    } catch { /* fora do app nativo */ }
+  })();
+  lifecycleCleanup = () => {
+    cancelled = true;
+    document.removeEventListener("visibilitychange", onVis);
+    window.removeEventListener("focus", onFocus);
+    window.removeEventListener("pageshow", onFocus);
+    window.removeEventListener("online", onOnlineEv);
+    window.removeEventListener("pointerdown", onInteract);
+    window.removeEventListener("keydown", onInteract);
+    removeNative?.();
+  };
 }
 
 async function start() {
@@ -315,47 +490,41 @@ async function start() {
     if (!state) return;
     await pullAll();
     await pushChanges();
+    await pollCommands();
   } catch (e) {
     setSnap({ status: "active", error: (e as Error).message });
   }
-  const sid = state.spaceId;
-  channel = supabase
-    .channel(`lia-link-${sid}`)
-    .on("postgres_changes", { event: "*", schema: "public", table: "sync_blobs", filter: `space_id=eq.${sid}` }, async (p) => {
-      const row = p.new as Parameters<typeof processRow>[0];
-      if (row?.item_key && (await processRow(row).catch(() => false))) window.dispatchEvent(new Event(APPLIED_EVENT));
-    })
-    .on("postgres_changes", { event: "*", schema: "public", table: "sync_devices", filter: `space_id=eq.${sid}` }, () => void refreshDevices())
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "sync_commands", filter: `space_id=eq.${sid}` }, async (p) => {
-      const row = p.new as { id: string; target: string; from_device: string | null; payload: string; status: string };
-      if (!key || row.status !== "pending" || row.from_device === state?.deviceId || row.target !== deviceKind()) return;
-      const { data } = await supabase.from("sync_commands").update({ status: "running" }).eq("id", row.id).eq("status", "pending").select("id");
-      if (!data?.length) return; // outro aparelho já pegou
-      try {
-        await commandHandler?.(await dec<RemoteCommand>(key, row.payload));
-        await supabase.from("sync_commands").update({ status: "done" }).eq("id", row.id);
-      } catch {
-        await supabase.from("sync_commands").update({ status: "failed" }).eq("id", row.id);
-      }
-    })
-    .subscribe((s) => {
-      if (s === "SUBSCRIBED") void pullAll().catch(() => undefined);
-    });
+  if (!state) return;
+  void subscribeChannel();
   timer = setInterval(() => void pushChanges(), 3000);
   beat = setInterval(() => {
     if (state) void supabase.from("sync_devices").update({ last_seen: new Date().toISOString() }).eq("id", state.deviceId);
   }, 60_000);
-  window.addEventListener("online", onOnline);
+  // Plano B: sem tempo real ativo, busca leve a cada 4,5 s só com a tela visível.
+  watchdog = setInterval(() => {
+    if (!state || !key || !isVisible()) return;
+    if (realtimeHealthy()) return;
+    void silentSync(POLL_MS - 500);
+    if (rtStatus !== "CONNECTING") scheduleReconnect();
+  }, POLL_MS);
+  bindLifecycle();
 }
-const onOnline = () => void pullAll().then(pushChanges).catch(() => undefined);
 
 function stopEngine() {
+  channelGen++;
   if (channel) void supabase.removeChannel(channel);
   channel = null;
+  rtStatus = "CLOSED";
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  reconnectAttempts = 0;
   if (timer) clearInterval(timer);
   if (beat) clearInterval(beat);
-  timer = beat = null;
-  if (typeof window !== "undefined") window.removeEventListener("online", onOnline);
+  if (watchdog) clearInterval(watchdog);
+  timer = beat = watchdog = null;
+  lifecycleCleanup?.();
+  lifecycleCleanup = null;
+  setSnap({ live: false });
 }
 
 /** Chamado uma vez no carregamento do app. */
