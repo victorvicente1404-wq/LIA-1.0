@@ -42,7 +42,49 @@ function AuthPage() {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) go();
     });
-    return () => sub.subscription.unsubscribe();
+    // Relé em nuvem: busca o retorno do Google enquanto o login está pendente.
+    let stopped = false;
+    const poll = async () => {
+      const { RELAY_STORAGE_KEY, relayIdHash, decryptRelay } = await import("@/lib/lia/auth-relay");
+      const raw = localStorage.getItem(RELAY_STORAGE_KEY);
+      if (!raw || done) return;
+      let item: { relay: string; at: number };
+      try {
+        item = JSON.parse(raw);
+      } catch {
+        localStorage.removeItem(RELAY_STORAGE_KEY);
+        return;
+      }
+      if (Date.now() - item.at > 5 * 60 * 1000) {
+        localStorage.removeItem(RELAY_STORAGE_KEY);
+        return;
+      }
+      const { takeAuthRelay } = await import("@/lib/lia/authRelay.functions");
+      const r = await takeAuthRelay({ data: { idHash: await relayIdHash(item.relay) } });
+      if (!r.found) return;
+      localStorage.removeItem(RELAY_STORAGE_KEY);
+      const url = await decryptRelay(item.relay, r.ciphertext, r.iv);
+      const { handleAuthDeepLink } = await import("@/lib/lia/capacitor-auth");
+      const res = await handleAuthDeepLink(url);
+      if (res.ok) {
+        try {
+          const { Browser } = await import("@capacitor/browser");
+          void Browser.close();
+        } catch {
+          /* sem navegador aberto */
+        }
+        toast.success("Login concluído!");
+        go();
+      } else toast.error(res.error ?? "Não consegui concluir o login.");
+    };
+    const timer = window.setInterval(() => {
+      if (!stopped) void poll().catch((e) => console.warn("[Native Auth] relé", e));
+    }, 2000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      sub.subscription.unsubscribe();
+    };
   }, [navigate]);
   const [mode, setMode] = useState<"entrar" | "criar">("entrar");
   const [email, setEmail] = useState("");
@@ -83,10 +125,13 @@ function AuthPage() {
       // No app nativo: abre o login no navegador, volta para a página ponte,
       // que reabre o app via liaapp://auth com a sessão.
       try {
+        const { newRelaySecret, RELAY_STORAGE_KEY } = await import("@/lib/lia/auth-relay");
+        const relay = newRelaySecret();
+        localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify({ relay, at: Date.now() }));
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
-            redirectTo: NATIVE_AUTH_BRIDGE,
+            redirectTo: `${NATIVE_AUTH_BRIDGE}?relay=${relay}`,
             skipBrowserRedirect: true,
             queryParams: { prompt: "select_account" },
           },
