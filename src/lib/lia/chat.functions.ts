@@ -40,6 +40,8 @@ const Input = z.object({
   remoteDevices: z.array(z.enum(["mobile", "desktop"])).max(2).optional(),
   /** Lia Agent (controle do computador) ligado; autonomo = sem confirmação prévia. */
   osAgent: z.object({ autonomo: z.boolean() }).optional(),
+  /** App Android com o plugin LiaNative disponível. */
+  nativeAndroid: z.boolean().optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -119,6 +121,22 @@ export const liaRespond = createServerFn({ method: "POST" })
           description: "Age neste aparelho onde a conversa está aberta: vibrar (padrão curto) ou lanterna (ligar true/false; só celular com câmera traseira). Responda em linguagem natural, sem mostrar código.",
           inputSchema: z.object({ acao: z.enum(["vibrar", "lanterna"]), ligar: z.boolean().optional() }),
           execute: async () => ({ ok: true, executando: "no aparelho" }),
+        }),
+      };
+    }
+    if (data.nativeAndroid) {
+      const { tool } = await import("ai");
+      tools = {
+        ...tools,
+        celular_nativo: tool({
+          description:
+            "Controla este celular Android pelo app nativo da Lia: clicar_texto (toca no botão/item com 'texto' visível), tocar (x,y em pixels), deslizar (x,y até x2,y2; rolar para baixo = y maior para y2 menor), mostrar_bolha/esconder_bolha (bolha flutuante sobre outros apps), iniciar_segundo_plano/parar_segundo_plano. O conteúdo da tela atual já está no CONTEXTO DO APARELHO. Prefira clicar_texto a coordenadas.",
+          inputSchema: z.object({
+            acao: z.enum(["clicar_texto", "tocar", "deslizar", "mostrar_bolha", "esconder_bolha", "iniciar_segundo_plano", "parar_segundo_plano"]),
+            texto: z.string().max(200).optional(),
+            x: z.number().optional(), y: z.number().optional(), x2: z.number().optional(), y2: z.number().optional(),
+          }),
+          execute: async () => ({ ok: true, executando: "no celular" }),
         }),
       };
     }
