@@ -44,4 +44,16 @@ class LiaNativePlugin : Plugin() {
         val s = acc(call) ?: return
         call.resolve(JSObject().put("ok", s.clickText(call.getString("text") ?: "")))
     }
+    @PluginMethod fun readNotifications(call: PluginCall) {
+        val enabled = (Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners") ?: "").contains(context.packageName)
+        if (!enabled) {
+            context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return call.reject("Permita o acesso às notificações para a Lia")
+        }
+        call.resolve(JSObject().put("items", JSArray(LiaNotificationListener.drain().toString())))
+    }
+    @PluginMethod fun deviceState(call: PluginCall) {
+        val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        call.resolve(JSObject().put("screenOn", pm.isInteractive).put("app", LiaAccessibilityService.foreground))
+    }
 }
