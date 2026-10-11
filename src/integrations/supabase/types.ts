@@ -122,6 +122,93 @@ export type Database = {
         }
         Relationships: []
       }
+      lia_device_telemetry: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          battery: number | null
+          charging: boolean | null
+          device_key: string
+          foreground_app: string | null
+          kind: string
+          latitude: number | null
+          longitude: number | null
+          model: string | null
+          name: string
+          network: string | null
+          screen_on: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          charging?: boolean | null
+          device_key: string
+          foreground_app?: string | null
+          kind?: string
+          latitude?: number | null
+          longitude?: number | null
+          model?: string | null
+          name?: string
+          network?: string | null
+          screen_on?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          charging?: boolean | null
+          device_key?: string
+          foreground_app?: string | null
+          kind?: string
+          latitude?: number | null
+          longitude?: number | null
+          model?: string | null
+          name?: string
+          network?: string | null
+          screen_on?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lia_notifications: {
+        Row: {
+          app: string
+          body: string
+          created_at: string
+          device_key: string
+          id: string
+          posted_at: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          app?: string
+          body?: string
+          created_at?: string
+          device_key: string
+          id?: string
+          posted_at?: string
+          title?: string
+          user_id: string
+        }
+        Update: {
+          app?: string
+          body?: string
+          created_at?: string
+          device_key?: string
+          id?: string
+          posted_at?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       os_actions: {
         Row: {
           action: string
