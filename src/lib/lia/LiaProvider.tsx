@@ -1,6 +1,7 @@
 /**
  * módulos e ciclo de vida do Lia Card.
  */
+import { nativeAvailable, nativeScreenSummary, runNative, type NativeCmd } from "./native-device";
 import { readOsAgentPrefs } from "./os-agent";
 import {
   createContext,
@@ -335,7 +336,9 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const iotAtivo = !!iotCfg.url && !!modules.find((m) => m.id === "automacao")?.ativo;
       void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
-      const ctx = await contextSnapshot().catch(() => "");
+      const isNative = await nativeAvailable();
+      const screen = isNative ? await nativeScreenSummary() : "";
+      const ctx = [await contextSnapshot().catch(() => ""), screen].filter(Boolean).join("\n");
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. Para acender/apagar um cômodo use digital_write com value 1/0.`;
       const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
       const systemBase = `${system}\n\n${rooms}\n${silent}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
@@ -355,6 +358,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(iotAtivo ? { iot: iotCfg } : {}),
             ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? { usb: true } : {}),
             ...(link.remoteKinds().length ? { remoteDevices: link.remoteKinds() } : {}),
+            ...(isNative ? { nativeAndroid: true } : {}),
             ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
@@ -388,6 +392,17 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             try {
               if (c.acao === "vibrar") vibrate();
               else await setTorch(c.ligar !== false);
+            } catch (e) {
+              usbNote += `\n\n⚠️ ${(e as Error).message}`;
+            }
+          }
+        }
+        const nativeJson = "nativeJson" in res ? res.nativeJson : undefined;
+        if (nativeJson) {
+          for (const c of JSON.parse(String(nativeJson)) as NativeCmd[]) {
+            try {
+              const warn = await runNative(c);
+              if (warn) usbNote += `\n\n⚠️ ${warn}`;
             } catch (e) {
               usbNote += `\n\n⚠️ ${(e as Error).message}`;
             }
