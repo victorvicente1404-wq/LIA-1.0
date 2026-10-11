@@ -175,21 +175,21 @@ export const liaRespond = createServerFn({ method: "POST" })
             ...tools,
             executar_acao_os: tool({
               description:
-                "Controla o computador do usuário via Lia Desktop Agent (mouse, teclado, programas, comandos). Use só quando o usuário pedir uma ação na tela/sistema. parametros: x,y (clicar/mover_mouse), texto (digitar), atalho ex 'ctrl+t' (tecla_atalho), programa (abrir_programa), quantidade negativa=desce (rolar), comando (executar_comando).",
+                "Controla o computador do usuário via Lia Desktop Agent (mouse, teclado, programas, comandos). Use só quando o usuário pedir uma ação na tela/sistema. parametros: x,y (clicar/mover_mouse), texto (digitar), atalho ex 'ctrl+t' (tecla_atalho), programa (abrir_programa), quantidade negativa=desce (rolar), comando (executar_comando), url (abrir_link), texto (notificar = aviso na tela do PC); ler_clipboard lê a área de transferência (o resultado aparece no painel Lia Agent).",
               inputSchema: z.object({
                 dispositivo: z.enum(["desktop", "mobile"]),
-                acao: z.enum(["clicar", "mover_mouse", "digitar", "abrir_programa", "tecla_atalho", "rolar", "executar_comando"]),
+                acao: z.enum(["clicar", "mover_mouse", "digitar", "abrir_programa", "tecla_atalho", "rolar", "executar_comando", "abrir_link", "ler_clipboard", "notificar"]),
                 parametros: z
                   .object({
                     x: z.number().optional(), y: z.number().optional(), texto: z.string().max(4000).optional(),
                     atalho: z.string().max(60).optional(), programa: z.string().max(200).optional(),
-                    quantidade: z.number().optional(), comando: z.string().max(2000).optional(),
+                    quantidade: z.number().optional(), comando: z.string().max(2000).optional(), url: z.string().url().max(1000).optional(),
                   })
                   .default({}),
               }),
               execute: async ({ dispositivo, acao, parametros: p }) => {
                 const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-                const payload = { x: p.x, y: p.y, text: p.texto, key: p.atalho, app_name: p.programa, amount: p.quantidade, script: p.comando };
+                const payload = { x: p.x, y: p.y, text: p.texto, key: p.atalho, app_name: p.programa, amount: p.quantidade, script: p.comando, url: p.url };
                 const { error } = await supabaseAdmin.from("os_actions").insert({
                   user_id: uid, target: dispositivo, action: ACAO_MAP[acao], payload, status: autonomo ? "approved" : "pending",
                 });

@@ -38,7 +38,7 @@ export function OsAgentModule() {
   const download = () => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([script()], { type: "text/x-python" }));
-    a.download = "agent.py";
+    a.download = "agent.pyw";
     a.click();
   };
 
@@ -75,13 +75,13 @@ export function OsAgentModule() {
             </Button>
             {token && <p className="break-all rounded bg-background/60 p-2 font-mono text-[10px]">{token}</p>}
             <div className="flex gap-2">
-              <Button size="sm" onClick={download} disabled={!token}><Download className="mr-2 h-4 w-4" /> Baixar agent.py</Button>
+              <Button size="sm" onClick={download} disabled={!token}><Download className="mr-2 h-4 w-4" /> Baixar agent.pyw</Button>
               <Button size="sm" variant="outline" onClick={copy} disabled={!token}>
                 {copied ? <Check className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />} Copiar script
               </Button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Gere o token, baixe o script já com ele e rode: <code>pip install pyautogui requests</code> e <code>python agent.py</code>. Gerar outro token desliga o anterior.
+              Gere o token, baixe o script já com ele e rode: <code>pip install pyautogui pyperclip requests</code> e dê dois cliques no <code>agent.pyw</code> — ele roda escondido em segundo plano (log em agent_lia.log). Para iniciar com o Windows, coloque um atalho em <code>shell:startup</code>. Gerar outro token desliga o anterior.
             </p>
           </div>
 
@@ -90,7 +90,7 @@ export function OsAgentModule() {
             {!st?.actions.length && <p className="text-[11px] text-muted-foreground">Nenhuma ação ainda.</p>}
             {st?.actions.map((a) => {
               const p = JSON.parse(a.payload) as Record<string, unknown>;
-              const det = (p["text"] ?? p["key"] ?? p["app_name"] ?? p["script"] ?? (p["x"] != null ? `${p["x"]},${p["y"]}` : "")) as string;
+              const det = (p["text"] ?? p["url"] ?? p["key"] ?? p["app_name"] ?? p["script"] ?? (p["x"] != null ? `${p["x"]},${p["y"]}` : "")) as string;
               return (
                 <div key={a.id} className={cn("flex items-center gap-2 rounded px-2 py-1 text-xs transition-colors", a.status === "running" && "bg-primary/15")}>
                   {a.status === "running" && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
