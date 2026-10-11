@@ -41,3 +41,13 @@ await LiaNative.clickText({ text: "Enviar" });
 ```
 O usuário precisa ativar "Lia" em Configurações → Acessibilidade. A Google Play exige justificativa para esse uso.
 Lanterna, vibração, GPS, bateria e rede já funcionam pelo app web, sem código nativo.
+
+## Leitor de notificações
+Copie `LiaNotificationListener.kt` e registre no AndroidManifest:
+```xml
+<service android:name="app.lia.lia.LiaNotificationListener" android:exported="false"
+  android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+  <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
+</service>
+```
+Também adicione `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION` e rode `npx cap sync android`.
