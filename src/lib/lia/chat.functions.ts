@@ -241,6 +241,10 @@ export const liaRespond = createServerFn({ method: "POST" })
         .flatMap((s) => s.toolCalls ?? [])
         .filter((c) => c.toolName === "aparelho_local")
         .map((c) => (c as { input?: unknown }).input);
+      const nativeCmds = result.steps
+        .flatMap((s) => s.toolCalls ?? [])
+        .filter((c) => c.toolName === "celular_nativo")
+        .map((c) => (c as { input?: unknown }).input);
       const remoteCmds = result.steps
         .flatMap((s) => s.toolCalls ?? [])
         .filter((c) => c.toolName === "comando_outro_dispositivo")
@@ -254,6 +258,7 @@ export const liaRespond = createServerFn({ method: "POST" })
         ...(registered.length ? { registeredJson: JSON.stringify(registered) } : {}),
         ...(usbCmds.length ? { usbJson: JSON.stringify(usbCmds) } : {}),
         ...(localCmds.length ? { localJson: JSON.stringify(localCmds) } : {}),
+        ...(nativeCmds.length ? { nativeJson: JSON.stringify(nativeCmds) } : {}),
         ...(remoteCmds.length ? { remoteJson: JSON.stringify(remoteCmds) } : {}),
       };
     } catch (error) {
