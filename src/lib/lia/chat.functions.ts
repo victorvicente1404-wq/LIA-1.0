@@ -219,6 +219,10 @@ export const liaRespond = createServerFn({ method: "POST" })
         .flatMap((s) => s.toolCalls ?? [])
         .filter((c) => c.toolName === "usb_comando")
         .map((c) => (c as { input?: unknown }).input);
+      const localCmds = result.steps
+        .flatMap((s) => s.toolCalls ?? [])
+        .filter((c) => c.toolName === "aparelho_local")
+        .map((c) => (c as { input?: unknown }).input);
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
