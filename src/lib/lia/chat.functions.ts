@@ -223,6 +223,10 @@ export const liaRespond = createServerFn({ method: "POST" })
         .flatMap((s) => s.toolCalls ?? [])
         .filter((c) => c.toolName === "aparelho_local")
         .map((c) => (c as { input?: unknown }).input);
+      const remoteCmds = result.steps
+        .flatMap((s) => s.toolCalls ?? [])
+        .filter((c) => c.toolName === "comando_outro_dispositivo")
+        .map((c) => (c as { input?: unknown }).input);
       const text =
         result.text.trim() ||
         "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
@@ -232,6 +236,7 @@ export const liaRespond = createServerFn({ method: "POST" })
         ...(registered.length ? { registeredJson: JSON.stringify(registered) } : {}),
         ...(usbCmds.length ? { usbJson: JSON.stringify(usbCmds) } : {}),
         ...(localCmds.length ? { localJson: JSON.stringify(localCmds) } : {}),
+        ...(remoteCmds.length ? { remoteJson: JSON.stringify(remoteCmds) } : {}),
       };
     } catch (error) {
       const status =
