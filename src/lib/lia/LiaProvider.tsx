@@ -469,19 +469,21 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         setState(res.ok ? "speaking" : "idle");
       } catch (error) {
-        if (token.cancelled) return;
-        setSessionMessages((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            role: "lia",
-            content: `Tive um problema de conexão com meu núcleo de linguagem: ${(error as Error).message}`,
-            createdAt: Date.now(),
-          },
-        ]);
-        setState("idle");
+        if (!token.cancelled) {
+          const msg = (error as Error).message;
+          const content =
+            msg === "LIA_TIMEOUT" || (error as Error).name === "AbortError"
+              ? "Demorei demais para pensar nessa e parei para não travar a conversa. Pode tentar de novo?"
+              : `Tive um problema de conexão com meu núcleo de linguagem: ${msg}`;
+          setSessionMessages((prev) => [...prev, { id: uid(), role: "lia", content, createdAt: Date.now() }]);
+        }
       } finally {
-        if (!token.cancelled) setSending(false);
+        clearTimeout(timer);
+        if (abortRef.current === token) {
+          // Sempre libera a interface, mesmo após erro, timeout ou exceção inesperada.
+          setSending(false);
+          setState((s) => (s === "thinking" ? "idle" : s));
+        }
       }
     },
     [
