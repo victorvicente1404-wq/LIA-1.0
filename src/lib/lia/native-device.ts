@@ -36,7 +36,7 @@ export async function nativeScreenSummary(max = 1500): Promise<string> {
   const p = await getPlugin();
   if (!p) return "";
   try {
-    const { app, tree } = await withTimeout(p.readScreen(), "ler a tela");
+    const { app, tree } = (await withTimeout(p.readScreen(), "ler a tela")) as any;
     const texts: string[] = [];
     const walk = (n: any) => {
       if (!n) return;
@@ -64,7 +64,7 @@ export async function runNative(c: NativeCmd): Promise<string | null> {
   try {
     switch (c.acao) {
       case "clicar_texto": {
-        const r = await withTimeout(p.clickText({ text: c.texto ?? "" }), "tocar no texto");
+        const r = (await withTimeout(p.clickText({ text: c.texto ?? "" }), "tocar no texto")) as any;
         return r?.ok ? null : `não achei "${c.texto}" na tela`;
       }
       case "tocar": await withTimeout(p.tap({ x: c.x ?? 0, y: c.y ?? 0 }), "tocar na tela"); return null;
