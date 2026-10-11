@@ -36,6 +36,13 @@
       "when": 1791594144657,
       "tag": "0004_auth_relays",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791748690690,
+      "tag": "0005_telemetry_notifications",
+      "breakpoints": true
     }
   ]
 }
