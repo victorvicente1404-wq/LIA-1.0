@@ -213,6 +213,32 @@ export const liaRespond = createServerFn({ method: "POST" })
       console.error("Falha ao preparar as extensões:", (error as Error).message);
     }
 
+    // Nenhuma ferramenta pode travar a resposta: erro ou demora viram um resultado de fallback.
+    for (const [name, t] of Object.entries(tools)) {
+      const def = t as { execute?: (...args: unknown[]) => unknown };
+      if (typeof def.execute !== "function") continue;
+      const original = def.execute.bind(def);
+      tools[name] = {
+        ...def,
+        execute: async (...args: unknown[]) => {
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          try {
+            return await Promise.race([
+              Promise.resolve(original(...args)),
+              new Promise((resolve) => {
+                timer = setTimeout(() => resolve({ ok: false, erro: "a ferramenta demorou demais para responder" }), 12_000);
+              }),
+            ]);
+          } catch (e) {
+            console.error(`Ferramenta ${name} falhou:`, (e as Error).message);
+            return { ok: false, erro: "a ferramenta falhou; responda ao usuário sem ela" };
+          } finally {
+            clearTimeout(timer);
+          }
+        },
+      };
+    }
+
     const agora = new Date();
     const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
     const systemFinal = data.system + contextoTemporal;

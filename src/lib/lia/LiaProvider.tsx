@@ -54,6 +54,8 @@ import { applyTheme, readTheme } from "./theme";
 import { toast } from "sonner";
 
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
+/** Prazo máximo de uma resposta antes de liberar o chat com um aviso. */
+const CHAT_TIMEOUT_MS = 25_000;
 
 interface LiaContextValue {
   booted: boolean;
@@ -340,9 +342,13 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const iotAtivo = !!iotCfg.url && !!modules.find((m) => m.id === "automacao")?.ativo;
       void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
-      const isNative = await nativeAvailable();
-      const screen = isNative ? await nativeScreenSummary() : "";
-      const ctx = [await contextSnapshot().catch(() => ""), screen, await telemetryContext().catch(() => "")].filter(Boolean).join("\n");
+      // Coleta de contexto nunca pode prender o chat: cada etapa tem prazo curto.
+      const within = <T,>(p: Promise<T>, ms: number, fb: T) =>
+        Promise.race([p.catch(() => fb), new Promise<T>((r) => setTimeout(() => r(fb), ms))]);
+      const isNative = await within(nativeAvailable(), 2_000, false);
+      const screen = isNative ? await within(nativeScreenSummary(), 2_500, "") : "";
+      const [snap, tele] = await Promise.all([within(contextSnapshot(), 3_000, ""), within(telemetryContext(), 3_000, "")]);
+      const ctx = [snap, screen, tele].filter(Boolean).join("\n");
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. Para acender/apagar um cômodo use digital_write com value 1/0.`;
       const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
       const systemBase = `${system}\n\n${rooms}\n${silent}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
@@ -352,8 +358,17 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         content: m.content,
       }));
 
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const res = await liaRespond({
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error("LIA_TIMEOUT"));
+          }, CHAT_TIMEOUT_MS);
+        });
+        const res = await Promise.race([timeout, liaRespond({
+          signal: controller.signal,
           data: {
             system: systemFinal,
             messages: history,
@@ -376,7 +391,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
                 }
               : {}),
           },
-        });
+        })]);
+        clearTimeout(timer);
         if (token.cancelled) return;
         const usbJson = "usbJson" in res ? res.usbJson : undefined;
         let usbNote = "";
@@ -455,19 +471,21 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         setState(res.ok ? "speaking" : "idle");
       } catch (error) {
-        if (token.cancelled) return;
-        setSessionMessages((prev) => [
-          ...prev,
-          {
-            id: uid(),
-            role: "lia",
-            content: `Tive um problema de conexão com meu núcleo de linguagem: ${(error as Error).message}`,
-            createdAt: Date.now(),
-          },
-        ]);
-        setState("idle");
+        if (!token.cancelled) {
+          const msg = (error as Error).message;
+          const content =
+            msg === "LIA_TIMEOUT" || (error as Error).name === "AbortError"
+              ? "Demorei demais para pensar nessa e parei para não travar a conversa. Pode tentar de novo?"
+              : `Tive um problema de conexão com meu núcleo de linguagem: ${msg}`;
+          setSessionMessages((prev) => [...prev, { id: uid(), role: "lia", content, createdAt: Date.now() }]);
+        }
       } finally {
-        if (!token.cancelled) setSending(false);
+        clearTimeout(timer);
+        if (abortRef.current === token) {
+          // Sempre libera a interface, mesmo após erro, timeout ou exceção inesperada.
+          setSending(false);
+          setState((s) => (s === "thinking" ? "idle" : s));
+        }
       }
     },
     [
