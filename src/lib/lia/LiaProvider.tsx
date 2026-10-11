@@ -23,6 +23,7 @@ import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
 import { sendSerial, serialConnected } from "./webserial";
 import { ROOMS, contextSnapshot, setTorch, vibrate } from "./device";
+import { startTelemetry, telemetryContext } from "./telemetry";
 import type { IotConfig } from "./types";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
@@ -121,6 +122,9 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const abortRef = useRef<{ cancelled: boolean } | null>(null);
+
+  // Hub de telemetria (bateria, rede, local, notificações)
+  useEffect(() => startTelemetry(), []);
 
   // Detecta o Lia Card na inicialização
   useEffect(() => {
@@ -338,7 +342,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const extra = readDevSettings().systemPromptExtra.trim();
       const isNative = await nativeAvailable();
       const screen = isNative ? await nativeScreenSummary() : "";
-      const ctx = [await contextSnapshot().catch(() => ""), screen].filter(Boolean).join("\n");
+      const ctx = [await contextSnapshot().catch(() => ""), screen, await telemetryContext().catch(() => "")].filter(Boolean).join("\n");
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. Para acender/apagar um cômodo use digital_write com value 1/0.`;
       const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
       const systemBase = `${system}\n\n${rooms}\n${silent}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;

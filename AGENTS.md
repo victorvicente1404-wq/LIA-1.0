@@ -19,3 +19,4 @@
 - Native (Capacitor) login redirects to the public /native-callback web bridge, which forwards the session to the liaapp://auth deep link handled in capacitor-auth.ts, because the auth server rejects custom schemes and native WebViews cannot receive same-origin OAuth redirects.
 - Connector key encryption and Gmail base64 use Web Crypto/TextEncoder only (connectionKeyCrypto.ts, connectors.server.ts), because node:crypto and Buffer do not exist on the Worker runtime.
 - Native Google login also returns through an encrypted cloud relay (auth_relays, authRelay.functions.ts) polled by /auth, because Android Chrome may block the liaapp:// redirect.
+- Device telemetry and phone notifications live in lia_device_telemetry/lia_notifications scoped by user_id (telemetry.ts), because the AI must read every device's state on each message without the Lia Link password.
