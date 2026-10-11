@@ -222,7 +222,8 @@ let busy = false;
 let commandHandler: ((cmd: RemoteCommand) => Promise<void>) | null = null;
 
 export interface RemoteCommand {
-  acao: "notificar" | "abrir_link" | "usb";
+  acao: "notificar" | "abrir_link" | "usb" | "vibrar" | "lanterna";
+  ligar?: boolean | undefined;
   texto?: string | undefined;
   url?: string | undefined;
   usb?: { action: "digital_write" | "pwm" | "digital_read" | "analog_read"; pin: number; value?: number | undefined } | undefined;
@@ -328,11 +329,16 @@ async function refreshDevices() {
   setSnap({ devices });
 }
 
-type CommandRow = { id: string; target: string; from_device: string | null; payload: string; status: string };
+type CommandRow = { id: string; target: string; from_device: string | null; payload: string; status: string; created_at?: string };
 async function handleCommandRow(row: CommandRow) {
   if (!key || row.status !== "pending" || row.from_device === state?.deviceId || row.target !== deviceKind()) return;
   const { data } = await supabase.from("sync_commands").update({ status: "running" }).eq("id", row.id).eq("status", "pending").select("id");
   if (!data?.length) return; // outro aparelho já pegou
+  // Blindagem: nunca disparar hardware por comando antigo (ex.: ao reabrir o app).
+  if (row.created_at && Date.now() - new Date(row.created_at).getTime() > 90_000) {
+    await supabase.from("sync_commands").update({ status: "failed" }).eq("id", row.id);
+    return;
+  }
   try {
     await commandHandler?.(await dec<RemoteCommand>(key, row.payload));
     await supabase.from("sync_commands").update({ status: "done" }).eq("id", row.id);
@@ -347,7 +353,7 @@ async function pollCommands() {
   const since = new Date(Date.now() - 10 * 60_000).toISOString();
   const { data } = await supabase
     .from("sync_commands")
-    .select("id, target, from_device, payload, status")
+    .select("id, target, from_device, payload, status, created_at")
     .eq("space_id", state.spaceId)
     .eq("status", "pending")
     .eq("target", deviceKind())

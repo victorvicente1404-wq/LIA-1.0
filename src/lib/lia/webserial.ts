@@ -15,6 +15,9 @@ export function onSerialChange(fn: () => void) {
   return () => listeners.delete(fn);
 }
 const emit = () => listeners.forEach((f) => f());
+const awake = (on: boolean) => void import("./device").then((d) => d.keepAwake(on));
+if (typeof document !== "undefined")
+  document.addEventListener("visibilitychange", () => { if (writer && document.visibilityState === "visible") awake(true); });
 
 export async function connectSerial() {
   port = await (navigator as any).serial.requestPort();
@@ -24,12 +27,14 @@ export async function connectSerial() {
   buffer = "";
   port.addEventListener?.("disconnect", () => void disconnectSerial());
   await new Promise((r) => setTimeout(r, 2000)); // o Uno reinicia ao abrir a porta
+  awake(true);
   emit();
 }
 
 export async function disconnectSerial() {
   try { reader?.releaseLock(); writer?.releaseLock(); await port?.close(); } catch { /* já fechada */ }
   port = writer = reader = null;
+  awake(false);
   emit();
 }
 
@@ -53,6 +58,7 @@ export function sendSerial(cmd: Cmd): Promise<string> {
     if (!writer) throw new Error("Arduino não conectado por USB");
     buffer = "";
     await writer.write(new TextEncoder().encode(`${op} ${cmd.pin} ${cmd.value ?? 0}\n`));
+    if (cmd.action === "digital_write") void import("./device").then((d) => d.setRoomState(cmd.pin, !!cmd.value));
     return readLine(3000);
   };
   const p = queue.then(run, run);

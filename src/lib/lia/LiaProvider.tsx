@@ -21,6 +21,7 @@ import { liaRespond } from "./chat.functions";
 import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
 import { sendSerial, serialConnected } from "./webserial";
+import { ROOMS, contextSnapshot, setTorch, vibrate } from "./device";
 import type { IotConfig } from "./types";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
@@ -172,6 +173,11 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       } else if (cmd.acao === "abrir_link" && cmd.url) {
         toast("Lia pediu para abrir um link", { action: { label: "Abrir", onClick: () => window.open(cmd.url, "_blank", "noopener") } });
         note = `link enviado: ${cmd.url}`;
+      } else if (cmd.acao === "vibrar") {
+        note = vibrate() ? "vibrei" : "este aparelho não vibra";
+      } else if (cmd.acao === "lanterna") {
+        await setTorch(cmd.ligar !== false);
+        note = cmd.ligar === false ? "lanterna apagada" : "lanterna acesa";
       } else if (cmd.acao === "usb" && cmd.usb) {
         const out = await sendSerial({ ...cmd.usb, value: cmd.usb.value ?? 0 });
         note = cmd.usb.action.endsWith("read") ? `pino ${cmd.usb.pin}: **${out}**` : `pino ${cmd.usb.pin} acionado`;
@@ -329,7 +335,11 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const iotAtivo = !!iotCfg.url && !!modules.find((m) => m.id === "automacao")?.ativo;
       void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
-      const systemFinal = extra ? `${system}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : system;
+      const ctx = await contextSnapshot().catch(() => "");
+      const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. Para acender/apagar um cômodo use digital_write com value 1/0.`;
+      const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
+      const systemBase = `${system}\n\n${rooms}\n${silent}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
+      const systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
       const history = withUser.slice(-16).map((m) => ({
         role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
         content: m.content,
@@ -369,6 +379,17 @@ export function LiaProvider({ children }: { children: ReactNode }) {
               if (c.action.endsWith("read")) usbNote += `\n\n🔌 Pino ${c.pin}: **${out}**`;
             } catch (e) {
               usbNote += `\n\n⚠️ USB: ${(e as Error).message}`;
+            }
+          }
+        }
+        const localJson = "localJson" in res ? res.localJson : undefined;
+        if (localJson) {
+          for (const c of JSON.parse(String(localJson)) as { acao: "vibrar" | "lanterna"; ligar?: boolean }[]) {
+            try {
+              if (c.acao === "vibrar") vibrate();
+              else await setTorch(c.ligar !== false);
+            } catch (e) {
+              usbNote += `\n\n⚠️ ${(e as Error).message}`;
             }
           }
         }
