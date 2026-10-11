@@ -36,6 +36,7 @@ export function ChatPanel({
   const { messages, send, sending, stop, state, profile, clearHistory } = useLia();
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<Attachment[]>([]);
+  const [atBottom, setAtBottom] = useState(true);
   const [preparing, setPreparing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -52,9 +53,10 @@ export function ChatPanel({
     }
   };
 
+  // Só desce automaticamente se o usuário já estiver no fim da conversa.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
+    if (atBottom) endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, sending, atBottom]);
 
   const submit = () => {
     const text = draft;
@@ -104,7 +106,13 @@ export function ChatPanel({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
+      <div
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+        }}
+        className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5"
+      >
         {messages.map((m) => (
           <div
             key={m.id}
