@@ -54,6 +54,8 @@ import { applyTheme, readTheme } from "./theme";
 import { toast } from "sonner";
 
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
+/** Prazo máximo de uma resposta antes de liberar o chat com um aviso. */
+const CHAT_TIMEOUT_MS = 25_000;
 
 interface LiaContextValue {
   booted: boolean;
