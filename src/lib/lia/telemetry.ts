@@ -21,7 +21,7 @@ const timeout = <T,>(p: Promise<T>, ms = 4000) => Promise.race([p, new Promise<T
 
 export async function collect() {
   const c = await cap();
-  const t: Record<string, any> = { name: deviceName(), kind: deviceKind(), screen_on: document.visibilityState === "visible", foreground_app: document.visibilityState === "visible" ? "Lia" : null };
+  const t: any = { name: deviceName(), kind: deviceKind(), screen_on: document.visibilityState === "visible", foreground_app: document.visibilityState === "visible" ? "Lia" : null };
   try {
     if (c) {
       const { Device } = await import("@capacitor/device");
@@ -65,7 +65,7 @@ let last = "";
 async function pushTelemetry(force = false) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return;
-  const t = await collect();
+  const t: any = await collect();
   const sig = JSON.stringify({ ...t, latitude: t.latitude?.toFixed?.(3), longitude: t.longitude?.toFixed?.(3), accuracy: undefined, altitude: undefined });
   if (!force && sig === last) return;
   last = sig;
