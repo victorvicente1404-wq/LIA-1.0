@@ -111,16 +111,28 @@ export const liaRespond = createServerFn({ method: "POST" })
       const { buildUsbTool } = await import("./iot.server");
       tools = { ...tools, ...buildUsbTool() };
     }
+    {
+      const { tool } = await import("ai");
+      tools = {
+        ...tools,
+        aparelho_local: tool({
+          description: "Age neste aparelho onde a conversa está aberta: vibrar (padrão curto) ou lanterna (ligar true/false; só celular com câmera traseira). Responda em linguagem natural, sem mostrar código.",
+          inputSchema: z.object({ acao: z.enum(["vibrar", "lanterna"]), ligar: z.boolean().optional() }),
+          execute: async () => ({ ok: true, executando: "no aparelho" }),
+        }),
+      };
+    }
     if (data.remoteDevices?.length) {
       const { tool } = await import("ai");
       const alvos = data.remoteDevices;
       tools = {
         ...tools,
         comando_outro_dispositivo: tool({
-          description: `Envia uma ação para outro aparelho pareado do usuário pelo Lia Link (disponíveis: ${alvos.join(", ")}). acao: notificar (mostra um aviso com 'texto'), abrir_link ('url'), usb (controla o Arduino ligado por USB naquele aparelho). Use quando o pedido só pode ser feito no outro aparelho. O resultado aparece no chat sincronizado.`,
+          description: `Envia uma ação para outro aparelho pareado do usuário pelo Lia Link (disponíveis: ${alvos.join(", ")}). acao: notificar (mostra um aviso com 'texto'), abrir_link ('url'), vibrar, lanterna ('ligar' true/false), usb (controla o Arduino ligado por USB naquele aparelho). Use quando o pedido só pode ser feito no outro aparelho. O resultado aparece no chat sincronizado.`,
           inputSchema: z.object({
             alvo: z.enum(["mobile", "desktop"]),
-            acao: z.enum(["notificar", "abrir_link", "usb"]),
+            acao: z.enum(["notificar", "abrir_link", "usb", "vibrar", "lanterna"]),
+            ligar: z.boolean().optional(),
             texto: z.string().max(500).optional(),
             url: z.string().url().max(1000).optional(),
             usb: z
@@ -215,6 +227,7 @@ export const liaRespond = createServerFn({ method: "POST" })
         text,
         ...(registered.length ? { registeredJson: JSON.stringify(registered) } : {}),
         ...(usbCmds.length ? { usbJson: JSON.stringify(usbCmds) } : {}),
+        ...(localCmds.length ? { localJson: JSON.stringify(localCmds) } : {}),
       };
     } catch (error) {
       const status =
