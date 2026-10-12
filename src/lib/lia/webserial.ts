@@ -19,8 +19,20 @@ const awake = (on: boolean) => void import("./device").then((d) => d.keepAwake(o
 if (typeof document !== "undefined")
   document.addEventListener("visibilitychange", () => { if (writer && document.visibilityState === "visible") awake(true); });
 
-export async function connectSerial() {
-  port = await (navigator as any).serial.requestPort();
+/** Reabre sozinha a porta já autorizada antes (sem o seletor). */
+export async function autoReconnectSerial() {
+  if (!serialSupported() || writer) return false;
+  try {
+    const ports = await (navigator as any).serial.getPorts();
+    if (!ports.length) return false;
+    await connectSerial(ports[0]);
+    return true;
+  } catch { return false; }
+}
+if (typeof window !== "undefined") setTimeout(() => void autoReconnectSerial(), 1500);
+
+export async function connectSerial(existing?: any) {
+  port = existing ?? (await (navigator as any).serial.requestPort());
   await port.open({ baudRate: 115200 });
   writer = port.writable.getWriter();
   reader = port.readable.getReader();
