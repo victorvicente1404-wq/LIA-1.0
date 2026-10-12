@@ -333,7 +333,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           ...connectedIds.map(connectorLabel),
           ...(whatsappCredsForChat() ? ["WhatsApp"] : []),
           ...((data?.iot?.url || readIot().url) && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino/ESP32 (ferramenta iot_comando)"] : []),
-          ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? ["Arduino Uno via USB (ferramenta usb_comando)"] : []),
+          ...(serialConnected() ? ["Arduino Uno via USB (ferramenta usb_comando)"] : []),
         ],
         bond: evolveBond(data?.bond, trimmed),
       });
@@ -345,9 +345,14 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       // Coleta de contexto nunca pode prender o chat: cada etapa tem prazo curto.
       const within = <T,>(p: Promise<T>, ms: number, fb: T) =>
         Promise.race([p.catch(() => fb), new Promise<T>((r) => setTimeout(() => r(fb), ms))]);
-      const isNative = await within(nativeAvailable(), 2_000, false);
-      const screen = isNative ? await within(nativeScreenSummary(), 2_500, "") : "";
-      const [snap, tele] = await Promise.all([within(contextSnapshot(), 3_000, ""), within(telemetryContext(), 3_000, "")]);
+      // Tudo em paralelo e com prazo curto: o contexto nunca atrasa a resposta.
+      const nativeP = within(nativeAvailable(), 500, false);
+      const [isNative, snap, tele] = await Promise.all([
+        nativeP,
+        within(contextSnapshot(), 500, ""),
+        within(telemetryContext(), 800, ""),
+      ]);
+      const screen = isNative ? await within(nativeScreenSummary(), 1_200, "") : "";
       const ctx = [snap, screen, tele].filter(Boolean).join("\n");
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. Para acender/apagar um cômodo use digital_write com value 1/0.`;
       const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
@@ -375,7 +380,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(frame ? { frame } : {}),
             ...(whatsapp ? { whatsapp } : {}),
             ...(iotAtivo ? { iot: iotCfg } : {}),
-            ...(serialConnected() && modules.find((m) => m.id === "automacao")?.ativo ? { usb: true } : {}),
+            ...(serialConnected() ? { usb: true } : {}),
             ...(link.remoteKinds().length ? { remoteDevices: link.remoteKinds() } : {}),
             ...(isNative ? { nativeAndroid: true } : {}),
             ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),

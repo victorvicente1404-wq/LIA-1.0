@@ -122,7 +122,19 @@ const ago = (iso: string) => {
 };
 
 /** Texto consolidado para o system prompt: todos os aparelhos + últimas notificações. */
+let teleCache: { t: number; v: string } | null = null;
+let teleInflight: Promise<string> | null = null;
+/** Cache de 30s: não consulta o servidor a cada mensagem. */
 export async function telemetryContext(): Promise<string> {
+  if (teleCache && Date.now() - teleCache.t < 30_000) return teleCache.v;
+  if (!teleInflight)
+    teleInflight = fetchTelemetryContext()
+      .then((v) => { teleCache = { t: Date.now(), v }; return v; })
+      .finally(() => { teleInflight = null; });
+  return teleCache ? teleCache.v : teleInflight;
+}
+
+async function fetchTelemetryContext(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return "";
   const [{ data: devs }, { data: notes }] = await Promise.all([
