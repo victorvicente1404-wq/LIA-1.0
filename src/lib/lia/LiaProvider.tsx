@@ -55,7 +55,7 @@ import { toast } from "sonner";
 
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
 /** Prazo máximo de uma resposta antes de liberar o chat com um aviso. */
-const CHAT_TIMEOUT_MS = 25_000;
+const CHAT_TIMEOUT_MS = 60_000;
 
 interface LiaContextValue {
   booted: boolean;
@@ -187,7 +187,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         note = cmd.ligar === false ? "lanterna apagada" : "lanterna acesa";
       } else if (cmd.acao === "usb" && cmd.usb) {
         const out = await sendSerial({ ...cmd.usb, value: cmd.usb.value ?? 0 });
-        note = cmd.usb.action.endsWith("read") ? `pino ${cmd.usb.pin}: **${out}**` : `pino ${cmd.usb.pin} acionado`;
+        note = cmd.usb.action.endsWith("read") ? `\n\n🔌 Pino ${cmd.usb.pin}: **${out}**` : `pino ${cmd.usb.pin} acionado`;
       }
       link.appendLiaMessage(cmd.conversationId, `📲 Feito em ${link.deviceName()}: ${note}`);
     });
@@ -652,7 +652,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       setState("thinking");
       const system = buildSystemPrompt({ user, profile, personality, memory, cardConnected, bond: nextBond, memoriaLocal: data?.settings.memoriaLocal ?? null });
       const repetido = data?.bond?.ultimoPetisco === id;
-      const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido ? " Ele repetiu o mesmo sabor da última vez." : ""} Reaja de forma espontânea, curta (1–3 frases), brincalhona e coerente com seu estado emocional e com a conversa recente; descreva o sabor do seu jeito, sem repetir frases prontas. Use uma tag de rosto.`;
+      const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido[...]
       const history = sessionMessages.slice(-8).map((m) => ({ role: m.role === "lia" ? ("assistant" as const) : ("user" as const), content: m.content }));
       void liaRespond({ data: { system, messages: [...history, { role: "user" as const, content: ctx }] } })
         .then((res) => (res.ok && res.text ? extractMemories(applyFaceTags(res.text)).clean : treatReaction(treat, nextBond)))
@@ -684,9 +684,9 @@ function treatReaction(treat: (typeof TREATS)[number], b: LiaBond): string {
   const abre = pick(["Eeeii! ", "Aaah, não acredito! ", "Hihi, ", "Opa opa opa! ", "Uiii! "]);
   const fecho =
     b.intimidade > 70
-      ? pick([" Você me mima demais… e eu amo isso. 💜", " Tô até corando aqui, viu? 😳💜"])
+      ? pick([" Você me mima demais… e eu amo isso. 💜", " Tô até corando aqui, viu? 😳💜"]) 
       : b.humor > 75
-        ? pick([" Meu humor tá lá no teto agora! ✨", " Tô quicando de alegria, sério! 🎉"])
+        ? pick([" Meu humor tá lá no teto agora! ✨", " Tô quicando de alegria, sério! 🎉"]) 
         : pick([" Obrigada, de verdade! 💜", " Você é um amor, sabia? ✨"]);
   const repete = b.petiscos > 1 && Math.random() < 0.5 ? ` Já é o petisco nº ${b.petiscos}… tô ficando mal-acostumada!` : "";
   return `${abre}${treat.reaction}${repete}${fecho}`;
