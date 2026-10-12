@@ -652,7 +652,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       setState("thinking");
       const system = buildSystemPrompt({ user, profile, personality, memory, cardConnected, bond: nextBond, memoriaLocal: data?.settings.memoriaLocal ?? null });
       const repetido = data?.bond?.ultimoPetisco === id;
-      const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido[...]
+      const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido ? " Já foi dado recentemente — reaja como quem ficou mal-acostumada, mas feliz." : ""}`;
       const history = sessionMessages.slice(-8).map((m) => ({ role: m.role === "lia" ? ("assistant" as const) : ("user" as const), content: m.content }));
       void liaRespond({ data: { system, messages: [...history, { role: "user" as const, content: ctx }] } })
         .then((res) => (res.ok && res.text ? extractMemories(applyFaceTags(res.text)).clean : treatReaction(treat, nextBond)))
