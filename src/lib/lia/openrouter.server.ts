@@ -53,6 +53,29 @@ async function listFreeModels(apiKey: string): Promise<string[]> {
   }
 }
 
+let cachedTools: { at: number; ids: string[] } | null = null;
+const TOOL_PREFERRED = ["nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "nvidia/nemotron-3-ultra-550b-a55b:free", "google/gemma-4-26b-a4b-it:free"];
+
+/** Modelos gratuitos que aceitam ferramentas (function calling), cache de 10 min. */
+export async function toolModels(apiKey: string): Promise<string[]> {
+  if (cachedTools && Date.now() - cachedTools.at < 10 * 60_000) return cachedTools.ids;
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/models", {
+      headers: { authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(6_000),
+    });
+    const json = (await res.json()) as { data?: Array<{ id?: string; supported_parameters?: string[] }> };
+    const ids = (json.data ?? [])
+      .filter((m) => m.id?.endsWith(":free") && m.supported_parameters?.includes("tools") && !BLOCKLIST.test(m.id))
+      .map((m) => m.id!);
+    const ordered = [...TOOL_PREFERRED.filter((k) => ids.includes(k)), ...ids.filter((id) => !TOOL_PREFERRED.includes(id))];
+    if (ordered.length) cachedTools = { at: Date.now(), ids: ordered };
+    return ordered.length ? ordered : TOOL_PREFERRED;
+  } catch {
+    return TOOL_PREFERRED;
+  }
+}
+
 function dataUrlParts(dataUrl: string): { mime: string; data: string } | null {
   const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl);
   return match ? { mime: match[1]!, data: match[2]! } : null;
