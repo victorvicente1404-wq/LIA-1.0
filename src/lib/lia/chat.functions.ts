@@ -285,7 +285,7 @@ export const liaRespond = createServerFn({ method: "POST" })
     try {
       if (!key) throw new Error("LOVABLE_API_KEY ausente");
       const gateway = createLovableAiGatewayProvider(key);
-      return await runWithTools(gateway("google/gemini-3.7-flash"));
+      return await runWithTools(gateway("google/gemini-3.7-flash"), 9_000);
     } catch (error) {
       const status =
         (error as { statusCode?: number; status?: number }).statusCode ??
@@ -294,9 +294,26 @@ export const liaRespond = createServerFn({ method: "POST" })
       console.error("Provedor principal falhou:", status ?? "sem status", (error as Error).message);
 
       // Requisição inválida (400/401): trocar de modelo não resolve.
-      const recuperavel = status !== 400 && status !== 401;
+      const recuperavel = true; // qualquer falha tenta o próximo provedor: a Lia nunca fica muda
 
       if (recuperavel) {
+        // 1a) Google Gemini oficial COM ferramentas (chave própria, cota separada).
+        const gKey = process.env["GEMINI_API_KEY"];
+        if (gKey) {
+          const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
+          const g = createOpenAICompatible({
+            name: "gemini",
+            baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+            headers: { authorization: `Bearer ${gKey}` },
+          });
+          for (const id of ["gemini-3.8-flash", "gemini-2.5-flash"]) {
+            try {
+              return { ...(await runWithTools(g(id), 10_000)), provider: "gemini" as const };
+            } catch (e) {
+              console.error(`Gemini (ferramentas) ${id} falhou:`, (e as Error).message);
+            }
+          }
+        }
         // 1b) OpenRouter gratuito COM ferramentas (Arduino, WhatsApp, etc.).
         const orKey = process.env["OPENROUTER_API_KEY"];
         if (orKey && Object.keys(tools).length) {
