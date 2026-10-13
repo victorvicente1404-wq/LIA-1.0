@@ -1,7 +1,7 @@
 /**
  * módulos e ciclo de vida do Lia Card.
  */
-import { nativeAvailable, nativeScreenSummary, runNative, type NativeCmd } from "./native-device";
+import { runNative, type NativeCmd } from "./native-device";
 import { readOsAgentPrefs } from "./os-agent";
 import {
   createContext,
@@ -23,7 +23,6 @@ import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
 import { sendSerial, serialConnected } from "./webserial";
 import { ROOMS, contextSnapshot, setTorch, vibrate } from "./device";
-import { startTelemetry, telemetryContext } from "./telemetry";
 import type { IotConfig } from "./types";
 import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
