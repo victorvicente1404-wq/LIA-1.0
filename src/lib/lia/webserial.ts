@@ -31,36 +31,56 @@ export async function autoReconnectSerial() {
 }
 if (typeof window !== "undefined") setTimeout(() => void autoReconnectSerial(), 1500);
 
+let waiters: Array<(l: string) => void> = [];
+
+/** Leitor contínuo: uma única leitura ativa, nunca trava a porta. */
+async function readLoop() {
+  const dec = new TextDecoder();
+  try {
+    while (reader) {
+      const r = await reader.read();
+      if (r.done) break;
+      buffer += dec.decode(r.value, { stream: true });
+      let i: number;
+      while ((i = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, i).trim();
+        buffer = buffer.slice(i + 1);
+        if (line) waiters.shift()?.(line);
+      }
+    }
+  } catch { /* porta fechada */ }
+}
+
 export async function connectSerial(existing?: any) {
   port = existing ?? (await (navigator as any).serial.requestPort());
-  await port.open({ baudRate: 115200 });
+  if (!port.readable) await port.open({ baudRate: 115200 });
   writer = port.writable.getWriter();
   reader = port.readable.getReader();
   buffer = "";
+  waiters = [];
   port.addEventListener?.("disconnect", () => void disconnectSerial());
   await new Promise((r) => setTimeout(r, 2000)); // o Uno reinicia ao abrir a porta
+  buffer = ""; // descarta ruído do bootloader
+  void readLoop();
   awake(true);
   emit();
 }
 
 export async function disconnectSerial() {
+  try { await reader?.cancel(); } catch { /* */ }
   try { reader?.releaseLock(); writer?.releaseLock(); await port?.close(); } catch { /* já fechada */ }
   port = writer = reader = null;
+  waiters = [];
   awake(false);
   emit();
 }
 
-async function readLine(timeoutMs: number): Promise<string> {
-  const dec = new TextDecoder();
-  const end = Date.now() + timeoutMs;
-  while (Date.now() < end) {
-    const i = buffer.indexOf("\n");
-    if (i >= 0) { const l = buffer.slice(0, i).trim(); buffer = buffer.slice(i + 1); return l; }
-    const r = await Promise.race([reader!.read(), new Promise<null>((res) => setTimeout(() => res(null), end - Date.now()))]);
-    if (!r || r.done) break;
-    buffer += dec.decode(r.value);
-  }
-  throw new Error("Arduino não respondeu");
+function readLine(timeoutMs: number): Promise<string> {
+  return new Promise((resolve) => {
+    const w = (l: string) => { clearTimeout(t); resolve(l); };
+    const t = setTimeout(() => { waiters = waiters.filter((x) => x !== w); resolve(""); }, timeoutMs);
+    waiters.push(w);
+  });
 }
 
 let queue = Promise.resolve<unknown>(null);

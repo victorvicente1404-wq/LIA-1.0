@@ -243,14 +243,13 @@ export const liaRespond = createServerFn({ method: "POST" })
     const contextoTemporal = `\n\nAGORA: ${agora.toISOString()} (fuso do usuário: America/Sao_Paulo).`;
     const systemFinal = data.system + contextoTemporal;
 
-    // 1) Provedor principal: IA do Lovable (com as ferramentas dos serviços conectados).
-    try {
-      if (!key) throw new Error("LOVABLE_API_KEY ausente");
-      const gateway = createLovableAiGatewayProvider(key);
+    // Roda um modelo com TODAS as ferramentas e devolve os comandos locais (USB, celular etc.).
+    const runWithTools = async (model: Parameters<typeof generateText>[0]["model"], timeoutMs?: number) => {
       const options = {
-        model: gateway("google/gemini-3.7-flash"),
+        model,
         system: systemFinal,
         messages,
+        ...(timeoutMs ? { abortSignal: AbortSignal.timeout(timeoutMs) } : {}),
         ...(Object.keys(tools).length ? { tools, stopWhen: stepCountIs(8) } : {}),
       } as Parameters<typeof generateText>[0];
       const result = await generateText(options);
@@ -259,25 +258,18 @@ export const liaRespond = createServerFn({ method: "POST" })
         .filter((r) => r.toolName === "register_new_api_tool")
         .map((r) => (r as { output?: { registered?: unknown } }).output?.registered)
         .filter(Boolean) as z.infer<typeof CustomApiSchema>[];
-      const usbCmds = result.steps
-        .flatMap((s) => s.toolCalls ?? [])
-        .filter((c) => c.toolName === "usb_comando")
-        .map((c) => (c as { input?: unknown }).input);
-      const localCmds = result.steps
-        .flatMap((s) => s.toolCalls ?? [])
-        .filter((c) => c.toolName === "aparelho_local")
-        .map((c) => (c as { input?: unknown }).input);
-      const nativeCmds = result.steps
-        .flatMap((s) => s.toolCalls ?? [])
-        .filter((c) => c.toolName === "celular_nativo")
-        .map((c) => (c as { input?: unknown }).input);
-      const remoteCmds = result.steps
-        .flatMap((s) => s.toolCalls ?? [])
-        .filter((c) => c.toolName === "comando_outro_dispositivo")
-        .map((c) => (c as { input?: unknown }).input);
-      const text =
-        result.text.trim() ||
-        "Fiz o que você pediu nos seus serviços, mas não consegui montar um resumo agora.";
+      const calls = (name: string) =>
+        result.steps
+          .flatMap((s) => s.toolCalls ?? [])
+          .filter((c) => c.toolName === name)
+          .map((c) => (c as { input?: unknown }).input);
+      const usbCmds = calls("usb_comando");
+      const localCmds = calls("aparelho_local");
+      const nativeCmds = calls("celular_nativo");
+      const remoteCmds = calls("comando_outro_dispositivo");
+      const anyCall = usbCmds.length + localCmds.length + nativeCmds.length + remoteCmds.length > 0;
+      const text = result.text.trim() || (anyCall ? "Pronto, feito! 💜" : "");
+      if (!text) throw new Error("resposta vazia");
       return {
         ok: true as const,
         text,
@@ -287,6 +279,13 @@ export const liaRespond = createServerFn({ method: "POST" })
         ...(nativeCmds.length ? { nativeJson: JSON.stringify(nativeCmds) } : {}),
         ...(remoteCmds.length ? { remoteJson: JSON.stringify(remoteCmds) } : {}),
       };
+    };
+
+    // 1) Provedor principal: IA do Lovable (com as ferramentas dos serviços conectados).
+    try {
+      if (!key) throw new Error("LOVABLE_API_KEY ausente");
+      const gateway = createLovableAiGatewayProvider(key);
+      return await runWithTools(gateway("google/gemini-3.7-flash"));
     } catch (error) {
       const status =
         (error as { statusCode?: number; status?: number }).statusCode ??
@@ -298,6 +297,24 @@ export const liaRespond = createServerFn({ method: "POST" })
       const recuperavel = status !== 400 && status !== 401;
 
       if (recuperavel) {
+        // 1b) OpenRouter gratuito COM ferramentas (Arduino, WhatsApp, etc.).
+        const orKey = process.env["OPENROUTER_API_KEY"];
+        if (orKey && Object.keys(tools).length) {
+          const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
+          const { toolModels } = await import("./openrouter.server");
+          const or = createOpenAICompatible({
+            name: "openrouter",
+            baseURL: "https://openrouter.ai/api/v1",
+            headers: { authorization: `Bearer ${orKey}`, "http-referer": "https://lia-portable-ai.lovable.app", "x-title": "Lia" },
+          });
+          for (const id of (await toolModels(orKey)).slice(0, 4)) {
+            try {
+              return { ...(await runWithTools(or(id), 15_000)), provider: "openrouter" as const };
+            } catch (e) {
+              console.error(`OpenRouter (ferramentas) ${id} falhou:`, (e as Error).message);
+            }
+          }
+        }
         type Gm = Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>;
         // 2) Provedores reservas cadastrados pelo usuário, na ordem de prioridade (7s cada).
         const providers = customApis
