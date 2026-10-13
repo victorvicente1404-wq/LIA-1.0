@@ -297,6 +297,24 @@ export const liaRespond = createServerFn({ method: "POST" })
       const recuperavel = status !== 400 && status !== 401;
 
       if (recuperavel) {
+        // 1b) OpenRouter gratuito COM ferramentas (Arduino, WhatsApp, etc.).
+        const orKey = process.env["OPENROUTER_API_KEY"];
+        if (orKey && Object.keys(tools).length) {
+          const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
+          const { toolModels } = await import("./openrouter.server");
+          const or = createOpenAICompatible({
+            name: "openrouter",
+            baseURL: "https://openrouter.ai/api/v1",
+            headers: { authorization: `Bearer ${orKey}`, "http-referer": "https://lia-portable-ai.lovable.app", "x-title": "Lia" },
+          });
+          for (const id of (await toolModels(orKey)).slice(0, 4)) {
+            try {
+              return { ...(await runWithTools(or(id), 15_000)), provider: "openrouter" as const };
+            } catch (e) {
+              console.error(`OpenRouter (ferramentas) ${id} falhou:`, (e as Error).message);
+            }
+          }
+        }
         type Gm = Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>;
         // 2) Provedores reservas cadastrados pelo usuário, na ordem de prioridade (7s cada).
         const providers = customApis
