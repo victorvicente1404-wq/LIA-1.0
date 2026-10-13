@@ -126,7 +126,6 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   const abortRef = useRef<{ cancelled: boolean } | null>(null);
 
   // Hub de telemetria (bateria, rede, local, notificações)
-  useEffect(() => startTelemetry(), []);
 
   // Detecta o Lia Card na inicialização
   useEffect(() => {
@@ -346,15 +345,12 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const within = <T,>(p: Promise<T>, ms: number, fb: T) =>
         Promise.race([p.catch(() => fb), new Promise<T>((r) => setTimeout(() => r(fb), ms))]);
       // Tudo em paralelo e com prazo curto: o contexto nunca atrasa a resposta.
-      const nativeP = within(nativeAvailable(), 500, false);
-      const [isNative, snap, tele] = await Promise.all([
-        nativeP,
-        within(contextSnapshot(), 500, ""),
-        within(telemetryContext(), 800, ""),
-      ]);
-      const screen = isNative ? await within(nativeScreenSummary(), 1_200, "") : "";
-      const ctx = [snap, screen, tele].filter(Boolean).join("\n");
-      const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. Para acender/apagar um cômodo use digital_write com value 1/0.`;
+      // Versão leve: sem telemetria, leitura de tela ou ponte do APK a cada mensagem.
+      const isNative = false;
+      const snap = await within(contextSnapshot(), 300, "");
+      const ctx = snap;
+      const usbOn = serialConnected();
+      const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Para acender/apagar um cômodo use digital_write com value 1/0.${usbOn ? " O Arduino está no cabo USB: use SEMPRE e SOMENTE usb_comando." : ""}`;
       const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
       const systemBase = `${system}\n\n${rooms}\n${silent}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
       const systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
@@ -379,10 +375,8 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             messages: history,
             ...(frame ? { frame } : {}),
             ...(whatsapp ? { whatsapp } : {}),
-            ...(iotAtivo ? { iot: iotCfg } : {}),
-            ...(serialConnected() ? { usb: true } : {}),
-            ...(link.remoteKinds().length ? { remoteDevices: link.remoteKinds() } : {}),
-            ...(isNative ? { nativeAndroid: true } : {}),
+            ...(iotAtivo && !usbOn ? { iot: iotCfg } : {}),
+            ...(usbOn ? { usb: true } : {}),
             ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(attachments?.length
