@@ -42,6 +42,8 @@ const Input = z.object({
   osAgent: z.object({ autonomo: z.boolean() }).optional(),
   /** App Android com o plugin LiaNative disponível. */
   nativeAndroid: z.boolean().optional(),
+  /** Chave Gemini do próprio usuário (não gasta a cota do dono). */
+  userGeminiKey: z.string().min(10).max(200).optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -297,7 +299,7 @@ export const liaRespond = createServerFn({ method: "POST" })
     };
 
     const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-    const gKey = process.env["GEMINI_API_KEY"];
+    const gKey = data.userGeminiKey ?? process.env["GEMINI_API_KEY"];
     const orKey = process.env["OPENROUTER_API_KEY"];
     const gemini = gKey
       ? createOpenAICompatible({ name: "gemini", baseURL: "https://generativelanguage.googleapis.com/v1beta/openai", headers: { authorization: `Bearer ${gKey}` } })
@@ -365,7 +367,7 @@ export const liaRespond = createServerFn({ method: "POST" })
     if (temTempo()) {
       try {
         const { generateWithGemini } = await import("./gemini.server");
-        return { ok: true as const, text: await generateWithGemini(systemFinal, messages as Gm, tempo(5_000)), provider: "gemini" as const };
+        return { ok: true as const, text: await generateWithGemini(systemFinal, messages as Gm, tempo(5_000), gKey), provider: "gemini" as const };
       } catch (e) { falhou("Gemini texto", e); }
     }
     if (temTempo()) {
