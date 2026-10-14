@@ -316,7 +316,7 @@ export const liaRespond = createServerFn({ method: "POST" })
     // 2) IA do Lovable com ferramentas.
     if (key && temTempo()) {
       const gateway = createLovableAiGatewayProvider(key);
-      for (const id of ["google/gemini-3.7-flash", "google/gemini-3.5-flash-lite"]) {
+      for (const id of ["google/gemini-3.7-flash"]) {
         if (!temTempo()) break;
         try { return await runWithTools(gateway(id), tempo(6_000)); }
         catch (e) { falhou(`Lovable ${id}`, e); }
