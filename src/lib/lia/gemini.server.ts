@@ -43,37 +43,34 @@ function toGeminiContents(messages: GenMessage[]) {
   });
 }
 
-/** Gera resposta com o Gemini oficial. Lança em caso de falha. */
-export async function generateWithGemini(system: string, messages: GenMessage[]): Promise<string> {
+const GEMINI_TEXT_MODELS = ["gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-3-flash-preview", GEMINI_MODEL];
+
+/** Gera resposta com o Gemini oficial, tentando vários modelos. Lança se todos falharem. */
+export async function generateWithGemini(system: string, messages: GenMessage[], timeoutMs = 8_000): Promise<string> {
   const apiKey = process.env["GEMINI_API_KEY"];
   if (!apiKey) throw new Error("GEMINI_API_KEY ausente");
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: system }] },
-        contents: toGeminiContents(messages),
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini ${res.status}: ${detail.slice(0, 300)}`);
+  const fim = Date.now() + timeoutMs;
+  let last: Error = new Error("sem modelos");
+  for (const model of GEMINI_TEXT_MODELS) {
+    const resta = fim - Date.now();
+    if (resta < 800) break;
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: toGeminiContents(messages) }),
+        signal: AbortSignal.timeout(resta),
+      });
+      if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
+      const json = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      const text = (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+      if (!text) throw new Error(`Gemini ${model} vazio`);
+      return text;
+    } catch (e) {
+      last = e as Error;
+    }
   }
-
-  const json = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const text = (json.candidates?.[0]?.content?.parts ?? [])
-    .map((p) => p.text ?? "")
-    .join("")
-    .trim();
-  if (!text) throw new Error("Gemini retornou resposta vazia");
-  return text;
+  throw last;
 }
 
 /** Último recurso: busca pública sem chave, para não deixar o usuário sem nada. */
