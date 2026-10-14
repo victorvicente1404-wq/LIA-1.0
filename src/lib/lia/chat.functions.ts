@@ -281,112 +281,119 @@ export const liaRespond = createServerFn({ method: "POST" })
       };
     };
 
-    // 1) Provedor principal: IA do Lovable (com as ferramentas dos serviços conectados).
-    try {
-      if (!key) throw new Error("LOVABLE_API_KEY ausente");
-      const gateway = createLovableAiGatewayProvider(key);
-      return await runWithTools(gateway("google/gemini-3.7-flash"), 9_000);
-    } catch (error) {
-      const status =
-        (error as { statusCode?: number; status?: number }).statusCode ??
-        (error as { status?: number }).status;
-      // Log interno apenas — nada sensível vai para o usuário.
-      console.error("Provedor principal falhou:", status ?? "sem status", (error as Error).message);
+    // Cascata anti-falha: cada camada tenta rápido e passa para a próxima.
+    // Orçamento total ~22 s (o navegador desiste em 25 s).
+    const inicio = Date.now();
+    const restante = () => 22_000 - (Date.now() - inicio);
+    const tempo = (ms: number) => Math.max(1_500, Math.min(ms, restante()));
+    const temTempo = () => restante() > 1_500;
+    type Gm = Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>;
+    let status: number | undefined;
+    const falhou = (camada: string, e: unknown) => {
+      const s = (e as { statusCode?: number; status?: number }).statusCode ?? (e as { status?: number }).status;
+      if (s) status = s;
+      console.error(`[cascata] ${camada} falhou:`, s ?? "", (e as Error).message?.slice(0, 200));
+    };
 
-      // Requisição inválida (400/401): trocar de modelo não resolve.
-      const recuperavel = true; // qualquer falha tenta o próximo provedor: a Lia nunca fica muda
+    const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
+    const gKey = process.env["GEMINI_API_KEY"];
+    const orKey = process.env["OPENROUTER_API_KEY"];
+    const gemini = gKey
+      ? createOpenAICompatible({ name: "gemini", baseURL: "https://generativelanguage.googleapis.com/v1beta/openai", headers: { authorization: `Bearer ${gKey}` } })
+      : null;
+    const GEMINI_FAST = ["gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"];
+    const GEMINI_STRONG = ["gemini-3-flash-preview", "gemini-3.8-flash", "gemini-flash-latest"];
 
-      if (recuperavel) {
-        // 1a) Google Gemini oficial COM ferramentas (chave própria, cota separada).
-        const gKey = process.env["GEMINI_API_KEY"];
-        if (gKey) {
-          const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-          const g = createOpenAICompatible({
-            name: "gemini",
-            baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
-            headers: { authorization: `Bearer ${gKey}` },
-          });
-          for (const id of ["gemini-3.8-flash", "gemini-2.5-flash"]) {
-            try {
-              return { ...(await runWithTools(g(id), 10_000)), provider: "gemini" as const };
-            } catch (e) {
-              console.error(`Gemini (ferramentas) ${id} falhou:`, (e as Error).message);
-            }
-          }
-        }
-        // 1b) OpenRouter gratuito COM ferramentas (Arduino, WhatsApp, etc.).
-        const orKey = process.env["OPENROUTER_API_KEY"];
-        if (orKey && Object.keys(tools).length) {
-          const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-          const { toolModels } = await import("./openrouter.server");
-          const or = createOpenAICompatible({
-            name: "openrouter",
-            baseURL: "https://openrouter.ai/api/v1",
-            headers: { authorization: `Bearer ${orKey}`, "http-referer": "https://lia-portable-ai.lovable.app", "x-title": "Lia" },
-          });
-          for (const id of (await toolModels(orKey)).slice(0, 4)) {
-            try {
-              return { ...(await runWithTools(or(id), 15_000)), provider: "openrouter" as const };
-            } catch (e) {
-              console.error(`OpenRouter (ferramentas) ${id} falhou:`, (e as Error).message);
-            }
-          }
-        }
-        type Gm = Array<{ role: "user" | "assistant"; content: string | Record<string, unknown>[] }>;
-        // 2) Provedores reservas cadastrados pelo usuário, na ordem de prioridade (7s cada).
-        const providers = customApis
-          .filter((a) => a.type === "llm_provider" && a.is_active)
-          .sort((a, b) => a.priority - b.priority);
-        if (providers.length) {
-          const { callCustomProvider } = await import("./customApis.server");
-          for (const p of providers) {
-            try {
-              const text = await callCustomProvider(p, systemFinal, messages as Gm, 7_000);
-              return { ok: true as const, text, provider: p.name };
-            } catch (e) {
-              console.error(`Provedor reserva ${p.name} falhou:`, (e as Error).message);
-            }
-          }
-        }
-
-        // 3) Fallback: Gemini oficial, com o MESMO system prompt, memórias e histórico.
-        try {
-          const { generateWithGemini } = await import("./gemini.server");
-          const text = await generateWithGemini(systemFinal, messages as Gm);
-          return { ok: true as const, text, provider: "gemini" as const };
-        } catch (geminiError) {
-          console.error("Fallback Gemini falhou:", (geminiError as Error).message);
-        }
-
-        // 4) Fallback: OpenRouter com modelos gratuitos, mesmo prompt e histórico.
-        try {
-          const { generateWithOpenRouter } = await import("./openrouter.server");
-          const text = await generateWithOpenRouter(systemFinal, messages as Gm);
-          return { ok: true as const, text, provider: "openrouter" as const };
-        } catch (openrouterError) {
-          console.error("Fallback OpenRouter falhou:", (openrouterError as Error).message);
-        }
-
-        // 5) Último recurso: busca pública com a última pergunta do usuário.
-        try {
-          const last = [...data.messages].reverse().find((m) => m.role === "user");
-          const { tavilyFallback } = await import("./tavily.server");
-          let found = last ? await tavilyFallback(last.content) : null;
-          if (!found && last) {
-            const { searchFallback } = await import("./gemini.server");
-            found = await searchFallback(last.content);
-          }
-          if (found) return { ok: true as const, text: found, provider: "busca" as const };
-        } catch (searchError) {
-          console.error("Fallback de busca falhou:", (searchError as Error).message);
-        }
+    // 1) Gemini rápido (Flash Lite) com ferramentas — cota própria, <1 s.
+    if (gemini) {
+      for (const id of GEMINI_FAST) {
+        if (!temTempo()) break;
+        try { return { ...(await runWithTools(gemini(id), tempo(6_000))), provider: "gemini" as const }; }
+        catch (e) { falhou(`Gemini ${id}`, e); }
       }
-
-      const message =
-        status === 400 || status === 401
-          ? "Não consegui entender essa solicitação. Pode tentar reformular?"
-          : "Estou temporariamente indisponível. Sua conversa e suas memórias estão salvas — tente de novo em alguns instantes.";
-      return { ok: false as const, text: message, status: status ?? 500 };
     }
 
+    // 2) IA do Lovable com ferramentas.
+    if (key && temTempo()) {
+      const gateway = createLovableAiGatewayProvider(key);
+      for (const id of ["google/gemini-3.7-flash", "google/gemini-3.5-flash-lite"]) {
+        if (!temTempo()) break;
+        try { return await runWithTools(gateway(id), tempo(6_000)); }
+        catch (e) { falhou(`Lovable ${id}`, e); }
+      }
+    }
+
+    // 3) Gemini mais fortes com ferramentas.
+    if (gemini) {
+      for (const id of GEMINI_STRONG) {
+        if (!temTempo()) break;
+        try { return { ...(await runWithTools(gemini(id), tempo(6_000))), provider: "gemini" as const }; }
+        catch (e) { falhou(`Gemini ${id}`, e); }
+      }
+    }
+
+    // 4) OpenRouter gratuito com ferramentas.
+    if (orKey && temTempo()) {
+      try {
+        const { toolModels } = await import("./openrouter.server");
+        const or = createOpenAICompatible({
+          name: "openrouter",
+          baseURL: "https://openrouter.ai/api/v1",
+          headers: { authorization: `Bearer ${orKey}`, "http-referer": "https://lia-portable-ai.lovable.app", "x-title": "Lia" },
+        });
+        for (const id of (await toolModels(orKey)).slice(0, 3)) {
+          if (!temTempo()) break;
+          try { return { ...(await runWithTools(or(id), tempo(6_000))), provider: "openrouter" as const }; }
+          catch (e) { falhou(`OpenRouter ${id}`, e); }
+        }
+      } catch (e) { falhou("OpenRouter lista", e); }
+    }
+
+    // 5) Provedores reservas cadastrados pelo usuário (prioridade, 6 s cada).
+    const providers = customApis.filter((a) => a.type === "llm_provider" && a.is_active).sort((a, b) => a.priority - b.priority);
+    if (providers.length) {
+      const { callCustomProvider } = await import("./customApis.server");
+      for (const p of providers) {
+        if (!temTempo()) break;
+        try { return { ok: true as const, text: await callCustomProvider(p, systemFinal, messages as Gm, tempo(6_000)), provider: p.name }; }
+        catch (e) { falhou(`Reserva ${p.name}`, e); }
+      }
+    }
+
+    // 6) Só texto (sem ferramentas): Gemini direto, depois OpenRouter.
+    if (temTempo()) {
+      try {
+        const { generateWithGemini } = await import("./gemini.server");
+        return { ok: true as const, text: await generateWithGemini(systemFinal, messages as Gm, tempo(5_000)), provider: "gemini" as const };
+      } catch (e) { falhou("Gemini texto", e); }
+    }
+    if (temTempo()) {
+      try {
+        const { generateWithOpenRouter } = await import("./openrouter.server");
+        return { ok: true as const, text: await generateWithOpenRouter(systemFinal, messages as Gm), provider: "openrouter" as const };
+      } catch (e) { falhou("OpenRouter texto", e); }
+    }
+
+    // 7) Busca pública com a última pergunta.
+    const last = [...data.messages].reverse().find((m) => m.role === "user");
+    try {
+      const { tavilyFallback } = await import("./tavily.server");
+      let found = last ? await tavilyFallback(last.content) : null;
+      if (!found && last) {
+        const { searchFallback } = await import("./gemini.server");
+        found = await searchFallback(last.content);
+      }
+      if (found) return { ok: true as const, text: found, provider: "busca" as const };
+    } catch (e) { falhou("Busca", e); }
+
+    // 8) Resposta de emergência local — a Lia nunca fica muda.
+    const q = (last?.content ?? "").toLowerCase();
+    const h = new Date(agora.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+    let texto = "Minha conexão com os modelos de IA oscilou agora, mas continuo aqui 💜 Pode repetir em alguns segundos?";
+    if (/\b(oi|olá|ola|bom dia|boa tarde|boa noite|hey)\b/.test(q)) texto = "Oi! Estou aqui 💜 Minha conexão está instável agora, mas já já volto ao normal.";
+    else if (/\bhoras?\b/.test(q)) texto = `Agora são ${h.getHours().toString().padStart(2, "0")}:${h.getMinutes().toString().padStart(2, "0")}.`;
+    else if (/\b(data|dia é hoje|que dia)\b/.test(q)) texto = `Hoje é ${h.toLocaleDateString("pt-BR")}.`;
+    else if (/\b(obrigad|valeu)\b/.test(q)) texto = "De nada! 💜";
+    else if (/\b(quem é você|quem e voce|seu nome)\b/.test(q)) texto = "Sou a Lia, sua assistente pessoal. Agora estou com a conexão instável, mas sigo aqui.";
+    return { ok: true as const, text: texto, provider: "emergencia" as const, status: status ?? 503 };
   });
