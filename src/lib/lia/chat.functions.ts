@@ -249,6 +249,7 @@ export const liaRespond = createServerFn({ method: "POST" })
         model,
         system: systemFinal,
         messages,
+        maxRetries: 0,
         ...(timeoutMs ? { abortSignal: AbortSignal.timeout(timeoutMs) } : {}),
         ...(Object.keys(tools).length ? { tools, stopWhen: stepCountIs(8) } : {}),
       } as Parameters<typeof generateText>[0];
