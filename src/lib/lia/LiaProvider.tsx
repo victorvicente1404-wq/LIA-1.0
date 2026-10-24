@@ -23,6 +23,7 @@ import { liaRespond } from "./chat.functions";
 import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
 import { sendSerial, serialConnected } from "./webserial";
+import { parseArduinoChat } from "./arduino-chat";
 import { ROOMS, contextSnapshot, setTorch, vibrate } from "./device";
 import type { IotConfig } from "./types";
 import { describeVision, visionSource } from "./vision";
@@ -312,10 +313,38 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const withUser = [...base, userMsg];
       setSessionMessages(withUser);
       setSending(true);
-      setState("thinking");
 
       const token = { cancelled: false };
       abortRef.current = token;
+
+      // Local USB commands bypass all vision, context collection and AI providers.
+      const local = attachments?.length ? null : parseArduinoChat(trimmed);
+      if (local) {
+        setState("idle");
+        let content = "";
+        try {
+          if ("error" in local) content = local.error;
+          else if (!serialConnected()) content = "Conecte o Arduino via USB em Módulos → Automação Arduino para eu enviar esse comando direto, sem IA.";
+          else {
+            const { pin, value, name } = local.command;
+            const reply = await sendSerial({ action: "digital_write", pin, value });
+            content = reply === String(value)
+              ? `${name}, pino ${pin}: Arduino confirmou ${value ? "ligar (HIGH)" : "desligar (LOW)"}.`
+              : "O Arduino não confirmou o comando. Confira o cabo USB e o sketch; não usei nenhuma API.";
+          }
+        } catch (error) {
+          content = `Não consegui enviar pelo USB: ${error instanceof Error ? error.message : "conexão indisponível"}.`;
+        } finally {
+          if (!token.cancelled) {
+            const finalMsgs: ChatMessage[] = [...withUser, { id: uid(), role: "lia", content, createdAt: Date.now(), localOnly: true }];
+            setSessionMessages(finalMsgs);
+            if (data && cardConnected) persist({ ...data, history: finalMsgs.slice(-200) });
+          }
+          if (abortRef.current === token) { setSending(false); setState("idle"); }
+        }
+        return;
+      }
+      setState("thinking");
 
       const visionModuleOn = modules.find((m) => m.id === "visao")?.ativo ?? false;
       const obs = visionSource.get();

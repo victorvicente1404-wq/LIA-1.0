@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Executar comandos do Arduino no chat por pino ou nome sem API e validar o fluxo local
+
 - [x] Adicionar botões USB dos pinos da maquete; comandos e falhas validados com USB simulado (hardware físico indisponível)
 
 - [ ] Corrigir e comprimir anexos multimodais
