@@ -68,7 +68,7 @@ export function LiaWorkspace() {
   useEffect(() => {
     if (!last || last.role !== "lia" || last.id === spokenId) return;
     setSpokenId(last.id);
-    if (voiceModuleOn && last.id !== "greeting")
+    if (voiceModuleOn && last.id !== "greeting" && !last.localOnly)
       voice.speak(last.content, { velocidade: profile.voz.velocidade, tom: profile.voz.tom });
   }, [last, spokenId, voiceModuleOn, voice, profile.voz]);
 
@@ -97,7 +97,7 @@ export function LiaWorkspace() {
   }, [lia.booted, cardConnected, lia]);
 
   useEffect(() => {
-    if (!last || last.role !== "lia" || last.id === "greeting" || document.visibilityState === "visible") return;
+    if (!last || last.role !== "lia" || last.localOnly || last.id === "greeting" || document.visibilityState === "visible") return;
     const body = last.content.replace(/[*_#`]/g, "").slice(0, 180);
     void (async () => {
       if (await hasPushSubscription()) {

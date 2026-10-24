@@ -22,3 +22,4 @@
 - Device telemetry and phone notifications live in lia_device_telemetry/lia_notifications scoped by user_id (telemetry.ts), because the AI must read every device's state on each message without the Lia Link password.
 - Manual Arduino controls use the shared room mapping and Web Serial queue, and report acknowledgements rather than physical LED state, because they must work independently of AI without claiming unobserved hardware results.
 - Explicit single-pin or room Arduino chat commands are parsed in the browser before context collection and API calls, because hardware actions must not depend on AI quota; local replies preserve history without modifying learned memory.
+- Local hardware chat replies carry localOnly and skip cloud speech and push, because a local action must not indirectly consume API quota through response effects.

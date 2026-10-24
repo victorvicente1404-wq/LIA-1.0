@@ -336,7 +336,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           content = `Não consegui enviar pelo USB: ${error instanceof Error ? error.message : "conexão indisponível"}.`;
         } finally {
           if (!token.cancelled) {
-            const finalMsgs: ChatMessage[] = [...withUser, { id: uid(), role: "lia", content, createdAt: Date.now() }];
+            const finalMsgs: ChatMessage[] = [...withUser, { id: uid(), role: "lia", content, createdAt: Date.now(), localOnly: true }];
             setSessionMessages(finalMsgs);
             if (data && cardConnected) persist({ ...data, history: finalMsgs.slice(-200) });
           }

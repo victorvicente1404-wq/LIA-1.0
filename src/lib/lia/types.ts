@@ -22,6 +22,8 @@ export interface ChatMessage {
   content: string;
   createdAt: number;
   attachments?: Attachment[];
+  /** Hardware reply generated entirely on this device; never send to cloud TTS/push. */
+  localOnly?: boolean;
 }
 
 export type TreatId =
