@@ -8,6 +8,7 @@ import { useLia } from "@/lib/lia/LiaProvider";
 import { ARDUINO_SKETCH, ESP32_SKETCH, PYTHON_BRIDGE } from "@/lib/lia/iot";
 import { iotTest } from "@/lib/lia/iot.functions";
 import { cn } from "@/lib/utils";
+import { ArduinoPinControls } from "./ArduinoPinControls";
 
 const CODES = [
   { id: "esp32", label: "ESP32 (C++)", code: ESP32_SKETCH },
@@ -62,7 +63,7 @@ export function IotModule() {
     }
   };
 
-  const current = CODES.find((c) => c.id === tab)!;
+  const current = CODES.find((c) => c.id === tab) ?? CODES[0];
 
   return (
     <div className="mt-3 space-y-3 border-t border-border pt-3">
@@ -85,6 +86,7 @@ export function IotModule() {
         )}
         {usbMsg && <p className="text-[11px] text-muted-foreground">{usbMsg}</p>}
       </div>
+      <ArduinoPinControls connected={usbOn} />
       <div className="space-y-1">
         <Label className="text-xs">Endereço do dispositivo / ponte</Label>
         <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://seu-tunel.ngrok-free.app" />

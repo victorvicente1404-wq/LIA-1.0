@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Adicionar e validar botões USB dos pinos da maquete (hardware físico não disponível no preview)
+
 - [ ] Corrigir e comprimir anexos multimodais
 - [ ] Adicionar petiscos e estado afetivo no Lia Card
 - [ ] Completar notificações e iniciativa contextual
