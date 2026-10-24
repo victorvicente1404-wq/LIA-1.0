@@ -18,7 +18,7 @@ describe("comandos manuais USB", () => {
       write(bytes) {
         const command = new TextDecoder().decode(bytes);
         writes.push(command);
-        queueMicrotask(() => input?.enqueue(new TextEncoder().encode(`${command.trim().split(" ")[2]}\n`)));
+        setTimeout(() => input?.enqueue(new TextEncoder().encode(`${command.trim().split(" ")[2]}\n`)), 20);
       },
     });
     const connection = connectSerial({ readable, writable, close: async () => {} });
@@ -26,7 +26,9 @@ describe("comandos manuais USB", () => {
     await connection;
     for (const pin of [2, 3, 4, 5, 6]) {
       for (const value of [1, 0]) {
-        expect(await sendSerial({ action: "digital_write", pin, value })).toBe(String(value));
+        const response = sendSerial({ action: "digital_write", pin, value });
+        await vi.advanceTimersByTimeAsync(20);
+        expect(await response).toBe(String(value));
         expect(writes.at(-1)).toBe(`W ${pin} ${value}\n`);
       }
     }
