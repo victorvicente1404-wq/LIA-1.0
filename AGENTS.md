@@ -23,3 +23,4 @@
 - Manual Arduino controls use the shared room mapping and Web Serial queue, and report acknowledgements rather than physical LED state, because they must work independently of AI without claiming unobserved hardware results.
 - Explicit single-pin or room Arduino chat commands are parsed in the browser before context collection and API calls, because hardware actions must not depend on AI quota; local replies preserve history without modifying learned memory.
 - Local hardware chat replies carry localOnly and skip cloud speech and push, because a local action must not indirectly consume API quota through response effects.
+- The in-browser WebLLM model (local-llm.ts) is an opt-in last layer used only when the server cascade fails or returns its emergency reply, because it needs a one-time ~400 MB download and WebGPU.
