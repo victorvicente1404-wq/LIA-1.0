@@ -421,8 +421,20 @@ export function LiaProvider({ children }: { children: ReactNode }) {
                 }
               : {}),
           },
-        })]);
+        })]).catch(async (err) => {
+          // Camada local: se a nuvem falhar ou demorar, o modelo do navegador responde.
+          const { localLlmReply } = await import("./local-llm");
+          const text = await localLlmReply(systemFinal, history);
+          if (!text) throw err;
+          return { ok: true as const, text, provider: "local" as const };
+        });
         clearTimeout(timer);
+        if (token.cancelled) return;
+        if ("provider" in res && res.provider === "emergencia") {
+          const { localLlmReply } = await import("./local-llm");
+          const text = await localLlmReply(systemFinal, history);
+          if (text) (res as { text: string }).text = text;
+        }
         if (token.cancelled) return;
         const usbJson = "usbJson" in res ? res.usbJson : undefined;
         let usbNote = "";

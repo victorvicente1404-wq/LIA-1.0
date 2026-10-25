@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { readUserGeminiKey, writeUserGeminiKey, readUserGroqKey, writeUserGroqKey } from "@/lib/lia/user-gemini";
+import { LocalModelToggle } from "./LocalModelToggle";
 
 function KeyField(props: {
   title: string;
@@ -67,6 +68,7 @@ export function UserGeminiKey() {
         read={readUserGeminiKey}
         write={writeUserGeminiKey}
       />
+      <LocalModelToggle />
     </div>
   );
 }
