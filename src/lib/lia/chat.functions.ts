@@ -44,6 +44,8 @@ const Input = z.object({
   nativeAndroid: z.boolean().optional(),
   /** Chave Gemini do próprio usuário (não gasta a cota do dono). */
   userGeminiKey: z.string().min(10).max(200).optional(),
+  /** Chave Groq do próprio usuário (Llama 3.3 70B gratuito). */
+  userGroqKey: z.string().min(10).max(200).optional(),
 });
 
 /** Fala da Lia: conversação, visão e ações nos serviços conectados. */
@@ -306,6 +308,17 @@ export const liaRespond = createServerFn({ method: "POST" })
       : null;
     const GEMINI_FAST = ["gemini-flash-lite-latest", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite"];
     const GEMINI_STRONG = ["gemini-3-flash-preview", "gemini-3.8-flash", "gemini-flash-latest"];
+
+    // 0) Groq (Llama 3.3 70B gratuito, milhares de requisições/dia) com ferramentas.
+    const groqKey = data.userGroqKey ?? process.env["GROQ_API_KEY"];
+    if (groqKey) {
+      const groq = createOpenAICompatible({ name: "groq", baseURL: "https://api.groq.com/openai/v1", headers: { authorization: `Bearer ${groqKey}` } });
+      for (const id of ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]) {
+        if (!temTempo()) break;
+        try { return { ...(await runWithTools(groq(id), tempo(6_000))), provider: "openrouter" as const }; }
+        catch (e) { falhou(`Groq ${id}`, e); }
+      }
+    }
 
     // 1) Gemini rápido (Flash Lite) com ferramentas — cota própria, <1 s.
     if (gemini) {
