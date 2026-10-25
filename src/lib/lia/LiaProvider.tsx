@@ -1,7 +1,7 @@
 /**
  * módulos e ciclo de vida do Lia Card.
  */
-import { readUserGeminiKey } from "./user-gemini";
+import { readUserGeminiKey, readUserGroqKey } from "./user-gemini";
 import { runNative, type NativeCmd } from "./native-device";
 import { readOsAgentPrefs } from "./os-agent";
 import {
@@ -409,6 +409,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
             ...(readUserGeminiKey() ? { userGeminiKey: readUserGeminiKey() } : {}),
+            ...(readUserGroqKey() ? { userGroqKey: readUserGroqKey() } : {}),
             ...(attachments?.length
               ? {
                   attachments: attachments.map((a) => ({
