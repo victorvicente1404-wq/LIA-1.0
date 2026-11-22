@@ -34,6 +34,7 @@ import {
   setNotificationsEnabled,
 } from "@/lib/lia/notifications";
 import { NotificationsSection } from "./NotificationsSection";
+import { LocalEngineSettings } from "./LocalEngineSettings";
 import {
   proactiveEnabled,
   readTopics,
@@ -348,8 +349,8 @@ function ModulesSection() {
           </div>
         ))}
         <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-          Slot livre — reconhecimento facial, OCR, automação residencial, Arduino/ESP32 e modelos
-          locais poderão ser adicionados aqui.
+          O motor principal de linguagem já está preparado para conectar ao llama.cpp local via Termux.
+          Visão e ferramentas de IA serão integradas em etapas próprias.
         </div>
       </div>
     </div>
@@ -375,12 +376,7 @@ function SettingsSection() {
     <div>
       <Title sub="Preferências do sistema para este Lia Card.">Configurações</Title>
       <div className="space-y-3">
-        <Toggle
-          label="Usar IA externa"
-          desc="Necessário para conversação avançada."
-          checked={settings.aiExterna}
-          onChange={(v) => updateSettings({ aiExterna: v })}
-        />
+        <LocalEngineSettings />
         <Toggle
           label="Permitir microfone"
           desc="Escuta local via navegador."
@@ -653,17 +649,15 @@ function PrivacySection() {
         <Row label="Câmera" value={settings.camera ? "permitida" : "desligada"} />
         <Row label="Microfone" value={settings.microfone ? "permitido" : "desligado"} />
         <Row label="Voz e escuta" value="processadas no navegador" />
-        <Row
-          label="IA externa"
-          value={settings.aiExterna ? "ativa (Lovable AI)" : "desativada"}
-        />
+        <Row label="Motor de conversa" value="llama.cpp local (Termux)" />
         <Row label="Módulos ativos" value={ativos.map((m) => m.nome).join(", ") || "nenhum"} />
       </div>
       <p className="mt-4 rounded-md border border-border bg-surface/60 p-3 text-xs leading-relaxed text-muted-foreground">
-        Transparência: a conversação usa um modelo de linguagem hospedado externamente, então o
-        texto enviado a mim sai do seu computador. Memória, personalidade, perfis e histórico ficam
-        no Lia Card, sob seu controle. Criptografia do cartão e modelos locais estão previstos para
-        versões futuras.
+        Transparência: as mensagens de conversa são enviadas diretamente ao llama-server em
+        127.0.0.1 no próprio aparelho. Não há fallback para Groq, Gemini, OpenRouter ou Lovable AI.
+        Conectores externos continuam acessando apenas os serviços que você autorizou. O modelo
+        local atual é somente texto; visão e execução de ferramentas pelo modelo ainda não estão
+        integradas.
       </p>
     </div>
   );
