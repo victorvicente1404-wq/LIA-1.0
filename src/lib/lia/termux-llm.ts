@@ -72,13 +72,13 @@ export async function localLlmReply(
 
   const attachedText = attachments
     .filter((item) => item.text?.trim())
-    .map((item) => `[Anexo: ${item.name}]\\n${item.text!.slice(0, 24_000)}`)
-    .join("\\n\\n");
+    .map((item) => `[Anexo: ${item.name}]\n${item.text!.slice(0, 24_000)}`)
+    .join("\n\n");
 
   const messages = history.map((item) => ({ ...item }));
   if (attachedText) {
     const lastUser = [...messages].reverse().find((item) => item.role === "user");
-    if (lastUser) lastUser.content += `\\n\\nConteúdo dos anexos:\\n${attachedText}`;
+    if (lastUser) lastUser.content += `\n\nConteúdo dos anexos:\n${attachedText}`;
   }
 
   const controller = new AbortController();
