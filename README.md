@@ -521,3 +521,26 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+
+## Motor local principal (Termux + llama.cpp)
+
+A conversa da Lia AI usa diretamente o servidor local do llama.cpp no próprio Android. O cliente chama `http://127.0.0.1:8080/v1/chat/completions` e testa a disponibilidade em `/health`. Não existe fallback remoto: se o servidor local estiver parado, a conversa informa o erro.
+
+No Termux, confirme que o binário do servidor está disponível:
+
+```bash
+command -v llama-server
+```
+
+Inicie o servidor com o caminho do GGUF que deseja testar:
+
+```bash
+llama-server -m "$HOME/storage/downloads/SEU-MODELO.gguf" --host 127.0.0.1 --port 8080 --ctx-size 2048 --threads 4 --parallel 1 --cors-origins "*"
+```
+
+Também há um script em `scripts/start-lia-engine.sh` que recebe o caminho do modelo como primeiro argumento. Mantenha o Termux e o processo do servidor em execução enquanto conversa com a Lia.
+
+Em Configurações → Motor principal, o endereço padrão é `http://127.0.0.1:8080`. Use **Testar conexão** depois que o llama-server informar que terminou de carregar o modelo.
+
+O cliente atual é somente texto. Imagens/câmera e chamadas de ferramentas do modelo ainda não são encaminhadas ao llama.cpp. Os comandos locais USB já reconhecidos pela interface continuam independentes do modelo.
