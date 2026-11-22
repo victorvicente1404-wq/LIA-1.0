@@ -52,6 +52,14 @@ const Input = z.object({
 export const liaRespond = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
+    // BLOQUEIO TEMPORÁRIO DE IA: nenhum provedor remoto, fallback ou modelo local
+    // pode gerar respostas nesta etapa. O próximo motor será o llama.cpp local.
+    return {
+      ok: false as const,
+      text: "Meu motor de IA está temporariamente desconectado para a preparação da Lia AI local. Ainda não estou usando nenhum modelo para responder. Assim que o motor local estiver integrado e testado, volto a conversar normalmente.",
+      provider: "disabled" as const,
+    };
+
     const key = process.env["LOVABLE_API_KEY"];
 
 
