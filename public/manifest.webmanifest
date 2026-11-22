@@ -1,0 +1,15 @@
+{
+  "name": "Lia AI",
+  "short_name": "Lia AI",
+  "description": "Assistente pessoal de IA privada, modular e portátil.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "lang": "pt-BR",
+  "categories": [
+    "productivity",
+    "utilities"
+  ]
+}
