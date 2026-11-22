@@ -6,7 +6,7 @@ const steps = [
   "Carregando módulos",
   "Procurando Lia Card",
   "Restaurando memória e personalidade",
-  "Lia pronta",
+  "Lia AI pronta",
 ];
 
 export function BootSequence({
