@@ -5,13 +5,13 @@ import { LiaWorkspace } from "@/components/lia/LiaWorkspace";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Lia — Assistente pessoal de IA portátil e privada" },
+      { title: "Lia AI — Assistente pessoal de IA portátil e privada" },
       {
         name: "description",
         content:
-          "Lia é uma assistente pessoal de IA feminina, modular e portátil: memória, personalidade e perfis viajam com você no Lia Card.",
+          "Lia AI é uma assistente pessoal de IA feminina, modular e portátil: memória, personalidade e perfis viajam com você no Lia Card.",
       },
-      { property: "og:title", content: "Lia — Assistente pessoal de IA portátil" },
+      { property: "og:title", content: "Lia AI — Assistente pessoal de IA portátil" },
       {
         property: "og:description",
         content:
