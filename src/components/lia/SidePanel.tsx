@@ -93,10 +93,12 @@ export function SidePanel() {
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {!lia.cardConnected &&
           active !== "card" &&
+          active !== "config" &&
           active !== "privacidade" &&
           active !== "conectores" && <NoCard onGo={() => setActive("card")} />}
         {(lia.cardConnected ||
           active === "card" ||
+          active === "config" ||
           active === "privacidade" ||
           active === "conectores") && (
           <>
