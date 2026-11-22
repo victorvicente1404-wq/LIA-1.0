@@ -368,7 +368,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const ctx = snap;
       const usbOn = serialConnected();
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Os comandos USB simples são tratados diretamente pelo app antes de consultar o modelo.`;
-      const systemBase = `${system}\\n\\n${rooms}${ctx ? `\\n\\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\\n${ctx}` : ""}`;
+      const systemBase = `${system}\n\n${rooms}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
       const systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
       const history = withUser.slice(-16).map((m) => ({
         role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
