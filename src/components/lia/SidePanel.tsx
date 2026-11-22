@@ -21,7 +21,6 @@ import { Label } from "@/components/ui/label";
 import { LiaCardPanel } from "./LiaCardPanel";
 import { ConnectorsSection } from "./ConnectorsSection";
 import { WhatsAppConnector } from "./WhatsAppConnector";
-import { UserGeminiKey } from "./UserGeminiKey";
 import { IotModule } from "./IotModule";
 import { OsAgentModule } from "./OsAgentModule";
 import { useLia } from "@/lib/lia/LiaProvider";
@@ -106,7 +105,6 @@ export function SidePanel() {
             {active === "modulos" && <ModulesSection />}
             {active === "conectores" && (
               <div className="space-y-4">
-                <UserGeminiKey />
                 <WhatsAppConnector />
                 <ConnectorsSection />
               </div>
