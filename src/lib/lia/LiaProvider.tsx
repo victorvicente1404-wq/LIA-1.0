@@ -120,7 +120,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   const { connectedIds } = useConnections();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const abortRef = useRef<{ cancelled: boolean } | null>(null);
+  const abortRef = useRef<{ cancelled: boolean; abort?: () => void } | null>(null);
 
   // Hub de telemetria (bateria, rede, local, notificações)
 
@@ -275,7 +275,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   );
 
   const stop = useCallback(() => {
-    if (abortRef.current) abortRef.current.cancelled = true;
+    if (abortRef.current) { abortRef.current.cancelled = true; abortRef.current.abort?.(); }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -310,7 +310,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       setSessionMessages(withUser);
       setSending(true);
 
-      const token = { cancelled: false };
+      const token: { cancelled: boolean; abort?: () => void } = { cancelled: false };
       abortRef.current = token;
 
       // Local USB commands bypass all vision, context collection and AI providers.
@@ -376,6 +376,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       }));
 
       const controller = new AbortController();
+      token.abort = () => controller.abort();
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const timeout = new Promise<never>((_, reject) => {
