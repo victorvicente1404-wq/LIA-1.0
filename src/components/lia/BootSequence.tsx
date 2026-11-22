@@ -34,10 +34,10 @@ export function BootSequence({
       <LiaOrb state="thinking" size={120} />
       <div className="text-center">
         <h1 className="font-display text-5xl font-semibold tracking-[0.35em] text-gradient-lia">
-          LIA
+          LIA AI
         </h1>
         <p className="mt-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          assistente pessoal · modular · portátil
+          assistente pessoal · modular · portátil · v1.1.00
         </p>
       </div>
       <div className="w-72 space-y-2">
