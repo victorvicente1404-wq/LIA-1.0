@@ -1,8 +1,6 @@
 /**
  * módulos e ciclo de vida do Lia Card.
  */
-import { runNative, type NativeCmd } from "./native-device";
-import { readOsAgentPrefs } from "./os-agent";
 import {
   createContext,
   useCallback,
@@ -18,14 +16,13 @@ import { defaultModules, defaultProfiles, uid } from "./defaults";
 import { buildSystemPrompt, extractMemories } from "./prompt";
 import { useConnections } from "./useConnections";
 import { connectorLabel } from "./connectors";
-import { liaRespond } from "./chat.functions";
+import { localLlmReply } from "./termux-llm";
 import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
 import { sendSerial, serialConnected } from "./webserial";
 import { parseArduinoChat } from "./arduino-chat";
 import { ROOMS, contextSnapshot, setTorch, vibrate } from "./device";
 import type { IotConfig } from "./types";
-import { describeVision, visionSource } from "./vision";
 import { readDevSettings } from "./dev-settings";
 import * as convo from "./conversations";
 import type { Conversation } from "./conversations";
@@ -345,16 +342,13 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       }
       setState("thinking");
 
-      const visionModuleOn = modules.find((m) => m.id === "visao")?.ativo ?? false;
-      const obs = visionSource.get();
-      const frame = visionModuleOn ? (visionSource.captureNow()?.dataUrl ?? null) : null;
       const system = buildSystemPrompt({
         user,
         profile,
         personality,
         memory,
         cardConnected,
-        vision: describeVision(visionSource.get(), visionModuleOn),
+        vision: "O motor local atual é somente texto. Câmera e interpretação de imagens ainda não estão conectadas ao modelo.",
         memoriaLocal: data?.settings.memoriaLocal ?? null,
         servicos: [
           ...connectedIds.map(connectorLabel),
@@ -364,23 +358,17 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         ],
         bond: evolveBond(data?.bond, trimmed),
       });
-      const whatsapp = whatsappCredsForChat();
-      const iotCfg = data?.iot?.url ? data.iot : readIot();
-      const iotAtivo = !!iotCfg.url && !!modules.find((m) => m.id === "automacao")?.ativo;
-      void obs;
       const extra = readDevSettings().systemPromptExtra.trim();
       // Coleta de contexto nunca pode prender o chat: cada etapa tem prazo curto.
       const within = <T,>(p: Promise<T>, ms: number, fb: T) =>
         Promise.race([p.catch(() => fb), new Promise<T>((r) => setTimeout(() => r(fb), ms))]);
       // Tudo em paralelo e com prazo curto: o contexto nunca atrasa a resposta.
       // Versão leve: sem telemetria, leitura de tela ou ponte do APK a cada mensagem.
-      const isNative = false;
       const snap = await within(contextSnapshot(), 300, "");
       const ctx = snap;
       const usbOn = serialConnected();
-      const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Para acender/apagar um cômodo use digital_write com value 1/0.${usbOn ? " O Arduino está no cabo USB: use SEMPRE e SOMENTE usb_comando." : ""}`;
-      const silent = "Execute ferramentas em silêncio: nunca mostre código, JSON ou nomes técnicos de ferramentas; confirme em linguagem natural.";
-      const systemBase = `${system}\n\n${rooms}\n${silent}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
+      const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Os comandos USB simples são tratados diretamente pelo app antes de consultar o modelo.`;
+      const systemBase = `${system}\\n\\n${rooms}${ctx ? `\\n\\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\\n${ctx}` : ""}`;
       const systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
       const history = withUser.slice(-16).map((m) => ({
         role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
@@ -396,73 +384,10 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             reject(new Error("LIA_TIMEOUT"));
           }, CHAT_TIMEOUT_MS);
         });
-        const res = await Promise.race([timeout, liaRespond({
-          signal: controller.signal,
-          data: {
-            system: systemFinal,
-            messages: history,
-            ...(frame ? { frame } : {}),
-            ...(whatsapp ? { whatsapp } : {}),
-            ...(iotAtivo && !usbOn ? { iot: iotCfg } : {}),
-            ...(usbOn ? { usb: true } : {}),
-            ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),
-            ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
-            ...(attachments?.length
-              ? {
-                  attachments: attachments.map((a) => ({
-                    name: a.name,
-                    mime: a.mime,
-                    ...(a.dataUrl ? { dataUrl: a.dataUrl } : {}),
-                    ...(a.text ? { text: a.text } : {}),
-                  })),
-                }
-              : {}),
-          },
-        })]);
+        const res = await Promise.race([timeout, localLlmReply(systemFinal, history, attachments, controller.signal)]);
         clearTimeout(timer);
         if (token.cancelled) return;
-        const usbJson = "usbJson" in res ? res.usbJson : undefined;
-        let usbNote = "";
-        if (usbJson) {
-          for (const c of JSON.parse(usbJson) as Parameters<typeof sendSerial>[0][]) {
-            try {
-              const out = await sendSerial(c);
-              if (c.action.endsWith("read")) usbNote += `\n\n🔌 Pino ${c.pin}: **${out}**`;
-            } catch (e) {
-              usbNote += `\n\n⚠️ USB: ${(e as Error).message}`;
-            }
-          }
-        }
-        const localJson = "localJson" in res ? res.localJson : undefined;
-        if (localJson) {
-          for (const c of JSON.parse(String(localJson)) as { acao: "vibrar" | "lanterna"; ligar?: boolean }[]) {
-            try {
-              if (c.acao === "vibrar") vibrate();
-              else await setTorch(c.ligar !== false);
-            } catch (e) {
-              usbNote += `\n\n⚠️ ${(e as Error).message}`;
-            }
-          }
-        }
-        const nativeJson = "nativeJson" in res ? res.nativeJson : undefined;
-        if (nativeJson) {
-          for (const c of JSON.parse(String(nativeJson)) as NativeCmd[]) {
-            try {
-              const warn = await runNative(c);
-              if (warn) usbNote += `\n\n⚠️ ${warn}`;
-            } catch (e) {
-              usbNote += `\n\n⚠️ ${(e as Error).message}`;
-            }
-          }
-        }
-        const remoteJson = "remoteJson" in res ? res.remoteJson : undefined;
-        if (remoteJson) {
-          for (const c of JSON.parse(String(remoteJson)) as (link.RemoteCommand & { alvo: "mobile" | "desktop" })[]) {
-            const { alvo, ...cmd } = c;
-            void link.dispatchRemote(alvo, { ...cmd, ...(activeConversationId ? { conversationId: activeConversationId } : {}) }).catch(() => undefined);
-          }
-        }
-        const { clean, learned } = extractMemories(applyFaceTags(res.text) + usbNote);
+        const { clean, learned } = extractMemories(applyFaceTags(res.text));
         const liaMsg: ChatMessage = {
           id: uid(),
           role: "lia",
@@ -472,12 +397,6 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         const finalMsgs = [...withUser, liaMsg];
         setSessionMessages(finalMsgs);
 
-        const regJson = "registeredJson" in res ? res.registeredJson : undefined;
-        const registered = regJson ? (JSON.parse(regJson) as CustomApi[]) : undefined;
-        const apisNext = registered?.length
-          ? [...(data?.customApis ?? []).filter((a) => !registered.some((r) => r.name === a.name)), ...registered]
-          : data?.customApis;
-        if (registered?.length) void syncCustomApisToAccount(apisNext ?? []);
         if (data && cardConnected) {
           const memoryModuleOn = data.modules.find((m) => m.id === "memoria")?.ativo;
           const newMemories: MemoryItem[] =
@@ -488,7 +407,6 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...data,
             history: finalMsgs.slice(-200),
             bond: evolveBond(data.bond, trimmed),
-            ...(apisNext ? { customApis: apisNext } : {}),
             profiles: data.profiles.map((p) =>
               p.id === data.activeProfileId
                 ? { ...p, memory: [...newMemories, ...p.memory].slice(0, 200) }
@@ -681,9 +599,9 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const repetido = data?.bond?.ultimoPetisco === id;
       const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido ? " Já foi dado recentemente — reaja como quem ficou mal-acostumada, mas feliz." : ""}`;
       const history = sessionMessages.slice(-8).map((m) => ({ role: m.role === "lia" ? ("assistant" as const) : ("user" as const), content: m.content }));
-      void liaRespond({ data: { system, messages: [...history, { role: "user" as const, content: ctx }] } })
-        .then((res) => (res.ok && res.text ? extractMemories(applyFaceTags(res.text)).clean : res.text || "O motor de IA está desligado nesta etapa."))
-        .catch(() => treatReaction(treat, nextBond))
+      void localLlmReply(system, [...history, { role: "user" as const, content: ctx }])
+        .then((res) => extractMemories(applyFaceTags(res.text)).clean)
+        .catch((error) => `Não consegui conectar ao motor local: ${error instanceof Error ? error.message : "servidor indisponível"}`)
         .then((content) => {
           setSessionMessages((prev) => [...prev, { id: msgId, role: "lia", content: `${treat.emoji} ${content}`.replace(/^(\S+) \1/, "$1"), createdAt: Date.now() }]);
           setState("speaking");
