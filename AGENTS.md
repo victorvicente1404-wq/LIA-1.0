@@ -23,4 +23,4 @@
 - Manual Arduino controls use the shared room mapping and Web Serial queue, and report acknowledgements rather than physical LED state, because they must work independently of AI without claiming unobserved hardware results.
 - Explicit single-pin or room Arduino chat commands are parsed in the browser before context collection and API calls, because hardware actions must not depend on AI quota; local replies preserve history without modifying learned memory.
 - Local hardware chat replies carry localOnly and skip cloud speech and push, because a local action must not indirectly consume API quota through response effects.
-- During the Lia AI local-engine migration, `liaRespond` must never call remote providers, fallback cascades, emergency text generators, or the retired browser WebLLM; until llama.cpp is connected, it must return an explicit disabled status.
+- Lia AI chat generation runs in the browser directly against the Android Termux llama-server at the loopback endpoint configured in `termux-llm.ts`; never route prompts to remote AI providers or silent fallbacks. If the local engine is unavailable, surface the connection error.
