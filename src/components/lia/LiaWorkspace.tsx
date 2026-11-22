@@ -104,7 +104,7 @@ export function LiaWorkspace() {
         const r = await sendSelfPush({ data: { title: "Tarefa concluída", body, tag: "lia-chat" } }).catch(() => null);
         if (r?.sent) return;
       }
-      notify("Lia", body);
+      notify("Lia AI", body);
     })();
   }, [last]);
 
@@ -125,15 +125,15 @@ export function LiaWorkspace() {
           <Button size="icon" variant="ghost" className="shrink-0 lg:hidden" onClick={() => setMobileHistoryOpen(true)} title="Conversas">
             <Menu className="h-4 w-4" />
           </Button>
-          <button type="button" onClick={onLogoClick} aria-label="Lia" className="rounded-full">
+          <button type="button" onClick={onLogoClick} aria-label="Lia AI" className="rounded-full">
             <LiaOrb state={lia.state} size={34} />
           </button>
           <div className="min-w-0">
             <h1 className="font-display text-lg font-semibold tracking-[0.2em] text-gradient-lia">
-              LIA
+              LIA AI
             </h1>
             <p className="truncate text-[10px] uppercase text-muted-foreground">
-              assistente pessoal · modular · privada
+              assistente pessoal · modular · privada · v1.1.00
             </p>
           </div>
         </div>
