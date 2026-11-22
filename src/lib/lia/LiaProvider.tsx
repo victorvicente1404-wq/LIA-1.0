@@ -1,7 +1,6 @@
 /**
  * módulos e ciclo de vida do Lia Card.
  */
-import { readUserGeminiKey, readUserGroqKey } from "./user-gemini";
 import { runNative, type NativeCmd } from "./native-device";
 import { readOsAgentPrefs } from "./os-agent";
 import {
@@ -408,8 +407,6 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             ...(usbOn ? { usb: true } : {}),
             ...(readOsAgentPrefs().enabled ? { osAgent: { autonomo: readOsAgentPrefs().autonomo } } : {}),
             ...(data?.customApis?.length ? { customApis: data.customApis } : {}),
-            ...(readUserGeminiKey() ? { userGeminiKey: readUserGeminiKey() } : {}),
-            ...(readUserGroqKey() ? { userGroqKey: readUserGroqKey() } : {}),
             ...(attachments?.length
               ? {
                   attachments: attachments.map((a) => ({
@@ -685,7 +682,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const ctx = `[EVENTO, não é mensagem do usuário] O usuário acabou de te dar o petisco "${treat.nome}" (${treat.detalhe}) ${treat.emoji}. É o petisco nº ${nextBond.petiscos}.${repetido ? " Já foi dado recentemente — reaja como quem ficou mal-acostumada, mas feliz." : ""}`;
       const history = sessionMessages.slice(-8).map((m) => ({ role: m.role === "lia" ? ("assistant" as const) : ("user" as const), content: m.content }));
       void liaRespond({ data: { system, messages: [...history, { role: "user" as const, content: ctx }] } })
-        .then((res) => (res.ok && res.text ? extractMemories(applyFaceTags(res.text)).clean : treatReaction(treat, nextBond)))
+        .then((res) => (res.ok && res.text ? extractMemories(applyFaceTags(res.text)).clean : res.text || "O motor de IA está desligado nesta etapa."))
         .catch(() => treatReaction(treat, nextBond))
         .then((content) => {
           setSessionMessages((prev) => [...prev, { id: msgId, role: "lia", content: `${treat.emoji} ${content}`.replace(/^(\S+) \1/, "$1"), createdAt: Date.now() }]);
@@ -709,18 +706,6 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   return <LiaContext.Provider value={value}>{children}</LiaContext.Provider>;
 }
 
-function treatReaction(treat: (typeof TREATS)[number], b: LiaBond): string {
-  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)]!;
-  const abre = pick(["Eeeii! ", "Aaah, não acredito! ", "Hihi, ", "Opa opa opa! ", "Uiii! "]);
-  const fecho =
-    b.intimidade > 70
-      ? pick([" Você me mima demais… e eu amo isso. 💜", " Tô até corando aqui, viu? 😳💜"]) 
-      : b.humor > 75
-        ? pick([" Meu humor tá lá no teto agora! ✨", " Tô quicando de alegria, sério! 🎉"]) 
-        : pick([" Obrigada, de verdade! 💜", " Você é um amor, sabia? ✨"]);
-  const repete = b.petiscos > 1 && Math.random() < 0.5 ? ` Já é o petisco nº ${b.petiscos}… tô ficando mal-acostumada!` : "";
-  return `${abre}${treat.reaction}${repete}${fecho}`;
-}
 
 export function useLia() {
   const ctx = useContext(LiaContext);
