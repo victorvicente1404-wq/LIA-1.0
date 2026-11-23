@@ -67,17 +67,17 @@ function lookupSavedMemory(
 ): { matched: boolean; reply: string } {
   const normalized = question
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR")
     .trim();
   const hasLookupIntent =
-    /\\b(?:qual|o que|me diga|lembra|lembre)\\b/.test(normalized) &&
-    /\\b(?:informacao|valor|dado|memoria)\\b/.test(normalized);
+    /\b(?:qual|o que|me diga|lembra|lembre)\b/.test(normalized) &&
+    /\b(?:informacao|valor|dado|memoria)\b/.test(normalized);
   if (!hasLookupIntent) return { matched: false, reply: "" };
 
   // Aceita contexto antes da pergunta: "Uau, boa resposta, mas qual é ... em teste_lia?"
   const keyMatch = normalized.match(
-    /\\b(?:em|para|de)\\s+["'“]?(.+?)["'”]?\\s*[?!.]*$/,
+    /\b(?:em|para|de)\s+["'“]?(.+?)["'”]?\s*[?!.]*$/,
   );
   const requestedKey = keyMatch?.[1]?.trim().replace(/^["'“]+|["'”]+$/g, "").trim();
   if (!requestedKey) {
@@ -86,7 +86,7 @@ function lookupSavedMemory(
 
   const key = requestedKey.toLocaleLowerCase("pt-BR");
   const item = memories.find(
-    (entry) => entry.key.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR") === key,
+    (entry) => entry.key.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === key,
   );
   return item
     ? { matched: true, reply: `A informação registrada em "${item.key}" é: "${item.value}".` }
@@ -95,9 +95,9 @@ function lookupSavedMemory(
 
 /** Reconhece consultas de bateria que devem ser executadas no Android, não respondidas pelo modelo. */
 function isBatteryQuery(question: string): boolean {
-  const normalized = question.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  return /\\b(?:bateria|carga)\\b/.test(normalized) &&
-    /\\b(?:consulte|consultar|qual|quanto|nivel|porcentagem|estado|status|ver|mostre|confira|cheque)\\b/.test(normalized);
+  const normalized = question.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return /\b(?:bateria|carga)\b/.test(normalized) &&
+    /\b(?:consulte|consultar|qual|quanto|nivel|porcentagem|estado|status|ver|mostre|confira|cheque)\b/.test(normalized);
 }
 
 
