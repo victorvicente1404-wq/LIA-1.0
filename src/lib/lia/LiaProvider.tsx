@@ -371,13 +371,27 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Os comandos USB simples são tratados diretamente pelo app antes de consultar o modelo.`;
       const systemBase = `${system}\n\n${rooms}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
       const systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
-      const history = withUser.slice(-6).map((m) => ({
+      const history = withUser.slice(-4).map((m) => ({
         role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
         content: m.content,
       }));
 
       const streamMessageId = uid();
       let streamedText = "";
+      let pendingStreamChunk = "";
+      let streamFrame: number | null = null;
+      const flushStream = () => {
+        if (token.cancelled || !pendingStreamChunk) return;
+        streamedText += pendingStreamChunk;
+        pendingStreamChunk = "";
+        setSessionMessages((prev) =>
+          prev.map((message) =>
+            message.id === streamMessageId
+              ? { ...message, content: streamedText, streaming: true }
+              : message,
+          ),
+        );
+      };
       setSessionMessages([
         ...withUser,
         { id: streamMessageId, role: "lia", content: "", createdAt: Date.now(), streaming: true },
@@ -397,17 +411,19 @@ export function LiaProvider({ children }: { children: ReactNode }) {
           timeout,
           localLlmReply(systemFinal, history, attachments, controller.signal, (chunk) => {
             if (token.cancelled) return;
-            streamedText += chunk;
-            setSessionMessages((prev) =>
-              prev.map((message) =>
-                message.id === streamMessageId
-                  ? { ...message, content: streamedText, streaming: true }
-                  : message,
-              ),
-            );
+            pendingStreamChunk += chunk;
+            if (streamFrame === null) {
+              streamFrame = requestAnimationFrame(() => {
+                streamFrame = null;
+                flushStream();
+              });
+            }
           }),
         ]);
         clearTimeout(timer);
+        if (streamFrame !== null) cancelAnimationFrame(streamFrame);
+        streamFrame = null;
+        flushStream();
         if (token.cancelled) return;
         const { clean, learned } = extractMemories(applyFaceTags(res.text));
         const liaMsg: ChatMessage = {
@@ -451,6 +467,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
       } finally {
         clearTimeout(timer);
+        if (streamFrame !== null) cancelAnimationFrame(streamFrame);
         if (abortRef.current === token) {
           // Sempre libera a interface, mesmo após erro, timeout ou exceção inesperada.
           setSending(false);
