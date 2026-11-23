@@ -34,7 +34,7 @@ export function LocalEngineSettings() {
       <div>
         <p className="text-sm font-medium">Motor principal · llama.cpp</p>
         <p className="text-xs text-muted-foreground">
-          A Lia envia as mensagens diretamente ao servidor local no Termux. Não existe fallback remoto.
+          A conversa usa o servidor local no Termux. A seleção automática entre motor local e provedor online ainda não está implementada nesta versão.
         </p>
       </div>
       <div className="space-y-1.5">
