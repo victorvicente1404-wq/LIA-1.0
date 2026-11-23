@@ -18,8 +18,9 @@ export function buildSystemPrompt(args: {
   const { user, profile, personality, memory, cardConnected, vision, memoriaLocal } = args;
   const servicos = args.servicos ?? [];
 
+  // Mantém o prompt compacto; consultas por chave exata são resolvidas diretamente no LiaProvider.
   const memoriaTexto = memory.length
-    ? memory.map((m) => `- [${m.kind}] ${m.key}: ${m.value}`).join("\n")
+    ? memory.slice(0, 50).map((m) => `- [${m.kind}] ${m.key}: ${m.value}`).join("\n")
     : "- (nenhuma memória registrada ainda)";
 
   return `Você é a Lia, uma assistente pessoal de inteligência artificial feminina, modular, portátil e focada em privacidade.
@@ -97,11 +98,17 @@ export function extractMemories(text: string): {
   learned: { kind: MemoryItem["kind"]; key: string; value: string }[];
 } {
   const learned: { kind: MemoryItem["kind"]; key: string; value: string }[] = [];
+  const validKinds = new Set<MemoryItem["kind"]>([
+    "perfil", "preferencia", "conhecimento", "rotina", "relacionamento", "importante",
+  ]);
   const clean = text
-    .replace(/\[\[LEMBRAR:([^\]]+)\]\]/g, (_m, body: string) => {
-      const [kind, key, value] = body.split("|").map((s) => s.trim());
-      if (kind && key && value) {
-        learned.push({ kind: kind as MemoryItem["kind"], key, value });
+    .replace(/\\[\\[LEMBRAR:([^\\]]+)\\]\\]/gi, (_m, body: string) => {
+      const parts = body.split("|").map((part) => part.trim());
+      const kind = parts.shift() as MemoryItem["kind"] | undefined;
+      const key = parts.shift();
+      const value = parts.join(" | ").trim();
+      if (kind && validKinds.has(kind) && key && value) {
+        learned.push({ kind, key, value });
       }
       return "";
     })
