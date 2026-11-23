@@ -96,8 +96,9 @@ export async function localLlmReply(
       body: JSON.stringify({
         model: "local-model",
         messages: [{ role: "system", content: system }, ...messages],
-        temperature: 0.7,
-        max_tokens: 512,
+        temperature: 0.65,
+        top_p: 0.9,
+        max_tokens: 384,
         stream: false,
       }),
     });
