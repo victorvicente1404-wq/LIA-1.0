@@ -130,7 +130,7 @@ export function ChatPanel({
                   : "text-foreground",
               )}
             >
-              {m.role === "user" ? m.content : <Markdown content={m.content} />}
+              {m.role === "user" ? m.content : <><Markdown content={m.content} />{m.streaming && <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-primary align-middle" aria-label="Recebendo resposta" />}</>}
               {!!m.attachments?.length && (
                 <div className="mt-2 flex flex-col gap-2">
                   {m.attachments.map((a, i) => (
@@ -141,7 +141,7 @@ export function ChatPanel({
             </div>
           </div>
         ))}
-        {sending && (
+        {sending && !messages.some((m) => m.streaming) && (
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <LiaOrb state="thinking" size={26} />
             <span className="animate-pulse">Lia está pensando…</span>
