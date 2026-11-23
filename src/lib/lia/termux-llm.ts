@@ -64,6 +64,7 @@ export async function localLlmReply(
   history: { role: "user" | "assistant"; content: string }[],
   attachments: { name: string; mime: string; text?: string; dataUrl?: string }[] = [],
   externalSignal?: AbortSignal,
+  onChunk?: (chunk: string) => void,
 ): Promise<{ ok: true; text: string; provider: "llama.cpp" }> {
   const unsupported = attachments.find((item) => item.dataUrl && !item.text);
   if (unsupported) {
@@ -99,7 +100,7 @@ export async function localLlmReply(
         temperature: 0.65,
         top_p: 0.9,
         max_tokens: 384,
-        stream: false,
+        stream: true,
       }),
     });
 
@@ -108,19 +109,56 @@ export async function localLlmReply(
       throw new Error(`llama-server respondeu HTTP ${response.status}${body ? `: ${body.slice(0, 300)}` : ""}.`);
     }
 
-    const payload = await response.json() as {
-      choices?: { message?: { content?: string | { type?: string; text?: string }[] } }[];
-      error?: { message?: string };
+    if (!response.body) {
+      throw new Error("O navegador não disponibilizou o fluxo de resposta do llama-server.");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let answer = "";
+
+    const processLine = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) return;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === "[DONE]") return;
+
+      let payload: {
+        choices?: { delta?: { content?: string | { type?: string; text?: string }[] } }[];
+        error?: { message?: string };
+      };
+      try {
+        payload = JSON.parse(data);
+      } catch {
+        return;
+      }
+      if (payload.error?.message) throw new Error(payload.error.message);
+      const raw = payload.choices?.[0]?.delta?.content;
+      const chunk = typeof raw === "string"
+        ? raw
+        : Array.isArray(raw)
+          ? raw.map((part) => part.text ?? "").join("")
+          : "";
+      if (chunk) {
+        answer += chunk;
+        onChunk?.(chunk);
+      }
     };
-    const raw = payload.choices?.[0]?.message?.content;
-    const answer = typeof raw === "string"
-      ? raw
-      : Array.isArray(raw)
-        ? raw.map((part) => part.text ?? "").join("")
-        : "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split(/\\r?\\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) processLine(line);
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) processLine(buffer);
 
     if (!answer.trim()) {
-      throw new Error(payload.error?.message || "O modelo local respondeu sem texto. Verifique o template de conversa do GGUF.");
+      throw new Error("O modelo local respondeu sem texto. Verifique o template de conversa do GGUF.");
     }
     return { ok: true, text: answer.trim(), provider: "llama.cpp" };
   } catch (error) {
