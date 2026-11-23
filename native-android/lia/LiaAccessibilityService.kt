@@ -2,6 +2,7 @@ package app.lia.lia
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Bundle
