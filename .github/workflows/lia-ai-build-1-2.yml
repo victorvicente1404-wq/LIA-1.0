@@ -137,6 +137,11 @@ jobs:
           echo "Permanent signing configuration verified."
 
       - name: Build debug APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/lia-signing.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x android/gradlew
           cd android
