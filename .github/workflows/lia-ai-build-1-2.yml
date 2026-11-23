@@ -69,6 +69,73 @@ jobs:
       - name: Sync Capacitor Android
         run: bunx cap sync android
 
+      - name: Restore permanent Android signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "::error::Missing repository secret ANDROID_KEYSTORE_BASE64."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/lia-signing.jks"
+          test -s "$RUNNER_TEMP/lia-signing.jks"
+          echo "Permanent signing keystore restored."
+
+      - name: Configure permanent APK signing
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/lia-signing.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing repository secret $name."
+              exit 1
+            fi
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/build.gradle")
+          content = path.read_text()
+          if "signingConfigs {" in content or "liaPermanent" in content:
+              raise SystemExit("Unexpected existing signing configuration; refusing to overwrite it.")
+          match = re.search(r"(?m)^(\s*)buildTypes\s*\{", content)
+          if not match:
+              raise SystemExit("Could not locate buildTypes block in generated Android Gradle file.")
+          indent = match.group(1)
+          signing = (
+              f"{indent}signingConfigs {{\n"
+              f"{indent}    liaPermanent {{\n"
+              f"{indent}        storeFile file(System.getenv('ANDROID_KEYSTORE_PATH'))\n"
+              f"{indent}        storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')\n"
+              f"{indent}        keyAlias System.getenv('ANDROID_KEY_ALIAS')\n"
+              f"{indent}        keyPassword System.getenv('ANDROID_KEY_PASSWORD')\n"
+              f"{indent}    }}\n"
+              f"{indent}}}\n"
+          )
+          debug = (
+              f"{indent}buildTypes {{\n"
+              f"{indent}    debug {{\n"
+              f"{indent}        signingConfig signingConfigs.liaPermanent\n"
+              f"{indent}    }}\n"
+          )
+          content = content[:match.start()] + signing + debug + content[match.end():]
+          path.write_text(content)
+          print("Permanent signing configuration added to the debug build.")
+          PY
+
+      - name: Verify permanent signing configuration
+        run: |
+          grep -q "liaPermanent" android/app/build.gradle
+          test -s "$RUNNER_TEMP/lia-signing.jks"
+          echo "Permanent signing configuration verified."
+
       - name: Build debug APK
         run: |
           chmod +x android/gradlew
