@@ -137,8 +137,10 @@ const fallbackProfile = defaultProfiles[0] as Profile;
 
 /** Mescla o backup externo sem apagar memórias que já existem no Lia Card. */
 function mergeMemoryBackup(current: LiaCardData, backup: LiaCardData): LiaCardData {
-  const profiles = current.profiles.map((profile) => {
-    const saved = backup.profiles?.find((candidate) => candidate.id === profile.id || candidate.nome === profile.nome);
+  const safeCurrent = card.normalizeCardData(current);
+  const safeBackup = card.normalizeCardData(backup);
+  const profiles = safeCurrent.profiles.map((profile) => {
+    const saved = safeBackup.profiles.find((candidate) => candidate.id === profile.id || candidate.nome === profile.nome);
     if (!saved) return profile;
     const seen = new Set(profile.memory.map((item) =>
       `${item.kind}|${item.key.trim().toLocaleLowerCase("pt-BR")}|${item.value.trim().toLocaleLowerCase("pt-BR")}`,
@@ -152,7 +154,7 @@ function mergeMemoryBackup(current: LiaCardData, backup: LiaCardData): LiaCardDa
     });
     return { ...profile, memory: [...extras, ...profile.memory].sort((a, b) => b.createdAt - a.createdAt).slice(0, 200) };
   });
-  return { ...current, profiles };
+  return { ...safeCurrent, profiles };
 }
 
 export function LiaProvider({ children }: { children: ReactNode }) {
@@ -184,6 +186,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       if (loaded?.settings.memoriaLocal) {
         void memoryStore.readMemories().then((backup) => {
           if (!active || !backup) return;
+          if (backup.cardId && loaded?.cardId && backup.cardId !== loaded.cardId) return;
           // Lê novamente o cartão para não sobrescrever alterações feitas enquanto o arquivo era lido.
           const latest = card.readCard();
           if (!latest || !card.isMounted()) return;
