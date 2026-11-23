@@ -78,6 +78,15 @@ jobs:
           # The generated Capacitor app is Java by default; enable Kotlin for Lia native sources.
           python3 - <<'PY'
           from pathlib import Path
+          root = Path("android/build.gradle")
+          root_source = root.read_text()
+          if "kotlin-gradle-plugin" not in root_source:
+              kotlin_classpath = """buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.20" }
+          }
+          """
+              root.write_text(kotlin_classpath + "\n" + root_source)
           p = Path("android/app/build.gradle")
           s = p.read_text()
           marker = "apply plugin: 'com.android.application'"
@@ -86,7 +95,7 @@ jobs:
                   raise SystemExit("Could not find Android application plugin in app/build.gradle")
               s = s.replace(marker, marker + "\napply plugin: 'kotlin-android'", 1)
               p.write_text(s)
-          print("Kotlin compilation enabled for Lia native Android sources.")
+          print("Kotlin Gradle plugin and Lia native Android compilation enabled.")
           PY
           python3 - <<'PY'
           from pathlib import Path
