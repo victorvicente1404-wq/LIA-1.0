@@ -126,3 +126,14 @@ A auditoria de persistência documentou os locais atuais, as leituras/gravaçõe
 a cópia externa que ainda não é restaurada e os consumidores que precisam ser
 migrados. Nenhum dado, chave, formato ou comportamento da aplicação foi alterado
 nesta etapa.
+
+## Terceiro incremento
+
+Foi criado `src/lib/lia/storage/adapter.ts` com o contrato assíncrono
+`LiaKeyValueStore` e um adaptador Web para `localStorage`. As operações preservam
+as chaves existentes e propagam erros de gravação, em vez de ocultá-los.
+
+Este incremento é apenas a fundação: ainda não substitui as chamadas atuais do
+Lia Card nem migra dados. O adaptador Android será implementado depois de adicionar
+e configurar o plugin nativo de Filesystem; os consumidores serão migrados em
+etapas separadas para evitar uma quebra geral da aplicação.
