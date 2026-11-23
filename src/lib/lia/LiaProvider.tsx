@@ -45,7 +45,7 @@ import type {
 import { syncCustomApisToAccount } from "./custom-apis";
 import { DEFAULT_BOND, driftBond, evolveBond, rewardBond, TREATS } from "./rewards";
 import { applyFaceTags } from "./face-engine";
-import { nativeScreenSummary } from "./native-device";
+import { nativeBatteryStatus, nativeScreenSummary } from "./native-device";
 import * as link from "./sync/link";
 import { notify } from "./notifications";
 import { applyTheme, readTheme } from "./theme";
@@ -60,23 +60,44 @@ function stripInternalTags(text: string): string {
   return text.replace(/\[\[(?:LEMBRAR|rosto):[\s\S]*?(?:\]\]|$)/gi, "").trimEnd();
 }
 
-/** Resolve perguntas objetivas sobre uma chave diretamente na memória persistida. */
+/** Resolve perguntas sobre memória mesmo quando vêm como continuação natural da conversa. */
 function lookupSavedMemory(
   question: string,
   memories: MemoryItem[],
 ): { matched: boolean; reply: string } {
-  const match = question.trim().match(
-    /^(?:qual\s+(?:é\s+)?(?:a\s+)?(?:informação|valor)\s+(?:registrada|salva|guardada)\s+(?:em|para)|qual\s+(?:é\s+)?(?:o\s+)?valor\s+de|o\s+que\s+(?:está\s+)?(?:registrado|salvo|guardado)\s+em)\s+["'“]?(.+?)["'”]?\s*[?!.]*$/i,
-  );
-  if (!match?.[1]) return { matched: false, reply: "" };
+  const normalized = question
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+  const hasLookupIntent =
+    /\\b(?:qual|o que|me diga|lembra|lembre)\\b/.test(normalized) &&
+    /\\b(?:informacao|valor|dado|memoria)\\b/.test(normalized);
+  if (!hasLookupIntent) return { matched: false, reply: "" };
 
-  const key = match[1].trim().replace(/[?!.]+$/, "").toLocaleLowerCase("pt-BR");
+  // Aceita contexto antes da pergunta: "Uau, boa resposta, mas qual é ... em teste_lia?"
+  const keyMatch = normalized.match(
+    /\\b(?:em|para|de)\\s+["'“]?(.+?)["'”]?\\s*[?!.]*$/,
+  );
+  const requestedKey = keyMatch?.[1]?.trim().replace(/^["'“]+|["'”]+$/g, "").trim();
+  if (!requestedKey) {
+    return { matched: true, reply: "Consigo procurar essa informação na memória. Qual é o assunto ou a chave que devo consultar?" };
+  }
+
+  const key = requestedKey.toLocaleLowerCase("pt-BR");
   const item = memories.find(
-    (entry) => entry.key.trim().toLocaleLowerCase("pt-BR") === key,
+    (entry) => entry.key.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR") === key,
   );
   return item
     ? { matched: true, reply: `A informação registrada em "${item.key}" é: "${item.value}".` }
-    : { matched: true, reply: `Não encontrei "${match[1].trim()}" na memória do perfil ativo.` };
+    : { matched: true, reply: `Não encontrei "${requestedKey}" na memória do perfil ativo. Posso consultar apenas os registros que estão realmente salvos no Lia Card.` };
+}
+
+/** Reconhece consultas de bateria que devem ser executadas no Android, não respondidas pelo modelo. */
+function isBatteryQuery(question: string): boolean {
+  const normalized = question.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return /\\b(?:bateria|carga)\\b/.test(normalized) &&
+    /\\b(?:consulte|consultar|qual|quanto|nivel|porcentagem|estado|status|ver|mostre|confira|cheque)\\b/.test(normalized);
 }
 
 
@@ -422,6 +443,26 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
+      // Consultas de hardware são executadas por ferramenta nativa; o modelo nunca inventa telemetria.
+      if (!attachments?.length && isBatteryQuery(trimmed)) {
+        let content = "";
+        try {
+          const battery = await nativeBatteryStatus();
+          content = battery
+            ? `A bateria está em ${battery.level}%. Estado: ${battery.status}.${battery.plugged ? " O aparelho está conectado à energia." : ""}`
+            : "Não consegui acessar a bateria nativa do Android. Confirme que está usando o APK atualizado da Lia.";
+        } catch (error) {
+          content = `Não consegui consultar a bateria do Android: ${error instanceof Error ? error.message : "falha na ferramenta nativa"}.`;
+        }
+        if (!token.cancelled) {
+          const finalMsgs: ChatMessage[] = [...withUser, { id: uid(), role: "lia", content, createdAt: Date.now(), localOnly: true }];
+          setSessionMessages(finalMsgs);
+          if (data && cardConnected) persist({ ...data, history: finalMsgs.slice(-200) });
+        }
+        if (abortRef.current === token) { setSending(false); setState("idle"); }
+        return;
+      }
+
       // Consultas explícitas por chave são resolvidas pelo armazenamento, não por adivinhação do modelo.
       const memoryLookup = lookupSavedMemory(trimmed, memory);
       if (memoryLookup.matched) {
