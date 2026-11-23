@@ -42,6 +42,9 @@ jobs:
       - name: Install dependencies and refresh Bun lockfile
         run: bun install
 
+      - name: Test deterministic memory commands
+        run: bunx vitest run src/lib/lia/memory-commands.test.ts
+
       - name: Commit generated lockfile when changed
         run: |
           if ! git diff --quiet -- package.json bun.lock; then
