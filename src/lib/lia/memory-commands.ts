@@ -13,7 +13,7 @@ export interface MemoryWriteCommand {
 
 export function parseMemoryWriteCommand(text: string): MemoryWriteCommand | null {
   const input = text.trim();
-  const explicit = input.match(/^(?:por favor[, ]*)?(?:guarde|salve|registre|lembre)(?:\s+(?:na|em)\s+(?:minha|sua)\s+mem[oó]ria)?\s*[:,-]?\s*(.+)$/i);
+  const explicit = input.match(/^(?:por favor[, ]*)?(?:guarde|salve|registre|lembre)(?:\s+(?:na|em)\s+(?:(?:minha|sua)\s+)?mem[oó]ria)?\s*[:,-]?\s*(.+)$/i);
   if (!explicit) return null;
   const payload = explicit[1].trim();
   const pair = payload.match(/^(?:que\s+)?(.+?)\s*(?:=|:|\s+\b(?:é|era|foi|são|sao|significa)\b\s+)\s*(.+)$/i);
