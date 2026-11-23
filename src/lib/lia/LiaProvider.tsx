@@ -57,7 +57,7 @@ const CHAT_TIMEOUT_MS = 120_000;
 
 /** Oculta tags internas de memória e expressão enquanto a resposta chega em streaming. */
 function stripInternalTags(text: string): string {
-  return text.replace(/\\[\\[(?:LEMBRAR|rosto):[\\s\\S]*?(?:\\]\\]|$)/gi, "").trimEnd();
+  return text.replace(/\[\[(?:LEMBRAR|rosto):[\s\\S]*?(?:\]\]|$)/gi, "").trimEnd();
 }
 
 /** Resolve perguntas objetivas sobre uma chave diretamente na memória persistida. */
@@ -66,7 +66,7 @@ function lookupSavedMemory(
   memories: MemoryItem[],
 ): { matched: boolean; reply: string } {
   const match = question.trim().match(
-    /^(?:qual\\s+(?:é\\s+)?(?:a\\s+)?(?:informação|valor)\\s+(?:registrada|salva|guardada)\\s+(?:em|para)|qual\\s+(?:é\\s+)?(?:o\\s+)?valor\\s+de|o\\s+que\\s+(?:está\\s+)?(?:registrado|salvo|guardado)\\s+em)\\s+["'“]?(.+?)["'”]?\\s*[?!.]*$/i,
+    /^(?:qual\s+(?:é\s+)?(?:a\s+)?(?:informação|valor)\s+(?:registrada|salva|guardada)\s+(?:em|para)|qual\s+(?:é\s+)?(?:o\s+)?valor\s+de|o\s+que\s+(?:está\s+)?(?:registrado|salvo|guardado)\s+em)\s+["'“]?(.+?)["'”]?\s*[?!.]*$/i,
   );
   if (!match?.[1]) return { matched: false, reply: "" };
 
