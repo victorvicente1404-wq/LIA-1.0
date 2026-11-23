@@ -1,6 +1,6 @@
 const STORAGE_KEY = "lia.ai.localEndpoint";
 const DEFAULT_ENDPOINT = "http://127.0.0.1:8080";
-const REQUEST_TIMEOUT_MS = 60_000;
+const REQUEST_TIMEOUT_MS = 120_000;
 
 export type LocalEngineCheck = { ok: true; detail: string } | { ok: false; detail: string };
 
@@ -125,7 +125,7 @@ export async function localLlmReply(
     return { ok: true, text: answer.trim(), provider: "llama.cpp" };
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error(externalSignal?.aborted ? "Geração interrompida." : "O modelo local demorou mais de 60 segundos e a solicitação foi interrompida.");
+      throw new Error(externalSignal?.aborted ? "Geração interrompida." : "O modelo local demorou mais de 120 segundos e a solicitação foi interrompida.");
     }
     if (error instanceof TypeError) {
       throw new Error("Falha ao acessar o llama-server local. Confira se ele está ativo no Termux e se o navegador permitiu acesso à rede local.");
