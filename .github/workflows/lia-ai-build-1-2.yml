@@ -84,7 +84,7 @@ jobs:
           if "kotlin-android" not in s and "org.jetbrains.kotlin.android" not in s:
               if marker not in s:
                   raise SystemExit("Could not find Android application plugin in app/build.gradle")
-              s = s.replace(marker, marker + "\\napply plugin: 'kotlin-android'", 1)
+              s = s.replace(marker, marker + "\napply plugin: 'kotlin-android'", 1)
               p.write_text(s)
           print("Kotlin compilation enabled for Lia native Android sources.")
           PY
