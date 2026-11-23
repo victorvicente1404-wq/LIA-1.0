@@ -31,11 +31,14 @@ devem produzir indisponibilidade localizada, não derrubar a conversa local.
   servidor; não é seguro copiar apenas o diretório público para um APK.
 - O cliente local llama.cpp já existe em `src/lib/lia/termux-llm.ts` e aponta para
   `127.0.0.1:8080`. Ainda depende de um processo llama-server iniciado no Termux.
-- Capacitor Core e os plugins App, Browser, Device, Geolocation e Network estão nas
-  dependências. O projeto Android Gradle e a configuração Capacitor ainda precisam
-  ser montados.
-- Existem fontes Kotlin em `native-android/`, mas ainda não formam um app Android
-  Gradle completo.
+- Capacitor Core, Android, CLI e os plugins App, Browser, Device, Geolocation e
+  Network estão nas dependências; `capacitor.config.ts` define o appId
+  `app.lia.lia` e a pasta pública embarcada.
+- O pipeline do GitHub Actions gera o projeto Gradle durante o build, sincroniza
+  Capacitor e compila um APK debug. O diretório Android gerado não é versionado;
+  a fonte de configuração permanece no repositório.
+- Existem fontes Kotlin em `native-android/`, mas os serviços personalizados ainda
+  não foram copiados/registrados no projeto Android gerado.
 - Há chamadas a localStorage em módulos de preferências e integrações. Não é
   necessário migrar todas essas chaves na primeira etapa de persistência.
 
@@ -97,12 +100,14 @@ devem produzir indisponibilidade localizada, não derrubar a conversa local.
 1. Criar uma camada única de estado de conectividade, sem acoplar o núcleo à rede.
 2. Consolidar persistência local em uma interface de armazenamento com adaptador
    Android nativo e fallback web.
-3. Tornar a interface principal uma shell estática embarcável, preservando as
-   rotas necessárias e isolando funções server-only.
-4. Integrar o motor local ao Android por uma ponte nativa/serviço local confiável.
-5. Reintroduzir cada capacidade online como módulo opcional, com estados de
+3. [Concluído parcialmente] Gerar uma shell SPA estática e empacotá-la com Capacitor
+   em um APK debug; ainda falta validar a inicialização offline no aparelho.
+4. Consolidar persistência local em uma interface de armazenamento com adaptador
+   Android nativo e fallback web.
+5. Integrar o motor local ao Android por uma ponte nativa/serviço local confiável.
+6. Reintroduzir cada capacidade online como módulo opcional, com estados de
    indisponibilidade claros e sem bloquear o modo local.
-6. Compilar e validar o APK em modo avião, com reinicialização e persistência real.
+7. Validar no aparelho: instalação, modo avião, reinicialização e persistência real.
 
 ## Regras de segurança e compatibilidade
 
@@ -137,3 +142,25 @@ Este incremento é apenas a fundação: ainda não substitui as chamadas atuais 
 Lia Card nem migra dados. O adaptador Android será implementado depois de adicionar
 e configurar o plugin nativo de Filesystem; os consumidores serão migrados em
 etapas separadas para evitar uma quebra geral da aplicação.
+
+
+## Quarto incremento — shell estática e primeiro APK Android
+
+- O TanStack Start foi configurado em SPA mode com saída estática em
+  `.output/public/index.html`. O build manteve o pipeline Start e gerou a shell
+  sem remover as funções server-side da versão hospedada.
+- Foi adicionado `capacitor.config.ts` com `appId: app.lia.lia`,
+  `appName: Lia AI` e `webDir: .output/public`.
+- `@capacitor/android` e `@capacitor/cli` foram adicionados ao manifesto e o
+  Bun lockfile foi atualizado pelo CI.
+- O workflow agora prepara Java 21 e Android SDK, gera o projeto Android com
+  `cap add android`, sincroniza plugins e executa `assembleDebug`.
+- Execução validada: GitHub Actions run
+  `45097059696` concluiu com sucesso; as etapas de build da shell, verificação
+  do `index.html`, geração do projeto, sync Capacitor e compilação Gradle
+  passaram. O artefato `lia-ai-android-debug` foi publicado.
+- Limite desta validação: o APK foi compilado, mas ainda não foi instalado nem
+  executado no Galaxy. O teste físico de inicialização offline continua pendente.
+- Os serviços Kotlin de acessibilidade, bolha, notificações e foreground ainda
+  não estão integrados no projeto gerado; não anunciar essas capacidades como
+  disponíveis no APK atual.
