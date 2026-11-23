@@ -13,39 +13,91 @@ import com.getcapacitor.annotation.CapacitorPlugin
 class LiaNativePlugin : Plugin() {
     private fun acc(call: PluginCall): LiaAccessibilityService? = LiaAccessibilityService.instance ?: run {
         context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        call.reject("Ative a Lia em Acessibilidade"); null
+        call.reject("Ative a Lia em Acessibilidade")
+        null
     }
+
     @PluginMethod fun startBackground(call: PluginCall) {
         val i = Intent(context, LiaForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i) else context.startService(i)
         call.resolve()
     }
-    @PluginMethod fun stopBackground(call: PluginCall) { context.stopService(Intent(context, LiaForegroundService::class.java)); call.resolve() }
+
+    @PluginMethod fun stopBackground(call: PluginCall) {
+        context.stopService(Intent(context, LiaForegroundService::class.java))
+        call.resolve()
+    }
+
     @PluginMethod fun showBubble(call: PluginCall) {
         if (!Settings.canDrawOverlays(context)) {
             context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return call.reject("Permita sobrepor outros apps")
         }
-        context.startService(Intent(context, LiaBubbleService::class.java)); call.resolve()
+        context.startService(Intent(context, LiaBubbleService::class.java))
+        call.resolve()
     }
-    @PluginMethod fun hideBubble(call: PluginCall) { context.stopService(Intent(context, LiaBubbleService::class.java)); call.resolve() }
+
+    @PluginMethod fun hideBubble(call: PluginCall) {
+        context.stopService(Intent(context, LiaBubbleService::class.java))
+        call.resolve()
+    }
+
     @PluginMethod fun readScreen(call: PluginCall) {
-        val s = acc(call) ?: return
-        call.resolve(JSObject().put("app", LiaAccessibilityService.foreground).put("tree", JSArray(s.readTree().toString())))
+        val service = acc(call) ?: return
+        call.resolve(JSObject()
+            .put("app", LiaAccessibilityService.foreground)
+            .put("lastEventAt", LiaAccessibilityService.lastEventAt)
+            .put("tree", service.readTree()))
     }
+
     @PluginMethod fun tap(call: PluginCall) {
-        val s = acc(call) ?: return
-        val x = call.getFloat("x", 0f)!!; val y = call.getFloat("y", 0f)!!
-        s.gesture(x, y, x, y, 60); call.resolve()
+        val service = acc(call) ?: return
+        val x = call.getFloat("x", 0f) ?: 0f
+        val y = call.getFloat("y", 0f) ?: 0f
+        if (service.gesture(x, y, x, y, 60)) call.resolve()
+        else call.reject("O Android recusou o toque")
     }
+
+    @PluginMethod fun longPress(call: PluginCall) {
+        val service = acc(call) ?: return
+        val x = call.getFloat("x", 0f) ?: 0f
+        val y = call.getFloat("y", 0f) ?: 0f
+        if (service.gesture(x, y, x, y, 800)) call.resolve()
+        else call.reject("O Android recusou o toque longo")
+    }
+
     @PluginMethod fun swipe(call: PluginCall) {
-        val s = acc(call) ?: return
-        s.gesture(call.getFloat("x1")!!, call.getFloat("y1")!!, call.getFloat("x2")!!, call.getFloat("y2")!!, 300); call.resolve()
+        val service = acc(call) ?: return
+        val x1 = call.getFloat("x1", 500f) ?: 500f
+        val y1 = call.getFloat("y1", 1500f) ?: 1500f
+        val x2 = call.getFloat("x2", 500f) ?: 500f
+        val y2 = call.getFloat("y2", 500f) ?: 500f
+        if (service.gesture(x1, y1, x2, y2, 300)) call.resolve()
+        else call.reject("O Android recusou o gesto")
     }
+
     @PluginMethod fun clickText(call: PluginCall) {
-        val s = acc(call) ?: return
-        call.resolve(JSObject().put("ok", s.clickText(call.getString("text") ?: "")))
+        val service = acc(call) ?: return
+        call.resolve(JSObject().put("ok", service.clickText(call.getString("text") ?: "")))
     }
+
+    @PluginMethod fun setText(call: PluginCall) {
+        val service = acc(call) ?: return
+        val value = call.getString("text") ?: ""
+        call.resolve(JSObject().put("ok", service.setText(value)))
+    }
+
+    @PluginMethod fun scroll(call: PluginCall) {
+        val service = acc(call) ?: return
+        val forward = call.getBoolean("forward", true) ?: true
+        call.resolve(JSObject().put("ok", service.scroll(forward)))
+    }
+
+    @PluginMethod fun goBack(call: PluginCall) {
+        val service = acc(call) ?: return
+        call.resolve(JSObject().put("ok", service.goBack()))
+    }
+
     @PluginMethod fun readNotifications(call: PluginCall) {
         val enabled = (Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners") ?: "").contains(context.packageName)
         if (!enabled) {
@@ -54,6 +106,7 @@ class LiaNativePlugin : Plugin() {
         }
         call.resolve(JSObject().put("items", JSArray(LiaNotificationListener.drain().toString())))
     }
+
     @PluginMethod fun batteryStatus(call: PluginCall) {
         try {
             val manager = context.getSystemService(android.content.Context.BATTERY_SERVICE) as BatteryManager
