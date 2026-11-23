@@ -47,6 +47,7 @@ import { DEFAULT_BOND, driftBond, evolveBond, rewardBond, TREATS } from "./rewar
 import { applyFaceTags } from "./face-engine";
 import { nativeBatteryStatus, nativeScreenSummary } from "./native-device";
 import { retrieveRelevantMemories } from "./memory-retrieval";
+import { findExactMemoryQuery, findMemoryByExactKey, parseMemoryWriteCommand, upsertMemory } from "./memory-commands";
 import * as link from "./sync/link";
 import { notify } from "./notifications";
 import { applyTheme, readTheme } from "./theme";
@@ -58,7 +59,11 @@ const CHAT_TIMEOUT_MS = 120_000;
 
 /** Oculta tags internas de memória e expressão enquanto a resposta chega em streaming. */
 function stripInternalTags(text: string): string {
-  return text.replace(/\[\[(?:LEMBRAR|rosto):[\s\S]*?(?:\]\]|$)/gi, "").trimEnd();
+  return text
+    .replace(/\\[\\[(?:LEMBRAR|rosto):[\\s\\S]*?(?:\\]\\]|$)/gi, "")
+    .replace(/^\\s*-\\s*\\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\\]\\s*[^:\\n]+:\\s*.*$/gim, "")
+    .replace(/\\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\\]\\s*[^:\\n]+:\\s*[^\\n]*?\\s*\\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\\]/gi, "")
+    .trimEnd();
 }
 
 /** Reconhece consultas de bateria que devem ser executadas no Android, não respondidas pelo modelo. */
@@ -411,6 +416,79 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
+      // Operações explícitas de memória são determinísticas e não dependem do Qwen.
+      if (!attachments?.length) {
+        const writeCommand = parseMemoryWriteCommand(trimmed);
+        const exactQuery = findExactMemoryQuery(trimmed);
+        if (writeCommand || exactQuery) {
+          let content = "";
+          let savedData: LiaCardData | null = null;
+          try {
+            const memoryModuleOn = data?.modules.find((m) => m.id === "memoria")?.ativo === true;
+            if (!data || !cardConnected || !card.isMounted()) {
+              content = writeCommand
+                ? "Não consegui salvar: conecte o Lia Card primeiro."
+                : "Não consigo consultar as lembranças porque o Lia Card não está conectado.";
+            } else if (!memoryModuleOn) {
+              content = "O módulo Memória está desligado. Ative-o para guardar e consultar lembranças.";
+            } else if (writeCommand) {
+              const updatedProfiles = data.profiles.map((p) =>
+                p.id === data.activeProfileId
+                  ? { ...p, memory: upsertMemory(p.memory ?? [], writeCommand, uid) }
+                  : p,
+              );
+              const candidate: LiaCardData = { ...data, profiles: updatedProfiles };
+              card.writeCard(candidate);
+              const verified = card.readCard();
+              const verifiedProfile = verified?.profiles.find((p) => p.id === verified.activeProfileId);
+              const verifiedEntry = verifiedProfile
+                ? findMemoryByExactKey(writeCommand.key, verifiedProfile.memory)
+                : null;
+              if (!verified || !verifiedEntry || verifiedEntry.value !== writeCommand.value) {
+                throw new Error("A leitura de confirmação não encontrou o valor gravado.");
+              }
+              savedData = verified;
+              content = `Guardei na memória: ${verifiedEntry.key} = ${verifiedEntry.value}.`;
+            } else {
+              const found = findMemoryByExactKey(exactQuery!, profile.memory ?? []);
+              content = found
+                ? `O valor registrado em ${found.key} é: ${found.value}.`
+                : `Não encontrei uma lembrança com a chave "${exactQuery}" no perfil ${profile.nome}.`;
+            }
+          } catch (error) {
+            content = `Não consegui confirmar a operação de memória: ${error instanceof Error ? error.message : "erro de armazenamento"}.`;
+            savedData = null;
+          }
+          const finalMsgs: ChatMessage[] = [...withUser, { id: uid(), role: "lia", content, createdAt: Date.now(), localOnly: true }];
+          setSessionMessages(finalMsgs);
+          if (savedData) {
+            const withHistory = { ...savedData, history: finalMsgs.slice(-200) };
+            try {
+              card.writeCard(withHistory);
+              setData(card.readCard() ?? withHistory);
+              if (withHistory.settings.memoriaLocal) {
+                void memoryStore.writeMemories(withHistory).catch(() => {
+                  toast.error("A memória foi salva no Lia Card, mas não foi possível atualizar o backup externo.");
+                });
+              }
+            } catch {
+              setData(savedData);
+              toast.error("A memória foi salva, mas não consegui atualizar o histórico do cartão.");
+            }
+          } else if (data && cardConnected) {
+            try {
+              const historyOnly = { ...data, history: finalMsgs.slice(-200) };
+              card.writeCard(historyOnly);
+              setData(card.readCard() ?? historyOnly);
+            } catch {
+              // A resposta continua visível mesmo se a gravação do histórico falhar.
+            }
+          }
+          if (abortRef.current === token) { setSending(false); setState("idle"); }
+          return;
+        }
+      }
+
       // Consultas de hardware são executadas por ferramenta nativa; o modelo nunca inventa telemetria.
       if (!attachments?.length && isBatteryQuery(trimmed)) {
         let content = "";
