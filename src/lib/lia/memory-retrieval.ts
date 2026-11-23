@@ -9,7 +9,7 @@ const STOP_WORDS = new Set([
   "ele", "ela", "isso", "isto", "aquele", "aquela", "aquilo",
   "era", "foi", "ser", "estar", "esta", "estava", "tem", "tinha",
   "lembra", "lembro", "lembrar", "lembrou", "sobre", "aquela",
-  "informacao", "informacao", "dado", "coisa", "coisas",
+  "informacao", "dado", "coisa", "coisas", "numero",
 ]);
 
 function normalize(value: string): string {
