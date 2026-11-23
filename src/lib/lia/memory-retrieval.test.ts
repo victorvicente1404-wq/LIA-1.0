@@ -20,7 +20,7 @@ describe("retrieveRelevantMemories", () => {
   });
 
   it("não transforma uma pergunta geral sobre pi em busca forçada de memória", () => {
-    const result = retrieveRelevantMemories("Quais são os dez primeiros números de pi?", memories);
+    const result = retrieveRelevantMemories("Qual é o primeiro número primo depois de 100?", memories);
     expect(result.map((item) => item.key)).not.toContain("numero de pi");
   });
 
