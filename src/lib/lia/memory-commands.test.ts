@@ -8,6 +8,9 @@ describe("memory commands", () => {
   it("parses explicit key=value save requests", () => {
     expect(parseMemoryWriteCommand("Guarde na memória, teste_lia = memória atualizada")).toMatchObject({ key: "teste_lia", value: "memória atualizada" });
   });
+  it("accepts memory without accent in explicit commands", () => {
+    expect(parseMemoryWriteCommand("Guarde na memoria, teste_lia = atualizado")).toMatchObject({ key: "teste_lia", value: "atualizado" });
+  });
   it("parses natural remember requests", () => {
     expect(parseMemoryWriteCommand("Lembre que a cor do cubo era azul")).toMatchObject({ key: "a cor do cubo", value: "azul" });
   });
