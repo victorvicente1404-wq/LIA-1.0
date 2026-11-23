@@ -54,9 +54,10 @@ export function ChatPanel({
   };
 
   // Só desce automaticamente se o usuário já estiver no fim da conversa.
+  const isStreaming = messages.some((message) => message.streaming);
   useEffect(() => {
-    if (atBottom) endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending, atBottom]);
+    if (atBottom) endRef.current?.scrollIntoView({ behavior: isStreaming ? "auto" : "smooth" });
+  }, [messages, sending, atBottom, isStreaming]);
 
   const submit = () => {
     const text = draft;
@@ -130,7 +131,7 @@ export function ChatPanel({
                   : "text-foreground",
               )}
             >
-              {m.role === "user" ? m.content : <><Markdown content={m.content} />{m.streaming && <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-primary align-middle" aria-label="Recebendo resposta" />}</>}
+              {m.role === "user" ? m.content : <>{m.streaming ? <span className="whitespace-pre-wrap">{m.content}</span> : <Markdown content={m.content} />}{m.streaming && <span className="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-primary align-middle" aria-label="Recebendo resposta" />}</>}
               {!!m.attachments?.length && (
                 <div className="mt-2 flex flex-col gap-2">
                   {m.attachments.map((a, i) => (
