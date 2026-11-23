@@ -21,7 +21,12 @@ fi
 
 echo "Iniciando o motor local da Lia AI..."
 echo "Modelo: $MODEL_PATH"
+THREADS="${LIA_THREADS:-6}"
+BATCH_THREADS="${LIA_BATCH_THREADS:-$THREADS}"
+
 echo "Endereço: http://127.0.0.1:8080"
+echo "Threads de geração: $THREADS"
+echo "Threads de processamento do prompt: $BATCH_THREADS"
 echo "Aguarde a mensagem de servidor pronto antes de testar a conexão no app."
 
 exec llama-server \
@@ -29,6 +34,7 @@ exec llama-server \
   --host 127.0.0.1 \
   --port 8080 \
   --ctx-size 2048 \
-  --threads 4 \
+  --threads "$THREADS" \
+  --threads-batch "$BATCH_THREADS" \
   --parallel 1 \
   --cors-origins "*"
