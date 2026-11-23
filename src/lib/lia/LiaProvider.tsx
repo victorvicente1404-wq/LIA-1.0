@@ -194,6 +194,10 @@ export function LiaProvider({ children }: { children: ReactNode }) {
   // Salva a conversa ativa a cada mudança de mensagens
   useEffect(() => {
     if (!activeConversationId) return;
+    // Durante o streaming, cada chunk altera a mensagem. Não serializar e gravar
+    // todo o histórico em cada atualização; a resposta final será persistida
+    // quando streaming=false.
+    if (sessionMessages.some((message) => message.streaming)) return;
     setConversations((prev) => {
       const cur = prev.find((c) => c.id === activeConversationId);
       const sliced = sessionMessages.slice(-200);
@@ -202,7 +206,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         c.id === activeConversationId
           ? {
               ...c,
-              messages: sessionMessages.slice(-200),
+              messages: sliced,
               title: convo.titleFor(sessionMessages),
               updatedAt: Date.now(),
             }
@@ -279,7 +283,11 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
-    setSessionMessages((prev) => prev.filter((message) => !message.streaming));
+    setSessionMessages((prev) =>
+      prev.some((message) => message.streaming)
+        ? prev.filter((message) => !message.streaming)
+        : prev,
+    );
     setSending(false);
     setState("idle");
   }, []);
