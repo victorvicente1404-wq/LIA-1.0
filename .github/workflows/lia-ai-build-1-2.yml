@@ -75,6 +75,19 @@ jobs:
           APP_SRC="android/app/src/main/java/app/lia/lia"
           mkdir -p "$APP_SRC" android/app/src/main/res/xml
           cp native-android/lia/*.kt "$APP_SRC/"
+          # The generated Capacitor app is Java by default; enable Kotlin for Lia native sources.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle")
+          s = p.read_text()
+          marker = "apply plugin: 'com.android.application'"
+          if "kotlin-android" not in s and "org.jetbrains.kotlin.android" not in s:
+              if marker not in s:
+                  raise SystemExit("Could not find Android application plugin in app/build.gradle")
+              s = s.replace(marker, marker + "\\napply plugin: 'kotlin-android'", 1)
+              p.write_text(s)
+          print("Kotlin compilation enabled for Lia native Android sources.")
+          PY
           python3 - <<'PY'
           from pathlib import Path
           import re
