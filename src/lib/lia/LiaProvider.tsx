@@ -619,31 +619,68 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         flushStream();
         if (token.cancelled) return;
         const { clean, learned } = extractMemories(applyFaceTags(res.text));
+        let memorySaved = false;
+        let memoryBase = data;
+        if (learned.length && res.ok && data && cardConnected && card.isMounted() &&
+            data.modules.find((m) => m.id === "memoria")?.ativo) {
+          try {
+            const candidate: LiaCardData = {
+              ...data,
+              profiles: data.profiles.map((p) => {
+                if (p.id !== data.activeProfileId) return p;
+                const updatedMemory = learned.reduce(
+                  (items, item) => upsertMemory(items, item, uid, Date.now(), "lia"),
+                  p.memory ?? [],
+                );
+                return { ...p, memory: updatedMemory };
+              }),
+            };
+            card.writeCard(candidate);
+            const verified = card.readCard();
+            const verifiedProfile = verified?.profiles.find((p) => p.id === verified.activeProfileId);
+            memorySaved = Boolean(verifiedProfile && learned.every((item) =>
+              findMemoryByExactKey(item.key, verifiedProfile.memory)?.value === item.value,
+            ));
+            if (memorySaved && verified) {
+              memoryBase = verified;
+              setData(verified);
+            }
+          } catch {
+            memorySaved = false;
+          }
+        }
         const liaMsg: ChatMessage = {
           id: uid(),
           role: "lia",
-          content: clean || (learned.length ? "Informação salva na memória." : "Certo."),
+          content: clean || (learned.length
+            ? memorySaved
+              ? "Informação salva na memória."
+              : "Entendi, mas não consegui confirmar que a informação foi salva na memória."
+            : "Certo."),
           createdAt: Date.now(),
         };
         const finalMsgs = [...withUser, liaMsg];
         setSessionMessages(finalMsgs);
 
         if (data && cardConnected) {
-          const memoryModuleOn = data.modules.find((m) => m.id === "memoria")?.ativo;
-          const newMemories: MemoryItem[] =
-            memoryModuleOn && res.ok
-              ? learned.map((l) => ({ ...l, id: uid(), createdAt: Date.now(), source: "lia" }))
-              : [];
-          persist({
-            ...data,
+          const nextData: LiaCardData = {
+            ...memoryBase!,
             history: finalMsgs.slice(-200),
             bond: evolveBond(data.bond, trimmed),
-            profiles: data.profiles.map((p) =>
-              p.id === data.activeProfileId
-                ? { ...p, memory: [...newMemories, ...p.memory].slice(0, 200) }
-                : p,
-            ),
-          });
+          };
+          try {
+            card.writeCard(nextData);
+            const verifiedHistory = card.readCard();
+            setData(verifiedHistory ?? nextData);
+            if (nextData.settings.memoriaLocal) {
+              void memoryStore.writeMemories(nextData).catch(() => {
+                toast.error("Não consegui atualizar o backup externo da memória.");
+              });
+            }
+          } catch {
+            if (memorySaved) setData(memoryBase);
+            else setData(data);
+          }
         }
         setState(res.ok ? "speaking" : "idle");
       } catch (error) {
