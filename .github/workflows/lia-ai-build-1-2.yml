@@ -120,10 +120,10 @@ jobs:
           if "LiaNativePlugin" not in source:
               if activity.suffix == ".java":
                   source = source.replace("import com.getcapacitor.BridgeActivity;", "import com.getcapacitor.BridgeActivity;\nimport app.lia.lia.LiaNativePlugin;")
-                  source = re.sub(r"public class MainActivity extends BridgeActivity\\s*\\{\\s*\\}", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(LiaNativePlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}", source)
+                  source = re.sub(r"public class MainActivity extends BridgeActivity\s*\{\s*\}", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(LiaNativePlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}", source)
               else:
                   source = source.replace("import com.getcapacitor.BridgeActivity", "import com.getcapacitor.BridgeActivity\nimport app.lia.lia.LiaNativePlugin\nimport android.os.Bundle")
-                  source = re.sub(r"class MainActivity : BridgeActivity\\(\\)\\s*\\{?\\s*\\}?", "class MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(LiaNativePlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}", source)
+                  source = re.sub(r"class MainActivity : BridgeActivity\(\)\s*\{?\s*\}?", "class MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(LiaNativePlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}", source)
               if "registerPlugin(LiaNativePlugin" not in source:
                   raise SystemExit(f"Could not register LiaNativePlugin in {activity}")
               activity.write_text(source)
