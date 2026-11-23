@@ -54,6 +54,12 @@ import { toast } from "sonner";
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
 /** Prazo máximo de uma resposta antes de liberar o chat com um aviso. */
 const CHAT_TIMEOUT_MS = 120_000;
+
+/** Oculta tags internas de memória e expressão enquanto a resposta chega em streaming. */
+function stripInternalTags(text: string): string {
+  return text.replace(/\\[\\[(?:LEMBRAR|rosto):[\\s\\S]*?(?:\\]\\]|$)/gi, "").trimEnd();
+}
+
 /** Resolve perguntas objetivas sobre uma chave diretamente na memória persistida. */
 function lookupSavedMemory(
   question: string,
@@ -437,7 +443,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         setSessionMessages((prev) =>
           prev.map((message) =>
             message.id === streamMessageId
-              ? { ...message, content: streamedText, streaming: true }
+              ? { ...message, content: stripInternalTags(streamedText), streaming: true }
               : message,
           ),
         );
@@ -479,7 +485,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         const liaMsg: ChatMessage = {
           id: uid(),
           role: "lia",
-          content: clean || res.text,
+          content: clean || (learned.length ? "Informação salva na memória." : "Certo."),
           createdAt: Date.now(),
         };
         const finalMsgs = [...withUser, liaMsg];
