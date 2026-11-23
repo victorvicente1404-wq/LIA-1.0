@@ -374,14 +374,14 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         Promise.race([p.catch(() => fb), new Promise<T>((r) => setTimeout(() => r(fb), ms))]);
       // Tudo em paralelo e com prazo curto: o contexto nunca atrasa a resposta.
       // Versão leve: sem telemetria, leitura de tela ou ponte do APK a cada mensagem.
-      const wantsScreen = /\\b(tela|o que está aberto|o que aparece|olha a tela|veja a tela|observe a tela|leia a tela|app aberto|aplicativo aberto)\\b/i.test(trimmed);
+      const wantsScreen = /\b(tela|o que está aberto|o que aparece|olha a tela|veja a tela|observe a tela|leia a tela|app aberto|aplicativo aberto)\b/i.test(trimmed);
       const [snap, screen] = await Promise.all([
         within(contextSnapshot(), 300, ""),
         wantsScreen ? nativeScreenSummary(3500) : Promise.resolve(""),
       ]);
-      const ctx = [snap, screen ? `LEITURA DA TELA (acessibilidade Android; texto e controles, não pixels):\\n${screen}` : ""]
+      const ctx = [snap, screen ? `LEITURA DA TELA (acessibilidade Android; texto e controles, não pixels):\n${screen}` : ""]
         .filter(Boolean)
-        .join("\\n\\n");
+        .join("\n\n");
       const usbOn = serialConnected();
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Os comandos USB simples são tratados diretamente pelo app antes de consultar o modelo.`;
       const systemBase = `${system}\n\n${rooms}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
