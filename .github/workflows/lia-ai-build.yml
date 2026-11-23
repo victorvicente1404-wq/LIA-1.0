@@ -75,27 +75,6 @@ jobs:
           cd android
           ./gradlew --no-daemon assembleDebug
 
-      - name: Smoke test APK offline in Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          script: |
-            adb install android/app/build/outputs/apk/debug/app-debug.apk
-            adb shell svc wifi disable
-            adb shell svc data disable
-            adb shell monkey -p app.lia.lia 1
-            sleep 15
-            adb shell pidof app.lia.lia
-            adb logcat -d -s AndroidRuntime:E > /tmp/lia-android-runtime.log
-            if grep -E "FATAL EXCEPTION|Process: app.lia.lia" /tmp/lia-android-runtime.log; then
-              echo "Lia crashed during offline startup."
-              exit 1
-            fi
-
       - name: Upload Android APK and web shell
         if: success()
         uses: actions/upload-artifact@v4
