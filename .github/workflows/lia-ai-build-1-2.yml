@@ -89,7 +89,7 @@ jobs:
           ]
           for permission in permissions:
               if permission not in content:
-                  content = content.replace("<application", f'<uses-permission android:name="{permission}"/>\\n    <application', 1)
+                  content = content.replace("<application", f'<uses-permission android:name="{permission}"/>\n    <application', 1)
           services = [
               '<service android:name="app.lia.lia.LiaForegroundService" android:foregroundServiceType="dataSync" android:exported="false"/>',
               '<service android:name="app.lia.lia.LiaBubbleService" android:exported="false"/>',
@@ -99,7 +99,7 @@ jobs:
           for service in services:
               name = re.search(r'android:name="([^"]+)"', service).group(1)
               if name not in content:
-                  content = content.replace("</application>", f"        {service}\\n    </application>", 1)
+                  content = content.replace("</application>", f"        {service}\n    </application>", 1)
           manifest.write_text(content)
 
           xml = Path("android/app/src/main/res/xml/lia_accessibility.xml")
@@ -119,11 +119,11 @@ jobs:
           source = activity.read_text()
           if "LiaNativePlugin" not in source:
               if activity.suffix == ".java":
-                  source = source.replace("import com.getcapacitor.BridgeActivity;", "import com.getcapacitor.BridgeActivity;\\nimport app.lia.lia.LiaNativePlugin;")
-                  source = re.sub(r"public class MainActivity extends BridgeActivity\\s*\\{\\s*\\}", "public class MainActivity extends BridgeActivity {\\n    @Override\\n    public void onCreate(android.os.Bundle savedInstanceState) {\\n        registerPlugin(LiaNativePlugin.class);\\n        super.onCreate(savedInstanceState);\\n    }\\n}", source)
+                  source = source.replace("import com.getcapacitor.BridgeActivity;", "import com.getcapacitor.BridgeActivity;\nimport app.lia.lia.LiaNativePlugin;")
+                  source = re.sub(r"public class MainActivity extends BridgeActivity\\s*\\{\\s*\\}", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(LiaNativePlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n}", source)
               else:
-                  source = source.replace("import com.getcapacitor.BridgeActivity", "import com.getcapacitor.BridgeActivity\\nimport app.lia.lia.LiaNativePlugin\\nimport android.os.Bundle")
-                  source = re.sub(r"class MainActivity : BridgeActivity\\(\\)\\s*\\{?\\s*\\}?", "class MainActivity : BridgeActivity() {\\n    override fun onCreate(savedInstanceState: Bundle?) {\\n        registerPlugin(LiaNativePlugin::class.java)\\n        super.onCreate(savedInstanceState)\\n    }\\n}", source)
+                  source = source.replace("import com.getcapacitor.BridgeActivity", "import com.getcapacitor.BridgeActivity\nimport app.lia.lia.LiaNativePlugin\nimport android.os.Bundle")
+                  source = re.sub(r"class MainActivity : BridgeActivity\\(\\)\\s*\\{?\\s*\\}?", "class MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(LiaNativePlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}", source)
               if "registerPlugin(LiaNativePlugin" not in source:
                   raise SystemExit(f"Could not register LiaNativePlugin in {activity}")
               activity.write_text(source)
