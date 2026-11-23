@@ -24,6 +24,8 @@ export interface ChatMessage {
   attachments?: Attachment[];
   /** Hardware reply generated entirely on this device; never send to cloud TTS/push. */
   localOnly?: boolean;
+  /** Mensagem da Lia ainda sendo recebida em streaming. */
+  streaming?: boolean;
 }
 
 export type TreatId =
