@@ -1,0 +1,87 @@
+name: Lia AI 1.2 branch build
+
+on:
+  push:
+    branches:
+      - "lia-ai/1.2"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lia-ai-1-2-build
+  cancel-in-progress: true
+
+jobs:
+  android-build:
+    name: Build Lia AI Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Lia AI 1.2 branch
+        uses: actions/checkout@v4
+        with:
+          ref: lia-ai/1.2
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+
+      - name: Install dependencies and refresh Bun lockfile
+        run: bun install
+
+      - name: Commit generated lockfile when changed
+        run: |
+          if ! git diff --quiet -- package.json bun.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package.json bun.lock
+            git commit -m "build: lock Capacitor Android dependencies"
+            git push origin HEAD:refs/heads/lia-ai/1.2
+          fi
+
+      - name: Build static SPA shell
+        run: bun run build
+
+      - name: Verify static SPA entry
+        run: |
+          test -s .output/public/index.html
+          grep -qi '<html' .output/public/index.html
+          grep -qi '<script' .output/public/index.html
+          test -d .output/public/assets
+          echo "Static Android WebView entry verified."
+
+      - name: Generate Android project
+        run: bunx cap add android
+
+      - name: Sync Capacitor Android
+        run: bunx cap sync android
+
+      - name: Build debug APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Upload Android APK and web shell
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lia-ai-android-debug
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            .output/public
+          if-no-files-found: error
+          retention-days: 5
