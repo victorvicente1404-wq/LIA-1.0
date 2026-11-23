@@ -279,6 +279,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+    setSessionMessages((prev) => prev.filter((message) => !message.streaming));
     setSending(false);
     setState("idle");
   }, []);
@@ -375,6 +376,13 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         content: m.content,
       }));
 
+      const streamMessageId = uid();
+      let streamedText = "";
+      setSessionMessages([
+        ...withUser,
+        { id: streamMessageId, role: "lia", content: "", createdAt: Date.now(), streaming: true },
+      ]);
+
       const controller = new AbortController();
       token.abort = () => controller.abort();
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -385,7 +393,20 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             reject(new Error("LIA_TIMEOUT"));
           }, CHAT_TIMEOUT_MS);
         });
-        const res = await Promise.race([timeout, localLlmReply(systemFinal, history, attachments, controller.signal)]);
+        const res = await Promise.race([
+          timeout,
+          localLlmReply(systemFinal, history, attachments, controller.signal, (chunk) => {
+            if (token.cancelled) return;
+            streamedText += chunk;
+            setSessionMessages((prev) =>
+              prev.map((message) =>
+                message.id === streamMessageId
+                  ? { ...message, content: streamedText, streaming: true }
+                  : message,
+              ),
+            );
+          }),
+        ]);
         clearTimeout(timer);
         if (token.cancelled) return;
         const { clean, learned } = extractMemories(applyFaceTags(res.text));
@@ -423,7 +444,10 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             msg === "LIA_TIMEOUT" || (error as Error).name === "AbortError"
               ? "Demorei demais para pensar nessa e parei para não travar a conversa. Pode tentar de novo?"
               : `Tive um problema de conexão com meu núcleo de linguagem: ${msg}`;
-          setSessionMessages((prev) => [...prev, { id: uid(), role: "lia", content, createdAt: Date.now() }]);
+          setSessionMessages((prev) => [
+            ...prev.filter((message) => message.id !== streamMessageId),
+            { id: uid(), role: "lia", content, createdAt: Date.now() },
+          ]);
         }
       } finally {
         clearTimeout(timer);
