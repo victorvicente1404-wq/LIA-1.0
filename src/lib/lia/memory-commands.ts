@@ -49,6 +49,7 @@ export function upsertMemory(
   entry: MemoryWriteCommand,
   createId: () => string,
   now = Date.now(),
+  source: MemoryItem["source"] = "usuario",
 ): MemoryItem[] {
   const normalized = normalizeMemoryKey(entry.key);
   const existing = memories.find((item) => normalizeMemoryKey(item.key) === normalized);
@@ -58,7 +59,7 @@ export function upsertMemory(
     key: existing?.key ?? entry.key,
     value: entry.value,
     createdAt: now,
-    source: "usuario",
+    source,
   };
   return [updated, ...memories.filter((item) => normalizeMemoryKey(item.key) !== normalized)].slice(0, 200);
 }
