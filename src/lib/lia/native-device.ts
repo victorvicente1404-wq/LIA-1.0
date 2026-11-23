@@ -31,6 +31,32 @@ export async function nativeAvailable(): Promise<boolean> {
   return !!(await getPlugin());
 }
 
+/** Consulta direta e estruturada do estado da bateria pelo Android nativo. */
+export async function nativeBatteryStatus(): Promise<{
+  level: number;
+  charging: boolean;
+  plugged: boolean;
+  status: string;
+} | null> {
+  const p = await getPlugin();
+  if (!p) return null;
+  const result = (await withTimeout(p.batteryStatus(), "consultar bateria")) as {
+    level?: number;
+    charging?: boolean;
+    plugged?: boolean;
+    status?: string;
+  };
+  if (!Number.isFinite(result?.level) || Number(result.level) < 0 || Number(result.level) > 100) {
+    throw new Error("O Android retornou um nível de bateria inválido");
+  }
+  return {
+    level: Math.round(Number(result.level)),
+    charging: result.charging === true,
+    plugged: result.plugged === true,
+    status: typeof result.status === "string" ? result.status : "estado desconhecido",
+  };
+}
+
 /** Resumo curto da tela atual (app + textos visíveis) para o contexto da Lia. */
 export async function nativeScreenSummary(max = 1500): Promise<string> {
   const p = await getPlugin();
