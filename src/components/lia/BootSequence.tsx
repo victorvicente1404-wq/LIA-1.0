@@ -37,7 +37,7 @@ export function BootSequence({
           LIA AI
         </h1>
         <p className="mt-2 text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          assistente pessoal · modular · portátil · v1.1.02
+          assistente pessoal · modular · portátil · v1.2.00
         </p>
       </div>
       <div className="w-72 space-y-2">
