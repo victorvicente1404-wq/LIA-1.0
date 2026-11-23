@@ -41,15 +41,18 @@ export async function nativeScreenSummary(max = 1500): Promise<string> {
     const walk = (n: any) => {
       if (!n) return;
       if (Array.isArray(n)) return n.forEach(walk);
-      if (typeof n === "string") return void texts.push(n);
+      if (typeof n === "string") {
+        try { walk(JSON.parse(n)); } catch { texts.push(n); }
+        return;
+      }
       const t = n.text ?? n.desc ?? n.label;
       if (t) texts.push(String(t) + (n.x != null && n.y != null ? ` @(${n.x},${n.y})` : ""));
       walk(n.children);
     };
     walk(tree);
     return `App em primeiro plano: ${app ?? "?"}\nTextos visíveis: ${texts.join(" | ").slice(0, max)}`;
-  } catch {
-    return ""; // acessibilidade desligada ou sem resposta em 2s
+  } catch (error) {
+    return `Não consegui ler a tela: ${error instanceof Error ? error.message : "permissão de acessibilidade indisponível"}.`;
   }
 }
 
