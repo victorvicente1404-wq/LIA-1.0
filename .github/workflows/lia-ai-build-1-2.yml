@@ -69,6 +69,67 @@ jobs:
       - name: Sync Capacitor Android
         run: bunx cap sync android
 
+      - name: Install Lia native Android bridge
+        run: |
+          set -euo pipefail
+          APP_SRC="android/app/src/main/java/app/lia/lia"
+          mkdir -p "$APP_SRC" android/app/src/main/res/xml
+          cp native-android/lia/*.kt "$APP_SRC/"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          content = manifest.read_text()
+          permissions = [
+              "android.permission.FOREGROUND_SERVICE",
+              "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+              "android.permission.POST_NOTIFICATIONS",
+              "android.permission.SYSTEM_ALERT_WINDOW",
+          ]
+          for permission in permissions:
+              if permission not in content:
+                  content = content.replace("<application", f'<uses-permission android:name="{permission}"/>\\n    <application', 1)
+          services = [
+              '<service android:name="app.lia.lia.LiaForegroundService" android:foregroundServiceType="dataSync" android:exported="false"/>',
+              '<service android:name="app.lia.lia.LiaBubbleService" android:exported="false"/>',
+              '<service android:name="app.lia.lia.LiaAccessibilityService" android:exported="false" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"><intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter><meta-data android:name="android.accessibilityservice" android:resource="@xml/lia_accessibility"/></service>',
+              '<service android:name="app.lia.lia.LiaNotificationListener" android:exported="false" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"><intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter></service>',
+          ]
+          for service in services:
+              name = re.search(r'android:name="([^"]+)"', service).group(1)
+              if name not in content:
+                  content = content.replace("</application>", f"        {service}\\n    </application>", 1)
+          manifest.write_text(content)
+
+          xml = Path("android/app/src/main/res/xml/lia_accessibility.xml")
+          xml.write_text("""<?xml version="1.0" encoding="utf-8"?>
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeAllMask"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:canRetrieveWindowContent="true"
+              android:canPerformGestures="true"
+              android:description="@string/app_name" />
+          """)
+
+          candidates = list(Path("android/app/src/main/java").rglob("MainActivity.*"))
+          if len(candidates) != 1:
+              raise SystemExit(f"Expected one MainActivity, found: {candidates}")
+          activity = candidates[0]
+          source = activity.read_text()
+          if "LiaNativePlugin" not in source:
+              if activity.suffix == ".java":
+                  source = source.replace("import com.getcapacitor.BridgeActivity;", "import com.getcapacitor.BridgeActivity;\\nimport app.lia.lia.LiaNativePlugin;")
+                  source = re.sub(r"public class MainActivity extends BridgeActivity\\s*\\{\\s*\\}", "public class MainActivity extends BridgeActivity {\\n    @Override\\n    public void onCreate(android.os.Bundle savedInstanceState) {\\n        registerPlugin(LiaNativePlugin.class);\\n        super.onCreate(savedInstanceState);\\n    }\\n}", source)
+              else:
+                  source = source.replace("import com.getcapacitor.BridgeActivity", "import com.getcapacitor.BridgeActivity\\nimport app.lia.lia.LiaNativePlugin\\nimport android.os.Bundle")
+                  source = re.sub(r"class MainActivity : BridgeActivity\\(\\)\\s*\\{?\\s*\\}?", "class MainActivity : BridgeActivity() {\\n    override fun onCreate(savedInstanceState: Bundle?) {\\n        registerPlugin(LiaNativePlugin::class.java)\\n        super.onCreate(savedInstanceState)\\n    }\\n}", source)
+              if "registerPlugin(LiaNativePlugin" not in source:
+                  raise SystemExit(f"Could not register LiaNativePlugin in {activity}")
+              activity.write_text(source)
+          print("Lia native plugin, accessibility, notifications and background service installed.")
+          PY
+
       - name: Restore permanent Android signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
