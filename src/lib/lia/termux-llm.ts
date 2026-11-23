@@ -99,7 +99,7 @@ export async function localLlmReply(
         messages: [{ role: "system", content: system }, ...messages],
         temperature: 0.65,
         top_p: 0.9,
-        max_tokens: 384,
+        max_tokens: 256,
         stream: true,
       }),
     });
@@ -117,12 +117,19 @@ export async function localLlmReply(
     const decoder = new TextDecoder();
     let buffer = "";
     let answer = "";
+    let streamDone = false;
+    const requestStartedAt = performance.now();
+    let firstChunkAt: number | null = null;
 
     const processLine = (line: string) => {
       const trimmed = line.trim();
       if (!trimmed.startsWith("data:")) return;
       const data = trimmed.slice(5).trim();
-      if (!data || data === "[DONE]") return;
+      if (!data) return;
+      if (data === "[DONE]") {
+        streamDone = true;
+        return;
+      }
 
       let payload: {
         choices?: { delta?: { content?: string | { type?: string; text?: string }[] } }[];
@@ -141,21 +148,30 @@ export async function localLlmReply(
           ? raw.map((part) => part.text ?? "").join("")
           : "";
       if (chunk) {
+        if (firstChunkAt === null) {
+          firstChunkAt = performance.now();
+          console.info(`[Lia local] primeiro token em ${Math.round(firstChunkAt - requestStartedAt)} ms`);
+        }
         answer += chunk;
         onChunk?.(chunk);
       }
     };
 
-    while (true) {
+    while (!streamDone) {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() ?? "";
-      for (const line of lines) processLine(line);
+      for (const line of lines) {
+        processLine(line);
+        if (streamDone) break;
+      }
     }
     buffer += decoder.decode();
-    if (buffer.trim()) processLine(buffer);
+    if (!streamDone && buffer.trim()) processLine(buffer);
+    if (streamDone) await reader.cancel().catch(() => undefined);
+    console.info(`[Lia local] fluxo encerrado em ${Math.round(performance.now() - requestStartedAt)} ms`);
 
     if (!answer.trim()) {
       throw new Error("O modelo local respondeu sem texto. Verifique o template de conversa do GGUF.");
