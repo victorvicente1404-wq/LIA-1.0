@@ -60,9 +60,9 @@ const CHAT_TIMEOUT_MS = 120_000;
 /** Oculta tags internas de memória e expressão enquanto a resposta chega em streaming. */
 function stripInternalTags(text: string): string {
   return text
-    .replace(/\\[\\[(?:LEMBRAR|rosto):[\\s\\S]*?(?:\\]\\]|$)/gi, "")
-    .replace(/^\\s*-\\s*\\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\\]\\s*[^:\\n]+:\\s*.*$/gim, "")
-    .replace(/\\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\\]\\s*[^:\\n]+:\\s*[^\\n]*?\\s*\\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\\]/gi, "")
+    .replace(/\[\[(?:LEMBRAR|rosto):[\s\S]*?(?:\]\]|$)/gi, "")
+    .replace(/^\s*-\s*\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\]\s*[^:\n]+:\s*.*$/gim, "")
+    .replace(/\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\]\s*[^:\n]+:\s*[^\n]*?\s*\[(?:perfil|preferencia|conhecimento|rotina|relacionamento|importante)\]/gi, "")
     .trimEnd();
 }
 
