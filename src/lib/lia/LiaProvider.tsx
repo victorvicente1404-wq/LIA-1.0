@@ -135,6 +135,26 @@ const LiaContext = (g.__liaContext ??= createContext<LiaContextValue | null>(nul
 
 const fallbackProfile = defaultProfiles[0] as Profile;
 
+/** Mescla o backup externo sem apagar memórias que já existem no Lia Card. */
+function mergeMemoryBackup(current: LiaCardData, backup: LiaCardData): LiaCardData {
+  const profiles = current.profiles.map((profile) => {
+    const saved = backup.profiles?.find((candidate) => candidate.id === profile.id || candidate.nome === profile.nome);
+    if (!saved) return profile;
+    const seen = new Set(profile.memory.map((item) =>
+      `${item.kind}|${item.key.trim().toLocaleLowerCase("pt-BR")}|${item.value.trim().toLocaleLowerCase("pt-BR")}`,
+    ));
+    const extras = (Array.isArray(saved.memory) ? saved.memory : []).filter((item) => {
+      if (!item || typeof item.key !== "string" || typeof item.value !== "string") return false;
+      const key = `${item.kind}|${item.key.trim().toLocaleLowerCase("pt-BR")}|${item.value.trim().toLocaleLowerCase("pt-BR")}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    return { ...profile, memory: [...extras, ...profile.memory].sort((a, b) => b.createdAt - a.createdAt).slice(0, 200) };
+  });
+  return { ...current, profiles };
+}
+
 export function LiaProvider({ children }: { children: ReactNode }) {
   const [booted, setBooted] = useState(false);
   const [data, setData] = useState<LiaCardData | null>(null);
@@ -150,8 +170,9 @@ export function LiaProvider({ children }: { children: ReactNode }) {
 
   // Hub de telemetria (bateria, rede, local, notificações)
 
-  // Detecta o Lia Card na inicialização
+  // Detecta o Lia Card e recupera, quando autorizado, o backup externo de memórias.
   useEffect(() => {
+    let active = true;
     const present = card.cardExists();
     const mounted = present && card.isMounted();
     setCardPresent(present);
@@ -160,16 +181,30 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const loaded = card.readCard();
       setData(loaded);
       setSessionMessages(loaded?.history ?? []);
+      if (loaded?.settings.memoriaLocal) {
+        void memoryStore.readMemories().then((backup) => {
+          if (!active || !backup) return;
+          // Lê novamente o cartão para não sobrescrever alterações feitas enquanto o arquivo era lido.
+          const latest = card.readCard();
+          if (!latest || !card.isMounted()) return;
+          const merged = mergeMemoryBackup(latest, backup);
+          card.writeCard(merged);
+          setData(merged);
+        }).catch(() => {
+          // Arquivo ausente, permissão revogada ou armazenamento indisponível:
+          // o Lia Card principal continua funcionando normalmente.
+        });
+      }
     }
 
     // Histórico de conversas do navegador
     const list = convo.readConversations();
     const activeId = convo.readActiveId();
-    const active = list.find((c) => c.id === activeId) ?? list[0];
-    if (active) {
+    const activeConversation = list.find((c) => c.id === activeId) ?? list[0];
+    if (activeConversation) {
       setConversations(list);
-      setActiveConversationId(active.id);
-      if (active.messages.length) setSessionMessages(active.messages);
+      setActiveConversationId(activeConversation.id);
+      if (activeConversation.messages.length) setSessionMessages(activeConversation.messages);
     } else {
       const created = convo.newConversation();
       setConversations([created]);
@@ -177,6 +212,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       convo.writeConversations([created]);
       convo.writeActiveId(created.id);
     }
+    return () => { active = false; };
   }, []);
 
   // Lia Link: aplica mudanças vindas de outros aparelhos e executa comandos remotos.
@@ -349,7 +385,15 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       abortRef.current = token;
 
       // Local USB commands bypass all vision, context collection and AI providers.
-      const local = attachments?.length ? null : parseArduinoChat(trimmed);
+      let local: ReturnType<typeof parseArduinoChat> = null;
+      try {
+        local = attachments?.length ? null : parseArduinoChat(trimmed);
+      } catch (error) {
+        const content = `Não consegui interpretar esse comando local: ${error instanceof Error ? error.message : "erro inesperado"}.`;
+        setSessionMessages([...withUser, { id: uid(), role: "lia", content, createdAt: Date.now() }]);
+        if (abortRef.current === token) { setSending(false); setState("idle"); }
+        return;
+      }
       if (local) {
         setState("idle");
         let content = "";
@@ -393,7 +437,10 @@ export function LiaProvider({ children }: { children: ReactNode }) {
 
       setState("thinking");
 
-      const system = buildSystemPrompt({
+      let systemFinal = "";
+      let history: { role: "assistant" | "user"; content: string }[] = [];
+      try {
+        const system = buildSystemPrompt({
         user,
         profile,
         personality,
@@ -426,11 +473,19 @@ export function LiaProvider({ children }: { children: ReactNode }) {
       const usbOn = serialConnected();
       const rooms = `MAQUETE (Arduino): ${ROOMS.map((r) => `${r.nome}=pino ${r.pin}`).join(", ")}. "Quarto grande"/"quarto casal" = Suíte Master; "quarto pequeno" = Quarto de Solteiro. Os comandos USB simples são tratados diretamente pelo app antes de consultar o modelo.`;
       const systemBase = `${system}\n\n${rooms}${ctx ? `\n\nCONTEXTO DO APARELHO (automático, não comente sem motivo)\n${ctx}` : ""}`;
-      const systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
-      const history = withUser.slice(-4).map((m) => ({
-        role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
-        content: m.content,
-      }));
+        systemFinal = extra ? `${systemBase}\n\nINSTRUÇÕES EXTRAS DO PAINEL INTERNO\n${extra}` : systemBase;
+        history = withUser.slice(-4).map((m) => ({
+          role: m.role === "lia" ? ("assistant" as const) : ("user" as const),
+          content: m.content,
+        }));
+      } catch (error) {
+        if (!token.cancelled) {
+          const detail = error instanceof Error ? error.message : "erro inesperado";
+          setSessionMessages([...withUser, { id: uid(), role: "lia", content: `Não consegui preparar o contexto desta mensagem: ${detail}. Pode tentar novamente?`, createdAt: Date.now() }]);
+        }
+        if (abortRef.current === token) { setSending(false); setState("idle"); }
+        return;
+      }
 
       const streamMessageId = uid();
       let streamedText = "";
