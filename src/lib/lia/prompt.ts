@@ -18,10 +18,10 @@ export function buildSystemPrompt(args: {
   const { user, profile, personality, memory, cardConnected, vision, memoriaLocal } = args;
   const servicos = args.servicos ?? [];
 
-  // Mantém o prompt compacto; consultas por chave exata são resolvidas diretamente no LiaProvider.
+  // O LiaProvider já seleciona lembranças relacionadas ao assunto da mensagem atual.
   const memoriaTexto = memory.length
-    ? memory.slice(0, 50).map((m) => `- [${m.kind}] ${m.key}: ${m.value}`).join("\n")
-    : "- (nenhuma memória registrada ainda)";
+    ? memory.slice(0, 10).map((m) => `- [${m.kind}] ${m.key}: ${m.value}`).join("\n")
+    : "- Nenhuma lembrança foi considerada suficientemente relacionada a esta mensagem.";
 
   return `Você é a Lia, uma assistente pessoal de inteligência artificial feminina, modular, portátil e focada em privacidade.
 
@@ -69,8 +69,13 @@ ${
     : "Nenhum serviço externo conectado ainda. Se o usuário pedir agenda, e-mail ou arquivos, explique que ele pode conectar Google Agenda, Gmail, Drive, Docs e Slides no painel \"Conectores\". O modelo local ainda não consegue executar ações nesses serviços."
 }
 
-MEMÓRIA PERSISTENTE
+MEMÓRIA PERSISTENTE — CONTEXTO RECUPERADO
 Local de armazenamento das memórias: ${memoriaLocal ? memoriaLocal : "Lia Card (armazenamento local do navegador)"}.
+As lembranças abaixo foram selecionadas por relação com o assunto desta mensagem e podem ajudar, mas não precisam ser usadas se não forem pertinentes.
+- Use-as naturalmente quando responder perguntas sobre fatos anteriores, preferências ou detalhes que o usuário compartilhou.
+- Não exija que o usuário diga "lembra", "memória" ou qualquer prefixo especial.
+- Não trate uma pergunta de conhecimento geral como uma consulta à memória só porque começa com "qual", "o que" ou expressão semelhante.
+- Se nenhuma lembrança relevante foi recuperada, responda normalmente com seu conhecimento; não invente lembranças nem diga que consultou o armazenamento.
 ${memoriaTexto}
 
 APRENDIZADO

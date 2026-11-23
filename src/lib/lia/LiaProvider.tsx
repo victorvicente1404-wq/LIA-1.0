@@ -46,6 +46,7 @@ import { syncCustomApisToAccount } from "./custom-apis";
 import { DEFAULT_BOND, driftBond, evolveBond, rewardBond, TREATS } from "./rewards";
 import { applyFaceTags } from "./face-engine";
 import { nativeBatteryStatus, nativeScreenSummary } from "./native-device";
+import { retrieveRelevantMemories } from "./memory-retrieval";
 import * as link from "./sync/link";
 import { notify } from "./notifications";
 import { applyTheme, readTheme } from "./theme";
@@ -58,39 +59,6 @@ const CHAT_TIMEOUT_MS = 120_000;
 /** Oculta tags internas de memória e expressão enquanto a resposta chega em streaming. */
 function stripInternalTags(text: string): string {
   return text.replace(/\[\[(?:LEMBRAR|rosto):[\s\S]*?(?:\]\]|$)/gi, "").trimEnd();
-}
-
-/** Resolve perguntas sobre memória mesmo quando vêm como continuação natural da conversa. */
-function lookupSavedMemory(
-  question: string,
-  memories: MemoryItem[],
-): { matched: boolean; reply: string } {
-  const normalized = question
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
-    .trim();
-  const hasLookupIntent =
-    /\b(?:qual|o que|me diga|lembra|lembre)\b/.test(normalized) &&
-    /\b(?:informacao|valor|dado|memoria)\b/.test(normalized);
-  if (!hasLookupIntent) return { matched: false, reply: "" };
-
-  // Aceita contexto antes da pergunta: "Uau, boa resposta, mas qual é ... em teste_lia?"
-  const keyMatch = normalized.match(
-    /\b(?:em|para|de)\s+["'“]?(.+?)["'”]?\s*[?!.]*$/,
-  );
-  const requestedKey = keyMatch?.[1]?.trim().replace(/^["'“]+|["'”]+$/g, "").trim();
-  if (!requestedKey) {
-    return { matched: true, reply: "Consigo procurar essa informação na memória. Qual é o assunto ou a chave que devo consultar?" };
-  }
-
-  const key = requestedKey.toLocaleLowerCase("pt-BR");
-  const item = memories.find(
-    (entry) => entry.key.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === key,
-  );
-  return item
-    ? { matched: true, reply: `A informação registrada em "${item.key}" é: "${item.value}".` }
-    : { matched: true, reply: `Não encontrei "${requestedKey}" na memória do perfil ativo. Posso consultar apenas os registros que estão realmente salvos no Lia Card.` };
 }
 
 /** Reconhece consultas de bateria que devem ser executadas no Android, não respondidas pelo modelo. */
@@ -463,32 +431,24 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Consultas explícitas por chave são resolvidas pelo armazenamento, não por adivinhação do modelo.
-      const memoryLookup = lookupSavedMemory(trimmed, memory);
-      if (memoryLookup.matched) {
-        const finalMsgs: ChatMessage[] = [
-          ...withUser,
-          { id: uid(), role: "lia", content: memoryLookup.reply, createdAt: Date.now() },
-        ];
-        setSessionMessages(finalMsgs);
-        if (data && cardConnected) persist({ ...data, history: finalMsgs.slice(-200) });
-        if (abortRef.current === token) {
-          setSending(false);
-          setState("idle");
-        }
-        return;
-      }
-
       setState("thinking");
 
       let systemFinal = "";
       let history: { role: "assistant" | "user"; content: string }[] = [];
       try {
+        // Recupera lembranças relacionadas ao assunto, usando também o contexto recente
+        // do usuário para resolver perguntas de acompanhamento ("e qual era a cor?").
+        const memoryQuery = withUser
+          .filter((message) => message.role === "user")
+          .slice(-5)
+          .map((message) => message.content)
+          .join("\n");
+        const relevantMemories = retrieveRelevantMemories(memoryQuery, memory);
         const system = buildSystemPrompt({
         user,
         profile,
         personality,
-        memory,
+        memory: relevantMemories,
         cardConnected,
         vision: "O motor local atual é somente texto. Câmera e interpretação de imagens ainda não estão conectadas ao modelo.",
         memoriaLocal: data?.settings.memoriaLocal ?? null,
