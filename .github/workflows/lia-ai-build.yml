@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   web-build:
-    name: Validate Lia AI web build
+    name: Validate Lia AI static app shell
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Lia AI branch
@@ -34,13 +34,19 @@ jobs:
       - name: Build application
         run: bun run build
 
-      - name: Upload build output for Android packaging review
+      - name: Verify static SPA entry for Android WebView
+        run: |
+          test -s .output/public/index.html
+          grep -qi '<html' .output/public/index.html
+          grep -qi '<script' .output/public/index.html
+          test -d .output/public/assets
+          echo "Static Android WebView entry verified."
+
+      - name: Upload static web shell for Android packaging
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: lia-ai-web-build
-          path: |
-            .output/public
-            .output/server
+          name: lia-ai-android-web-shell
+          path: .output/public
           if-no-files-found: error
           retention-days: 3
