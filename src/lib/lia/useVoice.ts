@@ -71,6 +71,7 @@ export function useVoice(
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const buildRecognitionRef = useRef<(() => SpeechRecognitionLike | null) | null>(null);
   const monitorRef = useRef<AudioMonitor | null>(null);
+  const lastAudioLevelUpdateRef = useRef(0);
   const wakeActiveRef = useRef(false); // acordada pela palavra de ativação
   const speakingRef = useRef(false);
   const micOnRef = useRef(false);
@@ -102,7 +103,15 @@ export function useVoice(
   const ensureMonitor = useCallback(() => {
     if (monitorRef.current || typeof window === "undefined") return;
     const mon = createAudioMonitor(sensibilidade, silencioMs, {
-      onLevel: (l) => setAudioLevel(l),
+      onLevel: (l) => {
+        // O analisador continua detectando voz em alta frequência, mas a UI
+        // só precisa atualizar o medidor ~12 vezes por segundo.
+        const now = performance.now();
+        if (l === 0 || now - lastAudioLevelUpdateRef.current >= 80) {
+          lastAudioLevelUpdateRef.current = now;
+          setAudioLevel(l);
+        }
+      },
       onVoice: (v) => {
         // Interrompe a fala da Lia quando o usuário começa a falar.
         // Ignora o começo da fala (eco da própria voz da Lia no microfone).
