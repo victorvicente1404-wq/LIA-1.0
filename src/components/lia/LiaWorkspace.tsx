@@ -133,7 +133,7 @@ export function LiaWorkspace() {
               LIA AI
             </h1>
             <p className="truncate text-[10px] uppercase text-muted-foreground">
-              assistente pessoal · modular · privada · v1.1.02
+              assistente pessoal · modular · privada · v1.2.00
             </p>
           </div>
         </div>
