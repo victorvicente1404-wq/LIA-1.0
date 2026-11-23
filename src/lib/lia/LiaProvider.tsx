@@ -57,7 +57,7 @@ const CHAT_TIMEOUT_MS = 120_000;
 
 /** Oculta tags internas de memória e expressão enquanto a resposta chega em streaming. */
 function stripInternalTags(text: string): string {
-  return text.replace(/\[\[(?:LEMBRAR|rosto):[\s\\S]*?(?:\]\]|$)/gi, "").trimEnd();
+  return text.replace(/\[\[(?:LEMBRAR|rosto):[\s\S]*?(?:\]\]|$)/gi, "").trimEnd();
 }
 
 /** Resolve perguntas objetivas sobre uma chave diretamente na memória persistida. */
