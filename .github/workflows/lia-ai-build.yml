@@ -1,0 +1,46 @@
+name: Lia AI branch build
+
+on:
+  push:
+    branches:
+      - "lia-ai/1.1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lia-ai-1-1-build
+  cancel-in-progress: true
+
+jobs:
+  web-build:
+    name: Validate Lia AI web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Lia AI branch
+        uses: actions/checkout@v4
+        with:
+          ref: lia-ai/1.1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build application
+        run: bun run build
+
+      - name: Upload build output for Android packaging review
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lia-ai-web-build
+          path: |
+            .output/public
+            .output/server
+          if-no-files-found: error
+          retention-days: 3
