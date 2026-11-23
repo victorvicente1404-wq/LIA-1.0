@@ -54,6 +54,25 @@ import { toast } from "sonner";
 const GREETING = "Olá! Eu sou a Lia. Como posso ajudar?";
 /** Prazo máximo de uma resposta antes de liberar o chat com um aviso. */
 const CHAT_TIMEOUT_MS = 120_000;
+/** Resolve perguntas objetivas sobre uma chave diretamente na memória persistida. */
+function lookupSavedMemory(
+  question: string,
+  memories: MemoryItem[],
+): { matched: boolean; reply: string } {
+  const match = question.trim().match(
+    /^(?:qual\\s+(?:é\\s+)?(?:a\\s+)?(?:informação|valor)\\s+(?:registrada|salva|guardada)\\s+(?:em|para)|qual\\s+(?:é\\s+)?(?:o\\s+)?valor\\s+de|o\\s+que\\s+(?:está\\s+)?(?:registrado|salvo|guardado)\\s+em)\\s+["'“]?(.+?)["'”]?\\s*[?!.]*$/i,
+  );
+  if (!match?.[1]) return { matched: false, reply: "" };
+
+  const key = match[1].trim().replace(/[?!.]+$/, "").toLocaleLowerCase("pt-BR");
+  const item = memories.find(
+    (entry) => entry.key.trim().toLocaleLowerCase("pt-BR") === key,
+  );
+  return item
+    ? { matched: true, reply: `A informação registrada em "${item.key}" é: "${item.value}".` }
+    : { matched: true, reply: `Não encontrei "${match[1].trim()}" na memória do perfil ativo.` };
+}
+
 
 interface LiaContextValue {
   booted: boolean;
@@ -350,6 +369,22 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
+      // Consultas explícitas por chave são resolvidas pelo armazenamento, não por adivinhação do modelo.
+      const memoryLookup = lookupSavedMemory(trimmed, memory);
+      if (memoryLookup.matched) {
+        const finalMsgs: ChatMessage[] = [
+          ...withUser,
+          { id: uid(), role: "lia", content: memoryLookup.reply, createdAt: Date.now() },
+        ];
+        setSessionMessages(finalMsgs);
+        if (data && cardConnected) persist({ ...data, history: finalMsgs.slice(-200) });
+        if (abortRef.current === token) {
+          setSending(false);
+          setState("idle");
+        }
+        return;
+      }
+
       setState("thinking");
 
       const system = buildSystemPrompt({
