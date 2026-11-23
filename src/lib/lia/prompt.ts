@@ -102,7 +102,7 @@ export function extractMemories(text: string): {
     "perfil", "preferencia", "conhecimento", "rotina", "relacionamento", "importante",
   ]);
   const clean = text
-    .replace(/\\[\\[LEMBRAR:([^\\]]+)\\]\\]/gi, (_m, body: string) => {
+    .replace(/\[\[LEMBRAR:([^\]]+)\]\]/gi, (_m, body: string) => {
       const parts = body.split("|").map((part) => part.trim());
       const kind = parts.shift() as MemoryItem["kind"] | undefined;
       const key = parts.shift();
