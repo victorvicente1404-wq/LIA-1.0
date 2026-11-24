@@ -78,6 +78,10 @@ function isBatteryQuery(question: string): boolean {
 /** Detecta pedidos diretos de controle do aparelho; perguntas explicativas seguem para o chat normal. */
 function looksLikeAccessibilityCommand(question: string): boolean {
   const normalized = question.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  const screenReadIntent =
+    /\b(?:leia|ler|veja|ver|mostre|mostra|descreva|descrever|analise|analisar)\b.*\b(?:tela|janela|aplicativo|app)\b/.test(normalized) ||
+    /\b(?:o que|quais|qual)\b.*\b(?:na|da|do)\s+tela\b/.test(normalized);
+  if (screenReadIntent) return true;
   if (/^(como|por que|porque|o que|qual|quais|quando|onde|sera que|da para|tem como)\b/.test(normalized)) return false;
   return /\b(?:abra|abre|abrir|acessa|acesse|entre|entra|va para|vai para|volte|volta|clique|clica|toque|toca|digite|digita|escreva|escreve|procure|procura|pesquise|pesquisa|role|rola|deslize|desliza|mande|manda|envie|envia|enviar)\b/.test(normalized);
 }
@@ -524,7 +528,16 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         let content = "";
         try {
           const initialNativeScreen = await nativeReadScreen();
+          if (!initialNativeScreen) {
+            throw new Error("A ponte nativa não está disponível. Confirme que está usando o APK Android atualizado.");
+          }
+          if (initialNativeScreen.rootAvailable === false) {
+            throw new Error("O serviço está conectado, mas o Android não disponibilizou a janela ativa. Troque para o aplicativo que deseja controlar e tente novamente.");
+          }
           const initialScreen = await nativeScreenSummary(3500);
+          if (!initialScreen.trim()) {
+            throw new Error("Não consegui obter informações da tela atual.");
+          }
           const firstPlan = await localLlmPlanAccessibility(trimmed, initialScreen, actionController.signal);
           if (token.cancelled || actionController.signal.aborted) return;
           if (firstPlan.needsAction && !firstPlan.steps.length) {
