@@ -1,6 +1,7 @@
 package app.lia.lia
 
 import android.content.Intent
+import android.content.ComponentName
 import android.net.Uri
 import android.os.Build
 import android.os.BatteryManager
@@ -11,10 +12,41 @@ import com.getcapacitor.annotation.CapacitorPlugin
 
 @CapacitorPlugin(name = "LiaNative")
 class LiaNativePlugin : Plugin() {
-    private fun acc(call: PluginCall): LiaAccessibilityService? = LiaAccessibilityService.instance ?: run {
-        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        call.reject("Ative a Lia em Acessibilidade")
-        null
+    private fun isAccessibilityEnabled(): Boolean {
+        val enabled = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ).orEmpty()
+        val expected = ComponentName(context, LiaAccessibilityService::class.java)
+        return enabled.split(':').any { entry ->
+            ComponentName.unflattenFromString(entry)?.let { it == expected } == true
+        }
+    }
+
+    private fun acc(call: PluginCall): LiaAccessibilityService? {
+        LiaAccessibilityService.instance?.let { return it }
+        if (!isAccessibilityEnabled()) {
+            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            call.reject("A acessibilidade da Lia está desativada. Ative o serviço e tente novamente.")
+        } else {
+            call.reject("A acessibilidade está habilitada, mas o serviço ainda não se conectou. Feche e reabra a Lia; se persistir, reinicie o serviço nas configurações.")
+        }
+        return null
+    }
+
+    @PluginMethod fun accessibilityStatus(call: PluginCall) {
+        val service = LiaAccessibilityService.instance
+        val enabled = isAccessibilityEnabled()
+        val rootAvailable = try { service?.rootInActiveWindow != null } catch (_: Exception) { false }
+        val treeCount = try { service?.readTree()?.length() ?: 0 } catch (_: Exception) { 0 }
+        call.resolve(JSObject()
+            .put("enabled", enabled)
+            .put("connected", service != null)
+            .put("rootAvailable", rootAvailable)
+            .put("treeCount", treeCount)
+            .put("foreground", LiaAccessibilityService.foreground)
+            .put("lastEventAt", LiaAccessibilityService.lastEventAt)
+            .put("connectedAt", LiaAccessibilityService.connectedAt))
     }
 
     @PluginMethod fun startBackground(call: PluginCall) {
@@ -79,10 +111,15 @@ class LiaNativePlugin : Plugin() {
 
     @PluginMethod fun readScreen(call: PluginCall) {
         val service = acc(call) ?: return
+        val tree = service.readTree()
+        val rootAvailable = service.rootInActiveWindow != null
         call.resolve(JSObject()
             .put("app", LiaAccessibilityService.foreground)
             .put("lastEventAt", LiaAccessibilityService.lastEventAt)
-            .put("tree", service.readTree()))
+            .put("connectedAt", LiaAccessibilityService.connectedAt)
+            .put("rootAvailable", rootAvailable)
+            .put("treeCount", tree.length())
+            .put("tree", tree))
     }
 
     private fun dispatch(call: PluginCall, service: LiaAccessibilityService, x1: Float, y1: Float, x2: Float, y2: Float, duration: Long, label: String) {
