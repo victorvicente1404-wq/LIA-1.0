@@ -15,9 +15,10 @@ export function parseMemoryWriteCommand(text: string): MemoryWriteCommand | null
   const input = text.trim();
   const explicit = input.match(/^(?:por favor[, ]*)?(?:guarde|salve|registre|lembre)(?:\s+(?:na|em)\s+(?:(?:minha|sua)\s+)?mem[oó]ria)?\s*[:,-]?\s*(.+)$/i);
   if (!explicit) return null;
-  const payload = explicit[1].trim();
+  const payload = explicit[1]?.trim();
+  if (!payload) return null;
   const pair = payload.match(/^(?:que\s+)?(.+?)\s*(?:=|:|\s+\b(?:é|era|foi|são|sao|significa)\b\s+)\s*(.+)$/i);
-  if (!pair) return null;
+  if (!pair || pair[1] === undefined || pair[2] === undefined) return null;
   const key = pair[1].trim().replace(/^["']|["']$/g, "").replace(/[?.!]+$/, "");
   const value = pair[2].trim().replace(/^["']|["']$/g, "").replace(/[.!?]+$/, "");
   if (!key || !value || key.length > 100 || value.length > 1000) return null;
