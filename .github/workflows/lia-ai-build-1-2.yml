@@ -109,7 +109,7 @@ jobs:
           if "<queries>" not in content:
               content = content.replace(
                   "<application",
-                  "<queries><intent><action android:name=\\"android.intent.action.MAIN\\"/><category android:name=\\"android.intent.category.LAUNCHER\\"/></intent></queries>\\n    <application",
+                  "<queries><intent><action android:name=\"android.intent.action.MAIN\"/><category android:name=\"android.intent.category.LAUNCHER\"/></intent></queries>\n    <application",
                   1,
               )
           permissions = [
