@@ -144,3 +144,12 @@ O Cost Guard ainda não está ligado a um provedor remoto de conversa. Nesta bra
 - [ ] Confirmar em teste controlado que `gpt-6-luna` é aceito pelo endpoint de contagem no projeto/conta usados.
 
 Isso substitui a estimativa anterior baseada em caracteres. A reserva continua usando as tarifas Standard configuradas no servidor; qualquer mudança de preço do modelo exige atualizar as constantes antes de reativar chamadas pagas.
+
+### Ajuste de segurança — cache write
+
+- [x] A reserva usa US$0,125 por milhão de tokens de entrada como pior caso, cobrindo a tarifa de cache write da Luna.
+- [x] A liquidação diferencia tokens comuns, cache hits e cache writes.
+- [x] Criada migração complementar `20261124124500_lia_ai_cache_write_budget.sql`, que adiciona a coluna de cache write e substitui a assinatura antiga da RPC de liquidação.
+- [ ] Aplicar as migrações em ordem no Supabase e validar a liquidação com usage real.
+
+A tarifa Standard publicada para GPT-6 Luna é US$0,10/M input, US$0,01/M cached input, US$0,125/M cache write e US$0,50/M output. A reserva usa o maior custo de entrada para não depender de desconto de cache.
