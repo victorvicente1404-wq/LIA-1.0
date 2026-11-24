@@ -16,10 +16,12 @@ class LiaAccessibilityService : AccessibilityService() {
         @Volatile var instance: LiaAccessibilityService? = null
         @Volatile var foreground: String = ""
         @Volatile var lastEventAt: Long = 0L
+        @Volatile var connectedAt: Long = 0L
     }
 
     override fun onServiceConnected() {
         instance = this
+        connectedAt = System.currentTimeMillis()
         serviceInfo = serviceInfo.apply {
             flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
