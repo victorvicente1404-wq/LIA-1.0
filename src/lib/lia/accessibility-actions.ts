@@ -31,7 +31,7 @@ export async function runAccessibilityPlan(
   plan: AccessibilityPlan,
   options: {
     signal?: AbortSignal;
-    initialScreen?: NativeScreen;
+    initialScreen?: NativeScreen | null;
     onStep?: (index: number, step: AccessibilityStep) => void;
     nextPlan?: (screen: NativeScreen, completed: number) => Promise<AccessibilityPlan | null>;
   } = {},
