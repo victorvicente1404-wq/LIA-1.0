@@ -563,8 +563,13 @@ export function LiaProvider({ children }: { children: ReactNode }) {
                     planningStopReason = next.stopReason || "Preciso de mais informações para continuar com segurança.";
                     return null;
                   }
+                  const nextStep = next.steps[0];
+                  if (!nextStep) {
+                    planningStopReason = next.stopReason || "O planejador não identificou uma próxima ação segura.";
+                    return null;
+                  }
                   currentGoal = next.goal;
-                  return { goal: next.goal, steps: [next.steps[0]] };
+                  return { goal: next.goal, steps: [nextStep] };
                 },
               },
             );
