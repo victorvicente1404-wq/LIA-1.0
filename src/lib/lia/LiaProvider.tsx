@@ -16,7 +16,8 @@ import { defaultModules, defaultProfiles, uid } from "./defaults";
 import { buildSystemPrompt, extractMemories } from "./prompt";
 import { useConnections } from "./useConnections";
 import { connectorLabel } from "./connectors";
-import { localLlmReply } from "./termux-llm";
+import { localLlmReply, localLlmPlanAccessibility } from "./termux-llm";
+import { runAccessibilityPlan } from "./accessibility-actions";
 import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
 import { sendSerial, serialConnected } from "./webserial";
@@ -73,6 +74,13 @@ function isBatteryQuery(question: string): boolean {
     /\b(?:consulte|consultar|qual|quanto|nivel|porcentagem|estado|status|ver|mostre|confira|cheque)\b/.test(normalized);
 }
 
+
+/** Detecta pedidos diretos de controle do aparelho; perguntas explicativas seguem para o chat normal. */
+function looksLikeAccessibilityCommand(question: string): boolean {
+  const normalized = question.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  if (/^(como|por que|porque|o que|qual|quais|quando|onde|sera que|da para|tem como)\\b/.test(normalized)) return false;
+  return /\\b(?:abra|abre|abrir|acessa|acesse|entre|entra|va para|vai para|volte|volta|clique|clica|toque|toca|digite|digita|escreva|escreve|procure|procura|pesquise|pesquisa|role|rola|deslize|desliza|mande|manda|envie|envia|enviar)\\b/.test(normalized);
+}
 
 interface LiaContextValue {
   booted: boolean;
@@ -507,6 +515,47 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         }
         if (abortRef.current === token) { setSending(false); setState("idle"); }
         return;
+      }
+
+      // Controle offline do Android: o Qwen planeja em JSON e um executor exclusivo valida cada etapa.
+      if (!attachments?.length && looksLikeAccessibilityCommand(trimmed)) {
+        const actionController = new AbortController();
+        token.abort = () => actionController.abort();
+        let content = "";
+        try {
+          const screen = await nativeScreenSummary(3500);
+          const plan = await localLlmPlanAccessibility(trimmed, screen, actionController.signal);
+          if (token.cancelled || actionController.signal.aborted) return;
+          if (plan.needsAction && plan.steps.length) {
+            const result = await runAccessibilityPlan(
+              { goal: plan.goal, steps: plan.steps },
+              { signal: actionController.signal },
+            );
+            if (result.ok) {
+              const stoppedForConfirmation = /mensagem|enviar|publicar|postar/i.test(trimmed);
+              content = stoppedForConfirmation
+                ? `Concluí ${result.completed} etapa(s) e deixei a ação preparada. Não toquei em Enviar/Publicar; confira o destinatário e o texto antes de confirmar.`
+                : `Concluí ${result.completed} etapa(s): ${plan.goal || "ação no Android"}.`;
+            } else {
+              content = `Executei ${result.completed} etapa(s), mas parei para evitar continuar às cegas: ${result.message}`;
+            }
+          } else if (plan.needsAction) {
+            content = plan.stopReason || "Entendi que você quer controlar o aparelho, mas não consegui montar um plano seguro.";
+          } else {
+            // Se não era uma ordem de ação, deixa o fluxo normal responder.
+            content = "";
+          }
+        } catch (error) {
+          if (token.cancelled) return;
+          content = `Não consegui executar essa ação offline: ${error instanceof Error ? error.message : "falha no planejador local"}.`;
+        }
+        if (content) {
+          const finalMsgs: ChatMessage[] = [...withUser, { id: uid(), role: "lia", content, createdAt: Date.now(), localOnly: true }];
+          setSessionMessages(finalMsgs);
+          if (data && cardConnected) persist({ ...data, history: finalMsgs.slice(-200) });
+          if (abortRef.current === token) { setSending(false); setState("idle"); }
+          return;
+        }
       }
 
       setState("thinking");
