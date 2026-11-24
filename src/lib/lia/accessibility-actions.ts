@@ -31,6 +31,7 @@ export async function runAccessibilityPlan(
   plan: AccessibilityPlan,
   options: {
     signal?: AbortSignal;
+    initialScreen?: NativeScreen;
     onStep?: (index: number, step: AccessibilityStep) => void;
     nextPlan?: (screen: NativeScreen, completed: number) => Promise<AccessibilityPlan | null>;
   } = {},
@@ -47,7 +48,7 @@ export async function runAccessibilityPlan(
   const abort = () => { lease.cancelled = true; };
   options.signal?.addEventListener("abort", abort, { once: true });
   let completed = 0;
-  let screen: NativeScreen | null = null;
+  let screen: NativeScreen | null = options.initialScreen ?? null;
   let pending = [...plan.steps];
 
   try {
@@ -81,11 +82,15 @@ export async function runAccessibilityPlan(
             break;
           case "tap":
           case "long_press":
-            if (!validPoint(step.x, step.y)) return { ok: false, completed, message: "Coordenadas inválidas.", screen };
+            if (!validPoint(step.x, step.y) || !isClickablePoint(screen, step.x, step.y)) {
+              return { ok: false, completed, message: "Recusei o toque: as coordenadas não correspondem a um controle clicável visível.", screen };
+            }
             command = { acao: step.action === "tap" ? "tocar" : "pressionar", x: step.x, y: step.y };
             break;
           case "swipe":
-            if (!validPoint(step.x, step.y) || !validPoint(step.x2, step.y2)) return { ok: false, completed, message: "Coordenadas de gesto inválidas.", screen };
+            if (!validPoint(step.x, step.y) || !validPoint(step.x2, step.y2) || !isScrollablePoint(screen, step.x, step.y)) {
+              return { ok: false, completed, message: "Recusei o gesto: o ponto inicial não está dentro de uma área rolável visível.", screen };
+            }
             command = { acao: "deslizar", x: step.x, y: step.y, x2: step.x2, y2: step.y2 };
             break;
           case "type_text":
@@ -152,6 +157,16 @@ function validPoint(x: unknown, y: unknown): boolean {
     typeof y === "number" && Number.isFinite(y) && y >= 0 && y <= 10000;
 }
 
-function invalidStep(): AccessibilityRunResult {
-  return { ok: false, completed: 0, message: "O plano contém parâmetros inválidos; nenhuma etapa adicional foi executada." };
+function containsPoint(node: NativeScreen["tree"][number], x: number, y: number): boolean {
+  return typeof node.left === "number" && typeof node.top === "number" &&
+    typeof node.right === "number" && typeof node.bottom === "number" &&
+    x >= node.left && x <= node.right && y >= node.top && y <= node.bottom;
+}
+
+function isClickablePoint(screen: NativeScreen | null, x: number, y: number): boolean {
+  return Boolean(screen?.tree.some((node) => node.clickable && node.enabled !== false && containsPoint(node, x, y)));
+}
+
+function isScrollablePoint(screen: NativeScreen | null, x: number, y: number): boolean {
+  return Boolean(screen?.tree.some((node) => node.scrollable && node.enabled !== false && containsPoint(node, x, y)));
 }
