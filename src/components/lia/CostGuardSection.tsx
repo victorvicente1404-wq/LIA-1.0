@@ -15,6 +15,7 @@ export function CostGuardSection() {
   const [state, setState] = useState<CostGuardState>(() => readCostGuard());
   const [budget, setBudget] = useState(String(state.config.monthlyBudgetBRL));
   const [reserve, setReserve] = useState(String(state.config.reserveBRL));
+  const [annualBudget, setAnnualBudget] = useState(String(state.config.annualBudgetBRL));
   const [exchange, setExchange] = useState(String(state.config.usdToBrl));
   const [notice, setNotice] = useState("");
 
@@ -23,6 +24,7 @@ export function CostGuardSection() {
     setState(latest);
     setBudget(String(latest.config.monthlyBudgetBRL));
     setReserve(String(latest.config.reserveBRL));
+    setAnnualBudget(String(latest.config.annualBudgetBRL));
     setExchange(String(latest.config.usdToBrl));
     setNotice("");
   }, []);
@@ -32,13 +34,14 @@ export function CostGuardSection() {
   const save = () => {
     const monthlyBudgetBRL = Number(budget);
     const reserveBRL = Number(reserve);
+    const annualBudgetBRL = Number(annualBudget);
     const usdToBrl = Number(exchange);
-    if (![monthlyBudgetBRL, reserveBRL, usdToBrl].every(Number.isFinite) ||
-        monthlyBudgetBRL <= 0 || reserveBRL < 0 || reserveBRL >= monthlyBudgetBRL || usdToBrl <= 0) {
-      setNotice("Confira os valores: orçamento maior que zero, reserva menor que o orçamento e câmbio positivo.");
+    if (![monthlyBudgetBRL, reserveBRL, annualBudgetBRL, usdToBrl].every(Number.isFinite) ||
+        monthlyBudgetBRL <= 0 || annualBudgetBRL <= 0 || reserveBRL < 0 || reserveBRL >= monthlyBudgetBRL || usdToBrl <= 0) {
+      setNotice("Confira os valores: limites maiores que zero, reserva menor que o orçamento mensal e câmbio positivo.");
       return;
     }
-    const next = updateCostGuardConfig({ monthlyBudgetBRL, reserveBRL, usdToBrl });
+    const next = updateCostGuardConfig({ monthlyBudgetBRL, annualBudgetBRL, reserveBRL, usdToBrl });
     setState(next);
     setNotice("Orçamento salvo neste aparelho.");
   };
@@ -107,6 +110,10 @@ export function CostGuardSection() {
         <label className="block space-y-1">
           <span className="text-xs text-muted-foreground">Reserva mensal (R$)</span>
           <Input inputMode="decimal" value={reserve} onChange={(event) => setReserve(event.target.value)} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted-foreground">Limite anual (R$)</span>
+          <Input inputMode="decimal" value={annualBudget} onChange={(event) => setAnnualBudget(event.target.value)} />
         </label>
         <label className="block space-y-1">
           <span className="text-xs text-muted-foreground">Câmbio USD → BRL usado na estimativa</span>
