@@ -23,8 +23,9 @@ export function writeAiRoutingMode(mode: AiRoutingMode): boolean {
 }
 
 export function isComplexLunaTask(message: string): boolean {
-  const normalized = message.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  return isComplexLunaTask(message);
+  const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const complexIntent = /\b(?:arquitetura|implemente|implementacao|depure|debug|refatore|otimize|codigo|programacao|planejamento tecnico|analise aprofundada|analise detalhada|compare alternativas|pesquisa aprofundada|documentacao tecnica|resolva passo a passo|estrategia complexa)\b/.test(normalized);
+  return complexIntent || message.length >= 1_600;
 }
 
 /** Attachments remain local until remote attachment privacy/vision routing is implemented. */
@@ -32,8 +33,5 @@ export function shouldUseLunaForMessage(message: string, hasAttachments = false)
   if (readAiRoutingMode() !== "hybrid" || hasAttachments) return false;
   const normalized = message.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   const explicit = /\b(?:use|usa|utilize|chame|mande para)\s+(?:a\s+)?(?:luna|modelo remoto|modelo online)\b/.test(normalized);
-  if (explicit) return true;
-
-  const complexIntent = /\b(?:arquitetura|implemente|implementacao|depure|debug|refatore|otimize|codigo|programacao|planejamento tecnico|analise aprofundada|analise detalhada|compare alternativas|pesquisa aprofundada|documentacao tecnica|resolva passo a passo|estrategia complexa)\b/.test(normalized);
-  return complexIntent || message.length >= 1_600;
+  return explicit || isComplexLunaTask(message);
 }
