@@ -45,6 +45,9 @@ jobs:
       - name: Test deterministic memory commands
         run: bunx vitest run src/lib/lia/memory-commands.test.ts
 
+      - name: Type-check Lia TypeScript
+        run: bunx tsc --noEmit --pretty false
+
       - name: Commit generated lockfile when changed
         run: |
           if ! git diff --quiet -- package.json bun.lock; then
