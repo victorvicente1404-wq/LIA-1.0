@@ -190,3 +190,94 @@ export async function localLlmReply(
     externalSignal?.removeEventListener("abort", relayAbort);
   }
 }
+
+export type LocalAccessibilityPlan = {
+  needsAction: boolean;
+  goal: string;
+  steps: Array<
+    | { action: "open_app"; name: string }
+    | { action: "read_screen" }
+    | { action: "click_text"; text: string }
+    | { action: "tap"; x: number; y: number }
+    | { action: "long_press"; x: number; y: number }
+    | { action: "swipe"; x: number; y: number; x2: number; y2: number }
+    | { action: "type_text"; text: string }
+    | { action: "scroll"; direction: "up" | "down" }
+    | { action: "back" }
+  >;
+  stopReason?: string;
+};
+
+/** Planeja ações Android em JSON; o executor valida cada etapa e nunca envia formulários/mensagens finais. */
+export async function localLlmPlanAccessibility(
+  request: string,
+  screen: string,
+  externalSignal?: AbortSignal,
+): Promise<LocalAccessibilityPlan> {
+  const controller = new AbortController();
+  const relayAbort = () => controller.abort();
+  if (externalSignal?.aborted) controller.abort();
+  else externalSignal?.addEventListener("abort", relayAbort, { once: true });
+  const timer = window.setTimeout(() => controller.abort(), 45_000);
+
+  const instructions = [
+    "Você é o planejador de ações Android offline da Lia.",
+    "Responda SOMENTE um objeto JSON válido, sem Markdown.",
+    'Formato: {"needsAction":boolean,"goal":"...","steps":[...],"stopReason":"..."}',
+    "Ações permitidas: open_app{name}, read_screen, click_text{text}, tap{x,y}, long_press{x,y}, swipe{x,y,x2,y2}, type_text{text}, scroll{direction:'up'|'down'}, back.",
+    "Planeje no máximo 8 etapas. Use os rótulos reais da tela; se não souber o próximo controle, use read_screen e pare para nova observação.",
+    "Não invente coordenadas: prefira click_text. Não invente nomes de apps nem destinatários.",
+    "Nunca execute o toque final de enviar/publicar/comprar/apagar/confirmar pagamento ou qualquer ação irreversível.",
+    "Se o usuário pedir para enviar mensagem, pode abrir o app, localizar a conversa e preencher o texto fornecido, mas pare antes do botão Enviar e explique que aguardará confirmação.",
+    "Se faltar destinatário, texto, aplicativo ou outra informação essencial, retorne needsAction=false e explique em stopReason.",
+    "Perguntas sobre como fazer algo não são comandos para executar: needsAction=false.",
+    "Não tente contornar login, autenticação, CAPTCHA, bloqueios ou permissões do Android.",
+    "Se a tela atual não for suficiente para determinar com segurança a próxima ação, retorne apenas etapas seguras ou needsAction=false.",
+  ].join("\n");
+
+  try {
+    const response = await fetch(`${readLocalEngineUrl()}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: "local-model",
+        messages: [
+          { role: "system", content: instructions },
+          { role: "user", content: `PEDIDO: ${request}\n\nTELA ATUAL:\n${screen || "(não disponível)"}` },
+        ],
+        temperature: 0.1,
+        top_p: 0.8,
+        max_tokens: 512,
+        stream: false,
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!response.ok) throw new Error(`Planejador local respondeu HTTP ${response.status}.`);
+    const payload = await response.json() as {
+      choices?: { message?: { content?: string } }[];
+      error?: { message?: string };
+    };
+    if (payload.error?.message) throw new Error(payload.error.message);
+    const content = payload.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) throw new Error("O planejador local não retornou um plano.");
+    const parsed = JSON.parse(content) as LocalAccessibilityPlan;
+    if (typeof parsed.needsAction !== "boolean" || !Array.isArray(parsed.steps) ||
+        parsed.steps.length > 8 || typeof parsed.goal !== "string") {
+      throw new Error("O planejador retornou uma estrutura inválida.");
+    }
+    return parsed;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(externalSignal?.aborted ? "Planejamento interrompido." : "O planejamento de ações expirou após 45 segundos.");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("Não consegui acessar o planejador local no Termux.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+    externalSignal?.removeEventListener("abort", relayAbort);
+  }
+}
