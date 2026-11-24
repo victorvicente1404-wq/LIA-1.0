@@ -46,7 +46,7 @@ import type {
 import { syncCustomApisToAccount } from "./custom-apis";
 import { DEFAULT_BOND, driftBond, evolveBond, rewardBond, TREATS } from "./rewards";
 import { applyFaceTags } from "./face-engine";
-import { nativeBatteryStatus, nativeScreenSummary } from "./native-device";
+import { nativeBatteryStatus, nativeReadScreen, nativeScreenSummary } from "./native-device";
 import { retrieveRelevantMemories } from "./memory-retrieval";
 import { findExactMemoryQuery, findMemoryByExactKey, parseMemoryWriteCommand, upsertMemory } from "./memory-commands";
 import * as link from "./sync/link";
@@ -523,6 +523,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         token.abort = () => actionController.abort();
         let content = "";
         try {
+          const initialNativeScreen = await nativeReadScreen();
           const initialScreen = await nativeScreenSummary(3500);
           const firstPlan = await localLlmPlanAccessibility(trimmed, initialScreen, actionController.signal);
           if (token.cancelled || actionController.signal.aborted) return;
@@ -538,6 +539,7 @@ export function LiaProvider({ children }: { children: ReactNode }) {
               { goal: firstPlan.goal, steps: firstPlan.steps },
               {
                 signal: actionController.signal,
+                initialScreen: initialNativeScreen,
                 onStep: (_index, step) => {
                   if (step.action === "type_text") typedMessage = true;
                   if (step.action !== "read_screen") completedGoals.push(currentGoal || step.action);
