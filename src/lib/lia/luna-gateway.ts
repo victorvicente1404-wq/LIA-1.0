@@ -59,21 +59,20 @@ export async function requestLunaReply(
       return { ok: false, reason: result.error };
     }
 
-    if (result.usage) {
-      settlePaidCall({
-        reservationId,
-        inputTokens: result.usage.inputTokens,
-        cachedInputTokens: result.usage.cachedInputTokens,
-        outputTokens: result.usage.outputTokens,
-      });
-    } else {
-      // Sem usage ou com erro de rede, contabiliza o teto reservado: melhor superestimar
-      // do que liberar saldo que talvez já tenha sido cobrado pelo provedor.
-      settleEstimatedPaidCall({
-        reservationId,
-        inputTokens: maxInputTokens,
-        outputTokens: maxOutputTokens,
-      });
+    const settled = result.usage
+      ? settlePaidCall({
+          reservationId,
+          inputTokens: result.usage.inputTokens,
+          cachedInputTokens: result.usage.cachedInputTokens,
+          outputTokens: result.usage.outputTokens,
+        })
+      : settleEstimatedPaidCall({
+          reservationId,
+          inputTokens: maxInputTokens,
+          outputTokens: maxOutputTokens,
+        });
+    if (!settled) {
+      return { ok: false, reason: "A chamada foi concluída, mas não consegui gravar o consumo local. Não faça novas chamadas remotas até conferir o painel de custos." };
     }
 
     if (!result.ok) return { ok: false, reason: result.error };
