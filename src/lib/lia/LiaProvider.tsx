@@ -17,6 +17,8 @@ import { buildSystemPrompt, extractMemories } from "./prompt";
 import { useConnections } from "./useConnections";
 import { connectorLabel } from "./connectors";
 import { localLlmReply, localLlmPlanAccessibility } from "./termux-llm";
+import { requestLunaReply } from "./luna-gateway";
+import { shouldUseLunaForMessage } from "./ai-router";
 import { runAccessibilityPlan } from "./accessibility-actions";
 import { whatsappCredsForChat } from "./whatsappService";
 import { readIot, writeIot } from "./iot";
@@ -702,19 +704,25 @@ export function LiaProvider({ children }: { children: ReactNode }) {
             reject(new Error("LIA_TIMEOUT"));
           }, CHAT_TIMEOUT_MS);
         });
-        const res = await Promise.race([
-          timeout,
-          localLlmReply(systemFinal, history, attachments, controller.signal, (chunk) => {
-            if (token.cancelled) return;
-            pendingStreamChunk += chunk;
-            if (streamFrame === null) {
-              streamFrame = requestAnimationFrame(() => {
-                streamFrame = null;
-                flushStream();
-              });
-            }
-          }),
-        ]);
+        const useLuna = shouldUseLunaForMessage(trimmed, Boolean(attachments?.length));
+        const generation = useLuna
+          ? requestLunaReply(systemFinal, history, { task: "chat" }).then((reply) => {
+              if (!reply.ok) throw new Error(reply.reason);
+              return { ok: true as const, text: reply.text, provider: "gpt-6-luna" as const };
+            })
+          : localLlmReply(systemFinal, history, attachments, controller.signal, (chunk) => {
+              if (token.cancelled) return;
+              pendingStreamChunk += chunk;
+              if (streamFrame === null) {
+                streamFrame = requestAnimationFrame(() => {
+                  streamFrame = null;
+                  flushStream();
+                });
+              }
+            });
+        // Luna usa resposta completa (sem streaming nesta etapa); o motor local mantém streaming.
+        // A requisição remota tem timeout próprio no servidor e pode terminar mesmo se a UI for parada.
+        const res = await Promise.race([timeout, generation]);
         clearTimeout(timer);
         if (streamFrame !== null) cancelAnimationFrame(streamFrame);
         streamFrame = null;
