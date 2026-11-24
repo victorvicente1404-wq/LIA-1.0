@@ -17,7 +17,7 @@ export function CostGuardSection() {
   const [reserve, setReserve] = useState(String(state.config.reserveBRL));
   const [annualBudget, setAnnualBudget] = useState(String(state.config.annualBudgetBRL));
   const [exchange, setExchange] = useState(String(state.config.usdToBrl));
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState("");\n  const [routingMode, setRoutingMode] = useState<AiRoutingMode>(() => readAiRoutingMode());
 
   const refresh = useCallback(() => {
     const latest = readCostGuard();
@@ -57,8 +57,34 @@ export function CostGuardSection() {
       <div>
         <h2 className="font-display text-base font-semibold">Custos e proteção</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Painel local de orçamento da Lia. As tarifas são estimativas configuráveis; o registro real começa quando o gateway pago for conectado.
+          Orçamento da Lia com pré-autorização local e limite adicional no servidor. O painel local é um espelho; a cobrança oficial continua no provedor.
         </p>
+      </div>
+
+      <div className="space-y-2 rounded-md border border-border bg-surface/60 p-3">
+        <div className="text-sm font-medium">Roteamento de IA</div>
+        <p className="text-xs text-muted-foreground">
+          O modo local é o padrão. No híbrido, pedidos complexos podem usar a Luna paga; conversas comuns, comandos do aparelho e anexos continuam no motor local.
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">{routingMode === "hybrid" ? "Híbrido · local + Luna" : "Somente local"}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {routingMode === "hybrid" ? "Pode gerar cobranças quando a tarefa for complexa." : "Nenhuma chamada paga será iniciada pelo chat."}
+            </p>
+          </div>
+          <Button size="sm" variant={routingMode === "hybrid" ? "default" : "secondary"} onClick={() => {
+            const next: AiRoutingMode = routingMode === "hybrid" ? "local" : "hybrid";
+            if (!writeAiRoutingMode(next)) {
+              setNotice("Não consegui salvar o modo de roteamento neste aparelho.");
+              return;
+            }
+            setRoutingMode(next);
+            setNotice(next === "hybrid" ? "Modo híbrido ativado. A Luna só será chamada para tarefas classificadas como complexas e após autorização de orçamento." : "Modo local ativado. O chat não iniciará novas chamadas pagas.");
+          }}>
+            {routingMode === "hybrid" ? "Desativar híbrido" : "Ativar híbrido"}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -72,7 +98,7 @@ export function CostGuardSection() {
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Reserva de segurança protegida contra uso rotineiro. O bloqueio será aplicado pelo gateway antes de cada chamada paga.
+          O app verifica o limite antes da chamada e o servidor mantém uma segunda reserva independente antes de acessar a OpenAI.
         </p>
         <Button className="mt-3 w-full" size="sm" variant={state.config.enabled ? "secondary" : "default"} onClick={toggle}>
           {state.config.enabled ? "Pausar chamadas pagas" : "Retomar chamadas pagas"}
