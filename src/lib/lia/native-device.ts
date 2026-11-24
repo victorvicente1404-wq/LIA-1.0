@@ -1,7 +1,7 @@
 /** Ponte para o plugin Android "LiaNative". Só funciona no APK. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const NATIVE_TIMEOUT_MS = 5_000;
+const NATIVE_TIMEOUT_MS = 8_000;
 
 function withTimeout<T>(p: Promise<T>, label: string): Promise<T> {
   return Promise.race([
