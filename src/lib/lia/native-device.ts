@@ -106,7 +106,7 @@ export async function nativeScreenSummary(max = 2500): Promise<string> {
 }
 
 export type NativeCmd = {
-  acao: "clicar_texto" | "tocar" | "pressionar" | "deslizar" | "digitar" | "rolar" | "voltar" |
+  acao: "abrir_app" | "clicar_texto" | "tocar" | "pressionar" | "deslizar" | "digitar" | "rolar" | "voltar" |
     "mostrar_bolha" | "esconder_bolha" | "iniciar_segundo_plano" | "parar_segundo_plano";
   texto?: string;
   direcao?: "cima" | "baixo";
@@ -118,6 +118,10 @@ export async function runNative(c: NativeCmd): Promise<string | null> {
   if (!p) throw new Error("Essa ação só funciona no app Android da Lia");
   try {
     switch (c.acao) {
+      case "abrir_app": {
+        const r = (await withTimeout(p.openApp({ name: c.texto ?? "" }), "abrir aplicativo")) as any;
+        return r?.ok ? null : `não encontrei o aplicativo "${c.texto ?? ""}"`;
+      }
       case "clicar_texto": {
         const r = (await withTimeout(p.clickText({ text: c.texto ?? "" }), "tocar no texto")) as any;
         return r?.ok ? null : `não achei "${c.texto}" na tela`;
