@@ -134,3 +134,13 @@ O Cost Guard ainda não está ligado a um provedor remoto de conversa. Nesta bra
 **Estado de ativação:** a integração do chat está no código, mas chamadas remotas ficam bloqueadas até que a migração do orçamento esteja aplicada e a chave esteja configurada. Isso é intencional: se a barreira server-side não existir, o Gateway falha fechado. Para ativar o caminho remoto, o usuário também precisa escolher Híbrido no painel Custos. O modo local continua sendo o padrão.
 
 **Limitações conhecidas:** a resposta Luna não faz streaming nesta etapa. Parar a interface depois que a chamada remota começou não cancela necessariamente o processamento no servidor; o endpoint limita a chamada a 45 segundos e mantém a reserva financeira quando não consegue reconciliar o uso. O painel local registra o usage retornado, mas não consulta diretamente o billing da OpenAI.
+
+### Ajuste de segurança — contagem exata antes da reserva
+
+- [x] O Gateway consulta `POST /v1/responses/input_tokens` com o mesmo modelo, instruções e mensagens que serão enviados à geração.
+- [x] A reserva usa a contagem retornada, preço cheio de input (sem presumir desconto de cache) e o máximo de output permitido.
+- [x] Se a contagem falhar ou ultrapassar 150 mil tokens, a chamada é bloqueada antes da geração paga.
+- [x] A contagem de tokens é documentada pela OpenAI como gratuita e não consome a cota normal de inferência.
+- [ ] Confirmar em teste controlado que `gpt-6-luna` é aceito pelo endpoint de contagem no projeto/conta usados.
+
+Isso substitui a estimativa anterior baseada em caracteres. A reserva continua usando as tarifas Standard configuradas no servidor; qualquer mudança de preço do modelo exige atualizar as constantes antes de reativar chamadas pagas.
