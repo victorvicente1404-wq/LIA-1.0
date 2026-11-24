@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { readAiRoutingMode, writeAiRoutingMode, type AiRoutingMode } from "@/lib/lia/ai-router";
 import {
   readCostGuard,
   summarizeCostGuard,
@@ -26,6 +27,7 @@ export function CostGuardSection() {
     setReserve(String(latest.config.reserveBRL));
     setAnnualBudget(String(latest.config.annualBudgetBRL));
     setExchange(String(latest.config.usdToBrl));
+    setRoutingMode(readAiRoutingMode());
     setNotice("");
   }, []);
 
