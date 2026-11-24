@@ -77,9 +77,9 @@ function isBatteryQuery(question: string): boolean {
 
 /** Detecta pedidos diretos de controle do aparelho; perguntas explicativas seguem para o chat normal. */
 function looksLikeAccessibilityCommand(question: string): boolean {
-  const normalized = question.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
-  if (/^(como|por que|porque|o que|qual|quais|quando|onde|sera que|da para|tem como)\\b/.test(normalized)) return false;
-  return /\\b(?:abra|abre|abrir|acessa|acesse|entre|entra|va para|vai para|volte|volta|clique|clica|toque|toca|digite|digita|escreva|escreve|procure|procura|pesquise|pesquisa|role|rola|deslize|desliza|mande|manda|envie|envia|enviar)\\b/.test(normalized);
+  const normalized = question.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  if (/^(como|por que|porque|o que|qual|quais|quando|onde|sera que|da para|tem como)\b/.test(normalized)) return false;
+  return /\b(?:abra|abre|abrir|acessa|acesse|entre|entra|va para|vai para|volte|volta|clique|clica|toque|toca|digite|digita|escreva|escreve|procure|procura|pesquise|pesquisa|role|rola|deslize|desliza|mande|manda|envie|envia|enviar)\b/.test(normalized);
 }
 
 interface LiaContextValue {
@@ -551,13 +551,13 @@ export function LiaProvider({ children }: { children: ReactNode }) {
                     .join(" | ")
                     .slice(0, 3500);
                   if (typedMessage &&
-                      /\\b(?:enviar|send)\\b/i.test(screenText) &&
-                      /\\b(?:mensagem|mensagens|mandar|enviar|envie|manda)\\b/i.test(trimmed)) {
+                      /\b(?:enviar|send)\b/i.test(screenText) &&
+                      /\b(?:mensagem|mensagens|mandar|enviar|envie|manda)\b/i.test(trimmed)) {
                     awaitingConfirmation = true;
                     return null;
                   }
                   const progress = completedGoals.length
-                    ? `\\nETAPAS JÁ CONCLUÍDAS: ${completedGoals.join("; ")}\\nContinue do estado atual, sem repetir etapas.`
+                    ? `\nETAPAS JÁ CONCLUÍDAS: ${completedGoals.join("; ")}\nContinue do estado atual, sem repetir etapas.`
                     : "";
                   const next = await localLlmPlanAccessibility(`${trimmed}${progress}`, screenText, actionController.signal);
                   if (!next.needsAction) return null;
