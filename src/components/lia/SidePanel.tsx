@@ -11,6 +11,7 @@ import {
   UserRound,
   Plus,
   X,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import {
 } from "@/lib/lia/notifications";
 import { NotificationsSection } from "./NotificationsSection";
 import { LocalEngineSettings } from "./LocalEngineSettings";
+import { CostGuardSection } from "./CostGuardSection";
 import {
   proactiveEnabled,
   readTopics,
@@ -52,7 +54,8 @@ type SectionId =
   | "conectores"
   | "config"
   | "privacidade"
-  | "card";
+  | "card"
+  | "custos";
 
 const sections: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "memoria", label: "Memória", icon: Brain },
@@ -63,6 +66,7 @@ const sections: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: "config", label: "Configurações", icon: Settings2 },
   { id: "privacidade", label: "Privacidade", icon: ShieldCheck },
   { id: "card", label: "Lia Card", icon: Cpu },
+  { id: "custos", label: "Custos", icon: Wallet },
 ];
 
 
@@ -95,12 +99,14 @@ export function SidePanel() {
           active !== "card" &&
           active !== "config" &&
           active !== "privacidade" &&
-          active !== "conectores" && <NoCard onGo={() => setActive("card")} />}
+          active !== "conectores" &&
+          active !== "custos" && <NoCard onGo={() => setActive("card")} />}
         {(lia.cardConnected ||
           active === "card" ||
           active === "config" ||
           active === "privacidade" ||
-          active === "conectores") && (
+          active === "conectores" ||
+          active === "custos") && (
           <>
             {active === "memoria" && <MemorySection />}
             {active === "perfil" && <ProfileSection />}
@@ -115,6 +121,7 @@ export function SidePanel() {
             {active === "config" && <SettingsSection />}
             {active === "privacidade" && <PrivacySection />}
             {active === "card" && <LiaCardPanel />}
+            {active === "custos" && <CostGuardSection />}
           </>
         )}
       </div>
