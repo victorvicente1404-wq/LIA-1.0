@@ -22,6 +22,11 @@ export function writeAiRoutingMode(mode: AiRoutingMode): boolean {
   }
 }
 
+export function isComplexLunaTask(message: string): boolean {
+  const normalized = message.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return isComplexLunaTask(message);
+}
+
 /** Attachments remain local until remote attachment privacy/vision routing is implemented. */
 export function shouldUseLunaForMessage(message: string, hasAttachments = false): boolean {
   if (readAiRoutingMode() !== "hybrid" || hasAttachments) return false;
