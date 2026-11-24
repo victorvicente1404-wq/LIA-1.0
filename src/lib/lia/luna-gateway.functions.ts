@@ -57,12 +57,38 @@ export const callLunaGateway = createServerFn({ method: "POST" })
       return { ok: false as const, requestStarted: false, usage: null, error: "OPENAI_API_KEY não configurada no servidor." };
     }
 
-    // Recalcula no servidor: o cliente não escolhe o custo da reserva.
-    // O fator 0,8 token/caractere é deliberadamente conservador.
-    const chars = data.system.length + data.messages.reduce((sum, item) => sum + item.content.length, 0);
-    const maxInputTokens = Math.min(150_000, Math.max(512, Math.ceil(chars * 0.8) + 512));
+    // Conta os tokens exatos do mesmo input que será enviado ao Responses API.
+    // Se a contagem falhar, bloqueia antes da chamada paga; não usa estimativa por caracteres.
+    let inputTokens: number;
+    try {
+      const countResponse = await fetch("https://api.openai.com/v1/responses/input_tokens", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({
+          model: "gpt-6-luna",
+          instructions: data.system,
+          input: data.messages,
+        }),
+      });
+      const countPayload = await countResponse.json().catch(() => null) as { input_tokens?: unknown } | null;
+      if (!countResponse.ok || typeof countPayload?.input_tokens !== "number" ||
+          !Number.isSafeInteger(countPayload.input_tokens) || countPayload.input_tokens < 0) {
+        return { ok: false as const, requestStarted: false, usage: null, error: "Não foi possível contar os tokens de entrada com segurança; nenhuma chamada paga foi iniciada." };
+      }
+      inputTokens = countPayload.input_tokens;
+    } catch {
+      return { ok: false as const, requestStarted: false, usage: null, error: "Falha ao contar os tokens antes da chamada; nenhuma chamada paga foi iniciada." };
+    }
+
+    // Limite interno de entrada para controlar custo mesmo com contexto maior do modelo.
+    if (inputTokens > 150_000) {
+      return { ok: false as const, requestStarted: false, usage: null, error: "A solicitação excede o limite interno de 150 mil tokens de entrada." };
+    }
+
     const maxOutputTokens = data.maxOutputTokens;
-    const maxCostUsd = ((maxInputTokens * 0.10) + (maxOutputTokens * 0.50)) / 1_000_000;
+    // Reserva todo o input pelo preço cheio; eventual cache só reduz o custo liquidado.
+    const maxCostUsd = ((inputTokens * 0.10) + (maxOutputTokens * 0.50)) / 1_000_000;
     const reservationId = crypto.randomUUID();
 
     const db = context.supabase as unknown as {
