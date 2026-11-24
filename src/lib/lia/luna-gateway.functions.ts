@@ -15,21 +15,23 @@ const Input = z.object({
   maxOutputTokens: z.number().int().min(64).max(1024).default(768),
 });
 
-type Usage = { inputTokens: number; cachedInputTokens: number; outputTokens: number };
+type Usage = { inputTokens: number; cachedInputTokens: number; cacheWriteInputTokens: number; outputTokens: number };
 
 function readUsage(value: unknown): Usage | null {
   if (!value || typeof value !== "object") return null;
   const usage = value as {
     input_tokens?: unknown;
     output_tokens?: unknown;
-    input_tokens_details?: { cached_tokens?: unknown };
+    input_tokens_details?: { cached_tokens?: unknown; cache_write_tokens?: unknown };
   };
   if (typeof usage.input_tokens !== "number" || typeof usage.output_tokens !== "number" ||
       !Number.isFinite(usage.input_tokens) || !Number.isFinite(usage.output_tokens)) return null;
   const cached = usage.input_tokens_details?.cached_tokens;
+  const cacheWrite = usage.input_tokens_details?.cache_write_tokens;
   return {
     inputTokens: Math.max(0, Math.floor(usage.input_tokens)),
     cachedInputTokens: typeof cached === "number" && Number.isFinite(cached) ? Math.max(0, Math.floor(cached)) : 0,
+    cacheWriteInputTokens: typeof cacheWrite === "number" && Number.isFinite(cacheWrite) ? Math.max(0, Math.floor(cacheWrite)) : 0,
     outputTokens: Math.max(0, Math.floor(usage.output_tokens)),
   };
 }
@@ -87,8 +89,8 @@ export const callLunaGateway = createServerFn({ method: "POST" })
     }
 
     const maxOutputTokens = data.maxOutputTokens;
-    // Reserva todo o input pelo preço cheio; eventual cache só reduz o custo liquidado.
-    const maxCostUsd = ((inputTokens * 0.10) + (maxOutputTokens * 0.50)) / 1_000_000;
+    // Reserva pelo maior preço possível de input (cache write), além do teto de output.
+    const maxCostUsd = ((inputTokens * 0.125) + (maxOutputTokens * 0.50)) / 1_000_000;
     const reservationId = crypto.randomUUID();
 
     const db = context.supabase as unknown as {
@@ -143,6 +145,7 @@ export const callLunaGateway = createServerFn({ method: "POST" })
       p_reservation_id: reservationId,
       p_input_tokens: usage.inputTokens,
       p_cached_input_tokens: usage.cachedInputTokens,
+      p_cache_write_tokens: usage.cacheWriteInputTokens,
       p_output_tokens: usage.outputTokens,
     });
     if (settled.error || settled.data !== true) {
