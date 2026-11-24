@@ -101,7 +101,7 @@ export function CostGuardSection() {
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          O app verifica o limite antes da chamada e o servidor mantém uma segunda reserva independente antes de acessar a OpenAI.
+          O app verifica o limite antes da chamada e o servidor mantém uma segunda reserva independente. O teto do servidor está fixo em R$13/mês para uso + R$2 de reserva e R$180/ano; limites locais menores também são respeitados, mas aumentar os valores aqui não aumenta o teto do servidor.
         </p>
         <Button className="mt-3 w-full" size="sm" variant={state.config.enabled ? "secondary" : "default"} onClick={toggle}>
           {state.config.enabled ? "Pausar chamadas pagas" : "Retomar chamadas pagas"}
