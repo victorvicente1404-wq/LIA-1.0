@@ -97,3 +97,19 @@ Bloqueia integralmente chamadas pagas e mantém apenas motor local e ferramentas
 ### Limitação importante desta entrega
 
 O Cost Guard ainda não está ligado a um provedor remoto de conversa. Nesta branch, o chat principal continua usando diretamente o llama-server local; portanto, não existem chamadas pagas do chat para contabilizar ou bloquear neste momento. O painel informa essa condição. A próxima fase deverá criar o Provider Gateway e obrigar toda chamada paga a passar por `authorizePaidCall` antes do envio, seguida de `settlePaidCall` com os tokens retornados pelo provedor. Não considerar o painel atual como um bloqueio de cobrança no provedor até essa integração e seus testes estarem concluídos.
+
+
+### Segunda entrega — Provider Gateway Luna (adaptador isolado)
+
+- [x] Criado endpoint server-side autenticado para GPT-6 Luna via Responses API.
+- [x] A chave é lida exclusivamente de `OPENAI_API_KEY` no servidor; não é recebida do navegador.
+- [x] Modelo fixo em `gpt-6-luna`, sem permitir ao cliente escolher modelos ou provedores.
+- [x] `store: false`, limite de saída de 64 a 1.024 tokens (padrão 768), timeout de 45 segundos e validação dos tamanhos de entrada.
+- [x] Adaptador cliente chama `authorizePaidCall` antes da rede, registra usage real e usa estimativa conservadora pelo teto reservado quando o provedor não retorna usage.
+- [x] Se a resposta puder ter sido enviada mas o estado do custo não puder ser reconciliado, a chamada é tratada como falha e a interface deve impedir novas chamadas até conferência.
+- [x] Testes unitários iniciais da estimativa conservadora de tokens.
+- [ ] Integração do adaptador ao fluxo de conversa ainda não ativada. O chat atual permanece local por padrão; não haverá fallback remoto silencioso.
+- [ ] Configurar `OPENAI_API_KEY` como segredo no ambiente de hospedagem antes de testar a conexão real.
+- [ ] O Cost Guard ainda usa LocalStorage no cliente. A autenticação protege o endpoint, mas isso ainda não equivale a um teto financeiro inviolável no servidor; a persistência/serialização server-side do orçamento deve vir antes de tratar o limite como hard cap.
+
+**Importante:** o Gateway foi adicionado como caminho explícito e isolado, mas ainda não está sendo chamado pelo chat. Isso evita começar a gastar automaticamente ou expor a chave enquanto o roteamento e o armazenamento confiável do orçamento não estiverem prontos.
