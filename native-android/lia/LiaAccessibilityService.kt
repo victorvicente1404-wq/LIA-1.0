@@ -79,13 +79,20 @@ class LiaAccessibilityService : AccessibilityService() {
         return out
     }
 
-    fun gesture(x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long): Boolean {
+    fun gesture(
+        x1: Float, y1: Float, x2: Float, y2: Float, durationMs: Long,
+        onComplete: (Boolean) -> Unit
+    ): Boolean {
         val path = Path().apply {
             moveTo(x1, y1)
             lineTo(x2, y2)
         }
         val stroke = GestureDescription.StrokeDescription(path, 0, durationMs.coerceIn(40, 5000))
-        return dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
+        val callback = object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) = onComplete(true)
+            override fun onCancelled(gestureDescription: GestureDescription?) = onComplete(false)
+        }
+        return dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), callback, null)
     }
 
     fun clickText(text: String): Boolean {
