@@ -517,56 +517,66 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Controle offline do Android: planeja uma etapa por vez e observa novamente a tela.
+      // Controle offline do Android: um único executor mantém o controle enquanto replaneja após cada tela.
       if (!attachments?.length && looksLikeAccessibilityCommand(trimmed)) {
         const actionController = new AbortController();
         token.abort = () => actionController.abort();
         let content = "";
         try {
-          let screen = await nativeScreenSummary(3500);
-          const completedGoals: string[] = [];
-          let typedMessage = false;
-          for (let iteration = 0; iteration < 8; iteration++) {
-            const progress = completedGoals.length
-              ? `\\nETAPAS JÁ CONCLUÍDAS: ${completedGoals.join("; ")}\\nContinue exatamente do estado atual, sem repetir etapas.`
-              : "";
-            const plan = await localLlmPlanAccessibility(`${trimmed}${progress}`, screen, actionController.signal);
-            if (token.cancelled || actionController.signal.aborted) return;
-            if (!plan.needsAction) {
-              if (completedGoals.length) content = `Concluí: ${completedGoals.join("; ")}.`;
-              break;
-            }
-            if (!plan.steps.length) {
-              content = plan.stopReason || "Preciso de mais informações para continuar com segurança.";
-              break;
-            }
-            const step = plan.steps[0];
+          const initialScreen = await nativeScreenSummary(3500);
+          const firstPlan = await localLlmPlanAccessibility(trimmed, initialScreen, actionController.signal);
+          if (token.cancelled || actionController.signal.aborted) return;
+          if (firstPlan.needsAction && !firstPlan.steps.length) {
+            content = firstPlan.stopReason || "Preciso de mais informações para continuar com segurança.";
+          } else if (firstPlan.needsAction && firstPlan.steps.length) {
+            const completedGoals: string[] = [];
+            let currentGoal = firstPlan.goal;
+            let typedMessage = false;
+            let awaitingConfirmation = false;
+            let planningStopReason = "";
             const result = await runAccessibilityPlan(
-              { goal: plan.goal, steps: [step] },
-              { signal: actionController.signal },
+              { goal: firstPlan.goal, steps: firstPlan.steps },
+              {
+                signal: actionController.signal,
+                onStep: (_index, step) => {
+                  if (step.action === "type_text") typedMessage = true;
+                  if (step.action !== "read_screen") completedGoals.push(currentGoal || step.action);
+                },
+                nextPlan: async (screen) => {
+                  const screenText = screen.tree
+                    .map((node) => node.text || node.description || "")
+                    .filter(Boolean)
+                    .join(" | ")
+                    .slice(0, 3500);
+                  if (typedMessage &&
+                      /\\b(?:enviar|send)\\b/i.test(screenText) &&
+                      /\\b(?:mensagem|mensagens|mandar|enviar|envie|manda)\\b/i.test(trimmed)) {
+                    awaitingConfirmation = true;
+                    return null;
+                  }
+                  const progress = completedGoals.length
+                    ? `\\nETAPAS JÁ CONCLUÍDAS: ${completedGoals.join("; ")}\\nContinue do estado atual, sem repetir etapas.`
+                    : "";
+                  const next = await localLlmPlanAccessibility(`${trimmed}${progress}`, screenText, actionController.signal);
+                  if (!next.needsAction) return null;
+                  if (!next.steps.length) {
+                    planningStopReason = next.stopReason || "Preciso de mais informações para continuar com segurança.";
+                    return null;
+                  }
+                  currentGoal = next.goal;
+                  return { goal: next.goal, steps: [next.steps[0]] };
+                },
+              },
             );
-            if (!result.ok) {
-              content = `Parei após ${completedGoals.length} etapa(s): ${result.message}`;
-              break;
+            if (awaitingConfirmation) {
+              content = "Deixei o texto preenchido e parei antes de enviar. Confira a conversa e o conteúdo; o envio final fica sob seu controle.";
+            } else if (!result.ok) {
+              content = `Parei após ${result.completed} etapa(s): ${result.message}`;
+            } else if (planningStopReason) {
+              content = `Concluí ${result.completed} etapa(s). ${planningStopReason}`;
+            } else if (completedGoals.length) {
+              content = `Concluí ${result.completed} etapa(s) da tarefa. Confira a tela para confirmar o resultado.`;
             }
-            if (step.action === "type_text") typedMessage = true;
-            if (step.action !== "read_screen") {
-              completedGoals.push(plan.goal || step.action);
-            }
-            screen = await nativeScreenSummary(3500);
-            if (token.cancelled || actionController.signal.aborted) return;
-
-            // Em tarefas de mensagem, interrompe assim que o campo de envio estiver preenchido.
-            if (typedMessage && /\\b(?:enviar|send|mensagem|message)\\b/i.test(screen) &&
-                /\\b(?:mensagem|mensagens|mandar|enviar|envie|manda)\\b/i.test(trimmed)) {
-              content = `Deixei o texto preenchido e parei antes de enviar. Confira a conversa e o conteúdo; o envio final fica sob seu controle.`;
-              break;
-            }
-          }
-          if (!content && completedGoals.length) {
-            content = `Concluí ${completedGoals.length} etapa(s) da tarefa. Confira a tela para confirmar o resultado.`;
-          } else if (!content) {
-            // O pedido não exigia uma ação executável; o chat normal responde abaixo.
           }
         } catch (error) {
           if (token.cancelled) return;
