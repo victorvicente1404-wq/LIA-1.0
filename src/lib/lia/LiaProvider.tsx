@@ -517,33 +517,56 @@ export function LiaProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Controle offline do Android: o Qwen planeja em JSON e um executor exclusivo valida cada etapa.
+      // Controle offline do Android: planeja uma etapa por vez e observa novamente a tela.
       if (!attachments?.length && looksLikeAccessibilityCommand(trimmed)) {
         const actionController = new AbortController();
         token.abort = () => actionController.abort();
         let content = "";
         try {
-          const screen = await nativeScreenSummary(3500);
-          const plan = await localLlmPlanAccessibility(trimmed, screen, actionController.signal);
-          if (token.cancelled || actionController.signal.aborted) return;
-          if (plan.needsAction && plan.steps.length) {
+          let screen = await nativeScreenSummary(3500);
+          const completedGoals: string[] = [];
+          let typedMessage = false;
+          for (let iteration = 0; iteration < 8; iteration++) {
+            const progress = completedGoals.length
+              ? `\\nETAPAS JÁ CONCLUÍDAS: ${completedGoals.join("; ")}\\nContinue exatamente do estado atual, sem repetir etapas.`
+              : "";
+            const plan = await localLlmPlanAccessibility(`${trimmed}${progress}`, screen, actionController.signal);
+            if (token.cancelled || actionController.signal.aborted) return;
+            if (!plan.needsAction) {
+              if (completedGoals.length) content = `Concluí: ${completedGoals.join("; ")}.`;
+              break;
+            }
+            if (!plan.steps.length) {
+              content = plan.stopReason || "Preciso de mais informações para continuar com segurança.";
+              break;
+            }
+            const step = plan.steps[0];
             const result = await runAccessibilityPlan(
-              { goal: plan.goal, steps: plan.steps },
+              { goal: plan.goal, steps: [step] },
               { signal: actionController.signal },
             );
-            if (result.ok) {
-              const stoppedForConfirmation = /mensagem|enviar|publicar|postar/i.test(trimmed);
-              content = stoppedForConfirmation
-                ? `Concluí ${result.completed} etapa(s) e deixei a ação preparada. Não toquei em Enviar/Publicar; confira o destinatário e o texto antes de confirmar.`
-                : `Concluí ${result.completed} etapa(s): ${plan.goal || "ação no Android"}.`;
-            } else {
-              content = `Executei ${result.completed} etapa(s), mas parei para evitar continuar às cegas: ${result.message}`;
+            if (!result.ok) {
+              content = `Parei após ${completedGoals.length} etapa(s): ${result.message}`;
+              break;
             }
-          } else if (plan.needsAction) {
-            content = plan.stopReason || "Entendi que você quer controlar o aparelho, mas não consegui montar um plano seguro.";
-          } else {
-            // Se não era uma ordem de ação, deixa o fluxo normal responder.
-            content = "";
+            if (step.action === "type_text") typedMessage = true;
+            if (step.action !== "read_screen") {
+              completedGoals.push(plan.goal || step.action);
+            }
+            screen = await nativeScreenSummary(3500);
+            if (token.cancelled || actionController.signal.aborted) return;
+
+            // Em tarefas de mensagem, interrompe assim que o campo de envio estiver preenchido.
+            if (typedMessage && /\\b(?:enviar|send|mensagem|message)\\b/i.test(screen) &&
+                /\\b(?:mensagem|mensagens|mandar|enviar|envie|manda)\\b/i.test(trimmed)) {
+              content = `Deixei o texto preenchido e parei antes de enviar. Confira a conversa e o conteúdo; o envio final fica sob seu controle.`;
+              break;
+            }
+          }
+          if (!content && completedGoals.length) {
+            content = `Concluí ${completedGoals.length} etapa(s) da tarefa. Confira a tela para confirmar o resultado.`;
+          } else if (!content) {
+            // O pedido não exigia uma ação executável; o chat normal responde abaixo.
           }
         } catch (error) {
           if (token.cancelled) return;
