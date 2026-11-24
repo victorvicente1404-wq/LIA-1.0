@@ -7,7 +7,6 @@ import {
   settlePaidCall,
   summarizeCostGuard,
   updateCostGuardConfig,
-  type CostGuardState,
 } from "./cost-guard";
 
 function memoryStorage() {
