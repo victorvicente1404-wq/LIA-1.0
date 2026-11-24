@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "android:sync": "cap sync android",
-    "android:open": "cap open android"
+    "android:open": "cap open android",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.31",
