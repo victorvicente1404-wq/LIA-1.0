@@ -42,6 +42,34 @@ class LiaNativePlugin : Plugin() {
         call.resolve()
     }
 
+    @PluginMethod fun openApp(call: PluginCall) {
+        val requested = call.getString("name")?.trim().orEmpty()
+        if (requested.isBlank()) {
+            call.reject("Informe o nome do aplicativo")
+            return
+        }
+        val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val candidates = packageManager.queryIntentActivities(launcher, 0)
+        val match = candidates.firstOrNull {
+            it.loadLabel(packageManager).toString().equals(requested, ignoreCase = true)
+        } ?: candidates.firstOrNull {
+            it.loadLabel(packageManager).toString().contains(requested, ignoreCase = true)
+        }
+        val packageName = match?.activityInfo?.packageName
+        val launch = packageName?.let { packageManager.getLaunchIntentForPackage(it) }
+        if (launch == null) {
+            call.reject("Não encontrei um aplicativo instalado chamado ${requested}")
+            return
+        }
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            context.startActivity(launch)
+            call.resolve(JSObject().put("ok", true).put("name", match.loadLabel(packageManager).toString()).put("package", packageName))
+        } catch (error: Exception) {
+            call.reject("Não consegui abrir ${requested}", error)
+        }
+    }
+
     @PluginMethod fun readScreen(call: PluginCall) {
         val service = acc(call) ?: return
         call.resolve(JSObject()
@@ -50,20 +78,26 @@ class LiaNativePlugin : Plugin() {
             .put("tree", service.readTree()))
     }
 
+    private fun dispatch(call: PluginCall, service: LiaAccessibilityService, x1: Float, y1: Float, x2: Float, y2: Float, duration: Long, label: String) {
+        val accepted = service.gesture(x1, y1, x2, y2, duration) { completed ->
+            if (completed) call.resolve()
+            else call.reject("O Android cancelou $label")
+        }
+        if (!accepted) call.reject("O Android recusou $label")
+    }
+
     @PluginMethod fun tap(call: PluginCall) {
         val service = acc(call) ?: return
         val x = call.getFloat("x", 0f) ?: 0f
         val y = call.getFloat("y", 0f) ?: 0f
-        if (service.gesture(x, y, x, y, 60)) call.resolve()
-        else call.reject("O Android recusou o toque")
+        dispatch(call, service, x, y, x, y, 60, "o toque")
     }
 
     @PluginMethod fun longPress(call: PluginCall) {
         val service = acc(call) ?: return
         val x = call.getFloat("x", 0f) ?: 0f
         val y = call.getFloat("y", 0f) ?: 0f
-        if (service.gesture(x, y, x, y, 800)) call.resolve()
-        else call.reject("O Android recusou o toque longo")
+        dispatch(call, service, x, y, x, y, 800, "o toque longo")
     }
 
     @PluginMethod fun swipe(call: PluginCall) {
@@ -72,8 +106,7 @@ class LiaNativePlugin : Plugin() {
         val y1 = call.getFloat("y1", 1500f) ?: 1500f
         val x2 = call.getFloat("x2", 500f) ?: 500f
         val y2 = call.getFloat("y2", 500f) ?: 500f
-        if (service.gesture(x1, y1, x2, y2, 300)) call.resolve()
-        else call.reject("O Android recusou o gesto")
+        dispatch(call, service, x1, y1, x2, y2, 300, "o gesto")
     }
 
     @PluginMethod fun clickText(call: PluginCall) {
