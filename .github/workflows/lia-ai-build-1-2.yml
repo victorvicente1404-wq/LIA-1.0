@@ -106,6 +106,12 @@ jobs:
 
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           content = manifest.read_text()
+          if "<queries>" not in content:
+              content = content.replace(
+                  "<application",
+                  "<queries><intent><action android:name=\\"android.intent.action.MAIN\\"/><category android:name=\\"android.intent.category.LAUNCHER\\"/></intent></queries>\\n    <application",
+                  1,
+              )
           permissions = [
               "android.permission.FOREGROUND_SERVICE",
               "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
