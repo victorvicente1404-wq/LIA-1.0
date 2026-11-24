@@ -18,7 +18,8 @@ export function CostGuardSection() {
   const [reserve, setReserve] = useState(String(state.config.reserveBRL));
   const [annualBudget, setAnnualBudget] = useState(String(state.config.annualBudgetBRL));
   const [exchange, setExchange] = useState(String(state.config.usdToBrl));
-  const [notice, setNotice] = useState("");\n  const [routingMode, setRoutingMode] = useState<AiRoutingMode>(() => readAiRoutingMode());
+  const [notice, setNotice] = useState("");
+  const [routingMode, setRoutingMode] = useState<AiRoutingMode>(() => readAiRoutingMode());
 
   const refresh = useCallback(() => {
     const latest = readCostGuard();
