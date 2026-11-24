@@ -46,7 +46,7 @@ export function CostGuardSection() {
   const toggle = () => {
     const next = updateCostGuardConfig({ enabled: !state.config.enabled });
     setState(next);
-    setNotice(next.config.enabled ? "Proteção de orçamento ativada." : "Proteção desativada. Chamadas pagas devem permanecer bloqueadas até o gateway aplicar esta configuração.");
+    setNotice(next.config.enabled ? "Chamadas pagas liberadas somente após autorização de orçamento." : "Chamadas pagas pausadas. O gateway deve bloquear todas as novas chamadas.");
   };
 
   return (
@@ -65,14 +65,14 @@ export function CostGuardSection() {
             Proteção de orçamento
           </div>
           <span className={state.config.enabled ? "text-xs text-primary" : "text-xs text-destructive"}>
-            {state.config.enabled ? "Ativa" : "Desativada"}
+            {state.config.enabled ? "Ativa · chamadas sob controle" : "Pausada · chamadas pagas bloqueadas"}
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Reserva de segurança protegida contra uso rotineiro. O bloqueio será aplicado pelo gateway antes de cada chamada paga.
         </p>
         <Button className="mt-3 w-full" size="sm" variant={state.config.enabled ? "secondary" : "default"} onClick={toggle}>
-          {state.config.enabled ? "Desativar proteção" : "Ativar proteção"}
+          {state.config.enabled ? "Pausar chamadas pagas" : "Retomar chamadas pagas"}
         </Button>
       </div>
 
