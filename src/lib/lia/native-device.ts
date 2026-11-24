@@ -134,7 +134,12 @@ export async function nativeScreenSummary(max = 2500): Promise<string> {
       });
     return `App em primeiro plano: ${screen.app || "?"}\nElementos visíveis: ${texts.join(" | ").slice(0, max)}`;
   } catch (error) {
-    return `Não consegui ler a tela: ${error instanceof Error ? error.message : "permissão de acessibilidade indisponível"}.`;
+    const status = await nativeAccessibilityStatus().catch(() => null);
+    if (!status) return "A ponte nativa não está disponível neste APK.";
+    if (!status.enabled) return "A acessibilidade da Lia está desativada. Ative o serviço nas Configurações do Android.";
+    if (!status.connected) return "A acessibilidade está habilitada, mas o serviço da Lia não conectou. Desative e reative o serviço; se necessário, reabra o aplicativo.";
+    if (!status.rootAvailable) return "O serviço conectou, mas o Android não entregou uma janela ativa. Abra o aplicativo que deseja ler e tente novamente.";
+    return `Não consegui ler a tela: ${error instanceof Error ? error.message : "falha desconhecida"}.`;
   }
 }
 
