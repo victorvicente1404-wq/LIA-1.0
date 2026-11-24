@@ -225,7 +225,7 @@ export async function localLlmPlanAccessibility(
     "Responda SOMENTE um objeto JSON válido, sem Markdown.",
     'Formato: {"needsAction":boolean,"goal":"...","steps":[...],"stopReason":"..."}',
     "Ações permitidas: open_app{name}, read_screen, click_text{text}, tap{x,y}, long_press{x,y}, swipe{x,y,x2,y2}, type_text{text}, scroll{direction:'up'|'down'}, back.",
-    "Planeje no máximo 8 etapas. Use os rótulos reais da tela; se não souber o próximo controle, use read_screen e pare para nova observação.",
+    "Retorne somente a próxima etapa, no máximo 1 por resposta. A tela será lida novamente após cada etapa. Use rótulos reais e não tente adivinhar o próximo controle.",
     "Não invente coordenadas: prefira click_text. Não invente nomes de apps nem destinatários.",
     "Nunca execute o toque final de enviar/publicar/comprar/apagar/confirmar pagamento ou qualquer ação irreversível.",
     "Se o usuário pedir para enviar mensagem, pode abrir o app, localizar a conversa e preencher o texto fornecido, mas pare antes do botão Enviar e explique que aguardará confirmação.",
@@ -264,7 +264,7 @@ export async function localLlmPlanAccessibility(
     if (typeof content !== "string" || !content.trim()) throw new Error("O planejador local não retornou um plano.");
     const parsed = JSON.parse(content) as LocalAccessibilityPlan;
     if (typeof parsed.needsAction !== "boolean" || !Array.isArray(parsed.steps) ||
-        parsed.steps.length > 8 || typeof parsed.goal !== "string") {
+        parsed.steps.length > 1 || typeof parsed.goal !== "string") {
       throw new Error("O planejador retornou uma estrutura inválida.");
     }
     return parsed;
