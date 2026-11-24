@@ -138,7 +138,7 @@ O Cost Guard ainda não está ligado a um provedor remoto de conversa. Nesta bra
 ### Ajuste de segurança — contagem exata antes da reserva
 
 - [x] O Gateway consulta `POST /v1/responses/input_tokens` com o mesmo modelo, instruções e mensagens que serão enviados à geração.
-- [x] A reserva usa a contagem retornada, preço cheio de input (sem presumir desconto de cache) e o máximo de output permitido.
+- [x] A reserva usa a contagem retornada, o maior preço possível de input (cache write) e o máximo de output permitido.
 - [x] Se a contagem falhar ou ultrapassar 150 mil tokens, a chamada é bloqueada antes da geração paga.
 - [x] A contagem de tokens é documentada pela OpenAI como gratuita e não consome a cota normal de inferência.
 - [ ] Confirmar em teste controlado que `gpt-6-luna` é aceito pelo endpoint de contagem no projeto/conta usados.
