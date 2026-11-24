@@ -30,6 +30,7 @@ class LiaAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        connectedAt = 0L
         super.onDestroy()
     }
 
