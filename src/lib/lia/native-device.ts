@@ -69,8 +69,36 @@ export type NativeScreenNode = {
 export type NativeScreen = {
   app: string;
   lastEventAt: number;
+  connectedAt?: number;
+  rootAvailable?: boolean;
+  treeCount?: number;
   tree: NativeScreenNode[];
 };
+
+export type NativeAccessibilityStatus = {
+  enabled: boolean;
+  connected: boolean;
+  rootAvailable: boolean;
+  treeCount: number;
+  foreground: string;
+  lastEventAt: number;
+  connectedAt: number;
+};
+
+export async function nativeAccessibilityStatus(): Promise<NativeAccessibilityStatus | null> {
+  const p = await getPlugin();
+  if (!p) return null;
+  const result = (await withTimeout(p.accessibilityStatus(), "diagnosticar acessibilidade")) as Partial<NativeAccessibilityStatus>;
+  return {
+    enabled: result.enabled === true,
+    connected: result.connected === true,
+    rootAvailable: result.rootAvailable === true,
+    treeCount: Number(result.treeCount) || 0,
+    foreground: typeof result.foreground === "string" ? result.foreground : "",
+    lastEventAt: Number(result.lastEventAt) || 0,
+    connectedAt: Number(result.connectedAt) || 0,
+  };
+}
 
 export async function nativeReadScreen(): Promise<NativeScreen | null> {
   const p = await getPlugin();
@@ -79,6 +107,9 @@ export async function nativeReadScreen(): Promise<NativeScreen | null> {
   return {
     app: typeof result?.app === "string" ? result.app : "",
     lastEventAt: Number(result?.lastEventAt) || 0,
+    connectedAt: Number(result?.connectedAt) || 0,
+    rootAvailable: result?.rootAvailable === true,
+    treeCount: Number(result?.treeCount) || (Array.isArray(result?.tree) ? result.tree.length : 0),
     tree: Array.isArray(result?.tree) ? result.tree : [],
   };
 }
@@ -86,7 +117,9 @@ export async function nativeReadScreen(): Promise<NativeScreen | null> {
 export async function nativeScreenSummary(max = 2500): Promise<string> {
   try {
     const screen = await nativeReadScreen();
-    if (!screen) return "";
+    if (!screen) return "A ponte nativa da Lia não está disponível neste APK.";
+    if (screen.rootAvailable === false) return "O serviço de acessibilidade está conectado, mas o Android não disponibilizou uma janela ativa para leitura.";
+    if (!screen.tree.length) return "A janela está disponível, mas não expôs elementos legíveis à acessibilidade. Pode ser uma tela gráfica ou um aplicativo que bloqueia a árvore de acessibilidade.";
     const texts = screen.tree
       .filter((node) => node.text || node.description || node.clickable || node.editable)
       .map((node) => {
