@@ -113,3 +113,24 @@ O Cost Guard ainda não está ligado a um provedor remoto de conversa. Nesta bra
 - [ ] O Cost Guard ainda usa LocalStorage no cliente. A autenticação protege o endpoint, mas isso ainda não equivale a um teto financeiro inviolável no servidor; a persistência/serialização server-side do orçamento deve vir antes de tratar o limite como hard cap.
 
 **Importante:** o Gateway foi adicionado como caminho explícito e isolado, mas ainda não está sendo chamado pelo chat. Isso evita começar a gastar automaticamente ou expor a chave enquanto o roteamento e o armazenamento confiável do orçamento não estiverem prontos.
+
+
+### Terceira entrega — roteamento do chat e orçamento autoritativo
+
+- [x] O chat principal consulta uma política de roteamento local-first.
+- [x] O modo padrão permanece **Somente local**; o modo **Híbrido** precisa ser ativado explicitamente em Custos.
+- [x] No modo híbrido, pedidos técnicos/complexos e pedidos explícitos para usar a Luna podem seguir para GPT-6 Luna. Mensagens comuns seguem no llama.cpp.
+- [x] Anexos permanecem no motor local nesta etapa; não são enviados à OpenAI.
+- [x] O caminho local mantém streaming. Luna retorna resposta completa nesta primeira integração.
+- [x] Falhas do Gateway não fazem fallback silencioso para outro provedor.
+- [x] Criada migração Supabase com reservas por usuário e RPCs atômicas de pré-autorização/reconciliação no servidor.
+- [x] O teto servidor é fixo e conservador: R$13/mês de uso + R$2 preservados, R$180/ano, câmbio de referência R$5,94/USD. O orçamento local pode reduzir o limite, mas não aumentar o teto servidor.
+- [x] O servidor recalcula a reserva com estimativa conservadora, não confia no custo informado pelo cliente, e exige a reserva antes de chamar a OpenAI.
+- [ ] Aplicar/deployar a migração `20261124120000_lia_ai_server_budget.sql` no projeto Supabase conectado.
+- [ ] Configurar `OPENAI_API_KEY` como segredo no ambiente de hospedagem.
+- [ ] Executar testes, typecheck e build no ambiente do projeto.
+- [ ] Validar uma chamada real com orçamento baixo e conferir o lançamento no painel local e no billing oficial da OpenAI.
+
+**Estado de ativação:** a integração do chat está no código, mas chamadas remotas ficam bloqueadas até que a migração do orçamento esteja aplicada e a chave esteja configurada. Isso é intencional: se a barreira server-side não existir, o Gateway falha fechado. Para ativar o caminho remoto, o usuário também precisa escolher Híbrido no painel Custos. O modo local continua sendo o padrão.
+
+**Limitações conhecidas:** a resposta Luna não faz streaming nesta etapa. Parar a interface depois que a chamada remota começou não cancela necessariamente o processamento no servidor; o endpoint limita a chamada a 45 segundos e mantém a reserva financeira quando não consegue reconciliar o uso. O painel local registra o usage retornado, mas não consulta diretamente o billing da OpenAI.
