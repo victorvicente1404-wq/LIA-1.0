@@ -49,11 +49,11 @@ class LiaNativePlugin : Plugin() {
             return
         }
         val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val candidates = packageManager.queryIntentActivities(launcher, 0)
+        val candidates = context.packageManager.queryIntentActivities(launcher, 0)
         val match = candidates.firstOrNull {
-            it.loadLabel(packageManager).toString().equals(requested, ignoreCase = true)
+            it.loadLabel(context.packageManager).toString().equals(requested, ignoreCase = true)
         } ?: candidates.firstOrNull {
-            it.loadLabel(packageManager).toString().contains(requested, ignoreCase = true)
+            it.loadLabel(context.packageManager).toString().contains(requested, ignoreCase = true)
         }
         val selected = match
         if (selected == null) {
@@ -61,7 +61,7 @@ class LiaNativePlugin : Plugin() {
             return
         }
         val packageName = selected.activityInfo.packageName
-        val launch = packageManager.getLaunchIntentForPackage(packageName)
+        val launch = context.packageManager.getLaunchIntentForPackage(packageName)
         if (launch == null) {
             call.reject("O aplicativo ${requested} não possui uma tela de inicialização disponível")
             return
@@ -70,7 +70,7 @@ class LiaNativePlugin : Plugin() {
         try {
             context.startActivity(launch)
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                call.resolve(JSObject().put("ok", true).put("name", selected.loadLabel(packageManager).toString()).put("package", packageName))
+                call.resolve(JSObject().put("ok", true).put("name", selected.loadLabel(context.packageManager).toString()).put("package", packageName))
             }, 650)
         } catch (error: Exception) {
             call.reject("Não consegui abrir ${requested}", error)
