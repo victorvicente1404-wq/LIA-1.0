@@ -75,7 +75,7 @@ export async function runAccessibilityPlan(
             break;
           case "click_text":
             if (!validText(step.text, 1, 160)) return { ok: false, completed, message: "Texto de controle inválido.", screen };
-            if (/\\b(enviar|send|publicar|postar|comprar|pagar|confirmar|excluir|apagar|remover|finalizar)\\b/i.test(step.text.trim())) {
+            if (/\b(enviar|send|publicar|postar|comprar|pagar|confirmar|excluir|apagar|remover|finalizar)\b/i.test(step.text.trim())) {
               return { ok: false, completed, message: "Parei antes de uma ação final que exige sua confirmação.", screen };
             }
             command = { acao: "clicar_texto", texto: step.text };
