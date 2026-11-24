@@ -81,3 +81,19 @@ Bloqueia integralmente chamadas pagas e mantém apenas motor local e ferramentas
 - Tarefas Android simples não acionam o modelo remoto.
 - Não existe fallback infinito nem troca silenciosa para uma opção mais cara.
 - A atualização preserva applicationId, dados locais e chave de assinatura permanente já estabelecida.
+
+
+## Andamento registrado
+
+### Primeira entrega — Cost Guard local
+
+- [x] Núcleo local de orçamento, estimativa de tarifas, reservas pré-chamada, liquidação por usage e liberação em caso de falha.
+- [x] Limites iniciais de R$ 15/mês, R$ 180/ano e reserva de R$ 2/mês.
+- [x] Tarifas de referência configuradas para Standard, Flex e Batch, com câmbio editável.
+- [x] Painel de custos disponível na seção lateral, sem exigir Lia Card conectado.
+- [x] Testes unitários criados para estimativa, cache, reserva, bloqueio, liquidação e liberação.
+- [x] Script `npm test` adicionado para executar Vitest.
+
+### Limitação importante desta entrega
+
+O Cost Guard ainda não está ligado a um provedor remoto de conversa. Nesta branch, o chat principal continua usando diretamente o llama-server local; portanto, não existem chamadas pagas do chat para contabilizar ou bloquear neste momento. O painel informa essa condição. A próxima fase deverá criar o Provider Gateway e obrigar toda chamada paga a passar por `authorizePaidCall` antes do envio, seguida de `settlePaidCall` com os tokens retornados pelo provedor. Não considerar o painel atual como um bloqueio de cobrança no provedor até essa integração e seus testes estarem concluídos.
